@@ -1,0 +1,51 @@
+# NOTE : namespace et conventions de nommage definitives a confirmer
+# avec la DSI (voir CLAUDE.md section 14).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dottel-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dottel-backend
+  template:
+    metadata:
+      labels:
+        app: dottel-backend
+    spec:
+      containers:
+        - name: dottel-backend
+          # Placeholder Harbor - a remplacer par le tag d'image reel
+          # au moment du deploiement.
+          image: harbor.afrilandfirstbank.cm/baobab/dottel-backend:latest
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: dottel-config
+            - secretRef:
+                name: dottel-secret
+          livenessProbe:
+            httpGet:
+              path: /api/actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /api/actuator/health
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"

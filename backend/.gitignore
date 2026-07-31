@@ -1,0 +1,11 @@
+target/
+*.class
+HELP.md
+.mvn/
+
+# PDF genere en local par DocumentService (dottel.documents.chemin-stockage)
+documents/
+
+### Spring Boot DevTools ###
+.spring-boot-devtools.properties
+spring-boot-*.log

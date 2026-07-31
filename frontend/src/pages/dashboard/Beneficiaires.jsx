@@ -1,0 +1,268 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Download } from 'lucide-react';
+import apiClient from '../../api/apiClient';
+import { PageHeader } from '../../components/layout/PageHeader';
+import { DataTable } from '../../components/ui/DataTable';
+import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
+import { Label } from '../../components/ui/Label';
+import { Input } from '../../components/ui/Input';
+import { Select } from '../../components/ui/Select';
+import { formatMontantFCFA } from '../../utils/formatters';
+import { ModifierBeneficiaireModal } from './ModifierBeneficiaireModal';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { Alert, AlertDescription } from '../../components/ui/Alert';
+
+const TAILLE_PAGE = 20;
+
+function colonnes(libellesFonctions) {
+  return [
+    { cle: 'matricule', entete: 'Matricule' },
+    { cle: 'nomPrenoms', entete: 'Nom' },
+    {
+      cle: 'fonction',
+      entete: 'Fonction',
+      rendu: (beneficiaire) => libellesFonctions[beneficiaire.fonction] ?? beneficiaire.fonction,
+    },
+    {
+      cle: 'montantCourant',
+      entete: 'Montant courant',
+      rendu: (beneficiaire) => formatMontantFCFA(beneficiaire.montantCourant),
+    },
+    { cle: 'uniteRattachement', entete: 'Unité' },
+    {
+      cle: 'actif',
+      entete: 'Statut',
+      rendu: (beneficiaire) => (
+        <Badge variant={beneficiaire.actif ? 'success' : 'neutral'}>
+          {beneficiaire.actif ? 'Actif' : 'Inactif'}
+        </Badge>
+      ),
+    },
+  ];
+}
+
+export default function Beneficiaires() {
+  const [fonction, setFonction] = useState('');
+  const [uniteSaisie, setUniteSaisie] = useState('');
+  const [unite, setUnite] = useState('');
+  const [actif, setActif] = useState('');
+  const [page, setPage] = useState(0);
+
+  const [donnees, setDonnees] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [chargement, setChargement] = useState(true);
+  const [rafraichissement, setRafraichissement] = useState(0);
+  const [beneficiaireAModifier, setBeneficiaireAModifier] = useState(null);
+  const [beneficiaireADesactiver, setBeneficiaireADesactiver] = useState(null);
+  const [exportEnCours, setExportEnCours] = useState(false);
+  const [fonctionsEligibles, setFonctionsEligibles] = useState([]);
+  const [reactivationEnCours, setReactivationEnCours] = useState(null);
+  const [erreurReactivation, setErreurReactivation] = useState(null);
+
+  useEffect(() => {
+    apiClient.get('/fonctions-eligibles').then(({ data }) => setFonctionsEligibles(data));
+  }, []);
+
+  const libellesFonctions = useMemo(
+    () => Object.fromEntries(fonctionsEligibles.map((f) => [f.code, f.libelle])),
+    [fonctionsEligibles]
+  );
+
+  // Debounce 300ms sur la saisie libre "unite" avant de declencher la requete.
+  useEffect(() => {
+    const minuteur = setTimeout(() => setUnite(uniteSaisie), 300);
+    return () => clearTimeout(minuteur);
+  }, [uniteSaisie]);
+
+  useEffect(() => setPage(0), [fonction, unite, actif]);
+
+  useEffect(() => {
+    let annule = false;
+    setChargement(true);
+    apiClient
+      .get('/beneficiaires', {
+        params: {
+          fonction: fonction || undefined,
+          uniteRattachement: unite || undefined,
+          actif: actif === '' ? undefined : actif === 'true',
+          page,
+          taille: TAILLE_PAGE,
+        },
+      })
+      .then(({ data }) => {
+        if (annule) return;
+        setDonnees(data.contenu);
+        setTotal(data.total);
+      })
+      .finally(() => {
+        if (!annule) setChargement(false);
+      });
+    return () => {
+      annule = true;
+    };
+  }, [fonction, unite, actif, page, rafraichissement]);
+
+  const desactiver = async () => {
+    await apiClient.delete(`/beneficiaires/${beneficiaireADesactiver.id}`);
+    setBeneficiaireADesactiver(null);
+    setRafraichissement((n) => n + 1);
+  };
+
+  const reactiver = async (beneficiaire) => {
+    setErreurReactivation(null);
+    setReactivationEnCours(beneficiaire.id);
+    try {
+      const { data } = await apiClient.patch(`/beneficiaires/${beneficiaire.id}/reactiver`);
+      setDonnees((precedent) => precedent.map((b) => (b.id === data.id ? data : b)));
+    } catch (err) {
+      if (err.response?.status === 403) {
+        setErreurReactivation(
+          err.response?.data?.erreur ??
+            "Ce bénéficiaire n'est plus éligible à la dotation téléphonique, réactivation impossible."
+        );
+      } else {
+        setErreurReactivation('Une erreur est survenue lors de la réactivation. Veuillez réessayer.');
+      }
+    } finally {
+      setReactivationEnCours(null);
+    }
+  };
+
+  const exporter = async () => {
+    setExportEnCours(true);
+    try {
+      const reponse = await apiClient.get('/beneficiaires/export', { responseType: 'blob' });
+
+      const entete = reponse.headers['content-disposition'];
+      const correspondance = entete?.match(/filename="?([^"]+)"?/);
+      const nomFichier = correspondance?.[1] ?? 'beneficiaires-actifs.xlsx';
+
+      const url = window.URL.createObjectURL(new Blob([reponse.data]));
+      const lien = document.createElement('a');
+      lien.href = url;
+      lien.download = nomFichier;
+      document.body.appendChild(lien);
+      lien.click();
+      lien.remove();
+      window.URL.revokeObjectURL(url);
+    } finally {
+      setExportEnCours(false);
+    }
+  };
+
+  const pagination = useMemo(
+    () => ({ page, taille: TAILLE_PAGE, total, onChangerPage: setPage }),
+    [page, total]
+  );
+
+  return (
+    <>
+      <PageHeader surTitre="ARH" titre="Bénéficiaires" />
+      <div className="flex flex-col gap-6 p-8">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex w-56 flex-col gap-1.5">
+              <Label htmlFor="filtre-fonction">Fonction</Label>
+              <Select id="filtre-fonction" value={fonction} onChange={(e) => setFonction(e.target.value)}>
+                <option value="">Toutes</option>
+                {fonctionsEligibles.map((f) => (
+                  <option key={f.code} value={f.code}>
+                    {f.libelle}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="flex w-56 flex-col gap-1.5">
+              <Label htmlFor="filtre-unite">Unité de rattachement</Label>
+              <Input
+                id="filtre-unite"
+                placeholder="Ex. Douala Bonanjo"
+                value={uniteSaisie}
+                onChange={(e) => setUniteSaisie(e.target.value)}
+              />
+            </div>
+
+            <div className="flex w-40 flex-col gap-1.5">
+              <Label htmlFor="filtre-actif">Statut</Label>
+              <Select id="filtre-actif" value={actif} onChange={(e) => setActif(e.target.value)}>
+                <option value="">Tous</option>
+                <option value="true">Actif</option>
+                <option value="false">Inactif</option>
+              </Select>
+            </div>
+          </div>
+
+          <Button variant="outline" onClick={exporter} disabled={exportEnCours}>
+            <Download className="h-4 w-4" />
+            {exportEnCours ? 'Export en cours…' : 'Exporter (Excel)'}
+          </Button>
+        </div>
+
+        {erreurReactivation && (
+          <Alert variant="destructive">
+            <AlertDescription>{erreurReactivation}</AlertDescription>
+          </Alert>
+        )}
+
+        <DataTable
+          colonnes={colonnes(libellesFonctions)}
+          donnees={donnees}
+          cleLigne={(beneficiaire) => beneficiaire.id}
+          chargement={chargement}
+          pagination={pagination}
+          actions={(beneficiaire) => (
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setBeneficiaireAModifier(beneficiaire)}>
+                Modifier
+              </Button>
+              {beneficiaire.actif ? (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setBeneficiaireADesactiver(beneficiaire)}
+                >
+                  Désactiver
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={reactivationEnCours === beneficiaire.id}
+                  onClick={() => reactiver(beneficiaire)}
+                >
+                  {reactivationEnCours === beneficiaire.id ? 'Réactivation…' : 'Réactiver'}
+                </Button>
+              )}
+            </div>
+          )}
+        />
+      </div>
+
+      {beneficiaireAModifier && (
+        <ModifierBeneficiaireModal
+          beneficiaire={beneficiaireAModifier}
+          fonctionsEligibles={fonctionsEligibles}
+          onFerme={() => setBeneficiaireAModifier(null)}
+          onSucces={(beneficiaireModifie) => {
+            setDonnees((precedent) =>
+              precedent.map((b) => (b.id === beneficiaireModifie.id ? beneficiaireModifie : b))
+            );
+            setBeneficiaireAModifier(null);
+          }}
+        />
+      )}
+
+      {beneficiaireADesactiver && (
+        <ConfirmDialog
+          titre="Désactiver ce bénéficiaire"
+          message={`Confirmez-vous la désactivation de ${beneficiaireADesactiver.nomPrenoms} (${beneficiaireADesactiver.matricule}) ? Il ne sera plus inclus dans les prochains états mensuels.`}
+          libelleConfirmer="Désactiver"
+          onConfirmer={desactiver}
+          onAnnuler={() => setBeneficiaireADesactiver(null)}
+        />
+      )}
+    </>
+  );
+}

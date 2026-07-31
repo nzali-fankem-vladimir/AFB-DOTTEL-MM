@@ -1,0 +1,72 @@
+spring:
+  application:
+    name: dottel
+  profiles:
+    active: dev
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.afriland.dottel: INFO
+
+app:
+  cors:
+    # Origine du frontend reel, injectee par variable d'environnement
+    # (ConfigMap Kubernetes en production, cf. CLAUDE.md section 14).
+    # Jamais de wildcard * : CorsConfig active allowCredentials(true),
+    # que Spring refuse de combiner avec une origine generique.
+    allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000}
+
+dottel:
+  security:
+    # Aucune valeur de repli : le secret vient exclusivement de
+    # l'environnement (Secret Kubernetes en production, variable de shell
+    # en developpement), conformement a CLAUDE.md sections 17.6 et 18.10.
+    # Un demarrage sans DOTTEL_JWT_SECRET echoue volontairement plutot que
+    # de retomber sur une valeur connue et committee.
+    jwt-secret: ${DOTTEL_JWT_SECRET}
+  kafka:
+    # Topic de publication de l'evenement de cloture (Sprint 5.3). DOTTEL est
+    # producer uniquement, la comptabilite (hors perimetre DOTTEL) l'ecoute.
+    topic-cloture: dottel.processus.cloture
+  documents:
+    # Chemin de stockage local du PDF genere. Limitation temporaire : un
+    # stockage local au pod ne survit pas a un redemarrage Kubernetes. En
+    # attente d'une solution de stockage persistante (volume K8s ou object
+    # storage) a fournir par la DSI - voir CLAUDE.md section 14.
+    chemin-stockage: ${DOTTEL_DOCUMENTS_CHEMIN_STOCKAGE:./documents/}
+    # Valeur de repli pour beneficiaires.chapitre quand la donnee EHR est
+    # absente (beneficiaires enroles avant le Sprint 3.4). Filet de securite
+    # temporaire en attendant une donnee EHR fiable pour tous les beneficiaires.
+    chapitre-defaut: ${DOTTEL_DOCUMENTS_CHAPITRE_DEFAUT:37210100}

@@ -1,0 +1,14 @@
+# NOTE : namespace et conventions de nommage definitives a confirmer
+# avec la DSI (voir CLAUDE.md section 14).
+apiVersion: v1
+kind: Service
+metadata:
+  name: dottel-backend-svc
+spec:
+  type: ClusterIP
+  selector:
+    app: dottel-backend
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP

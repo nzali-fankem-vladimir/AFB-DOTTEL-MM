@@ -1,0 +1,35 @@
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environnement
+.env
+.env.local
+.env.*.local
+
+# Build
+dist/
+build/
+target/
+
+# Node
+node_modules/
+.npm/
+
+# Fichiers temporaires
+*.tmp
+*.swp
+
+
+#autres
+sprint actuel.md
+FORMAT DOT TEL.xlsx

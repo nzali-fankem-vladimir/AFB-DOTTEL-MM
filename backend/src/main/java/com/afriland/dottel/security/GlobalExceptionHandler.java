@@ -1,0 +1,406 @@
+package com.afriland.dottel.security;
+
+import com.afriland.dottel.exception.ActionAdminNonAutoriseeException;
+import com.afriland.dottel.exception.BeneficiaireIntrouvableException;
+import com.afriland.dottel.exception.DecisionGrilleInvalideException;
+import com.afriland.dottel.exception.EmailUtilisateurDejaUtiliseException;
+import com.afriland.dottel.exception.FichierImportInvalideException;
+import com.afriland.dottel.exception.DateDebutGrilleAnterieureException;
+import com.afriland.dottel.exception.FonctionEligibleBeneficiairesActifsException;
+import com.afriland.dottel.exception.FonctionEligibleCodeDejaUtiliseException;
+import com.afriland.dottel.exception.FonctionEligibleIntrouvableException;
+import com.afriland.dottel.exception.GrilleEnAttenteDrhExistanteException;
+import com.afriland.dottel.exception.GrilleIntrouvableException;
+import com.afriland.dottel.exception.GrilleNonActiveException;
+import com.afriland.dottel.exception.GrilleNonEnAttenteDrhException;
+import com.afriland.dottel.exception.GrilleNonModifiableException;
+import com.afriland.dottel.exception.GrilleTarifaireIntrouvableException;
+import com.afriland.dottel.exception.IdentifiantsInvalidesException;
+import com.afriland.dottel.exception.MatriculeDejaEnroleException;
+import com.afriland.dottel.exception.MatriculeInconnuException;
+import com.afriland.dottel.exception.MatriculeUtilisateurDejaUtiliseException;
+import com.afriland.dottel.exception.MotifRejetObligatoireException;
+import com.afriland.dottel.exception.NonEligibleException;
+import com.afriland.dottel.exception.ProcessusMensuelExisteDejaException;
+import com.afriland.dottel.exception.ProcessusMensuelIntrouvableException;
+import com.afriland.dottel.exception.ProcessusMensuelNonModifiableException;
+import com.afriland.dottel.exception.EtapeWorkflowIntrouvableException;
+import com.afriland.dottel.exception.PieceJointeIntrouvableException;
+import com.afriland.dottel.exception.RoleEtapeNonAutoriseException;
+import com.afriland.dottel.exception.RoleInvalideException;
+import com.afriland.dottel.exception.SeparationTachesViolationException;
+import com.afriland.dottel.exception.UtilisateurInactifException;
+import com.afriland.dottel.exception.UtilisateurIntrouvableException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> gererValidationInvalide(MethodArgumentNotValidException exception) {
+        Map<String, String> erreursParChamp = new LinkedHashMap<>();
+        for (FieldError erreur : exception.getBindingResult().getFieldErrors()) {
+            erreursParChamp.put(erreur.getField(), erreur.getDefaultMessage());
+        }
+
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.BAD_REQUEST.value());
+        corps.put("erreur", "Données invalides");
+        corps.put("champs", erreursParChamp);
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(corps);
+    }
+
+    @ExceptionHandler(IdentifiantsInvalidesException.class)
+    public ResponseEntity<Map<String, Object>> gererIdentifiantsInvalides(IdentifiantsInvalidesException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.UNAUTHORIZED.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(corps);
+    }
+
+    @ExceptionHandler(UtilisateurInactifException.class)
+    public ResponseEntity<Map<String, Object>> gererUtilisateurInactif(UtilisateurInactifException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.FORBIDDEN.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(corps);
+    }
+
+    @ExceptionHandler(MatriculeDejaEnroleException.class)
+    public ResponseEntity<Map<String, Object>> gererMatriculeDejaEnrole(MatriculeDejaEnroleException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.CONFLICT.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(corps);
+    }
+
+    @ExceptionHandler(MatriculeInconnuException.class)
+    public ResponseEntity<Map<String, Object>> gererMatriculeInconnu(MatriculeInconnuException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.NOT_FOUND.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(corps);
+    }
+
+    @ExceptionHandler(NonEligibleException.class)
+    public ResponseEntity<Map<String, Object>> gererNonEligible(NonEligibleException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.FORBIDDEN.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(corps);
+    }
+
+    @ExceptionHandler(BeneficiaireIntrouvableException.class)
+    public ResponseEntity<Map<String, Object>> gererBeneficiaireIntrouvable(BeneficiaireIntrouvableException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.NOT_FOUND.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(corps);
+    }
+
+    @ExceptionHandler(GrilleTarifaireIntrouvableException.class)
+    public ResponseEntity<Map<String, Object>> gererGrilleTarifaireIntrouvable(GrilleTarifaireIntrouvableException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.BAD_REQUEST.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(corps);
+    }
+
+    @ExceptionHandler(FonctionEligibleIntrouvableException.class)
+    public ResponseEntity<Map<String, Object>> gererFonctionEligibleIntrouvable(FonctionEligibleIntrouvableException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.NOT_FOUND.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(corps);
+    }
+
+    @ExceptionHandler(FonctionEligibleCodeDejaUtiliseException.class)
+    public ResponseEntity<Map<String, Object>> gererFonctionEligibleCodeDejaUtilise(
+            FonctionEligibleCodeDejaUtiliseException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.CONFLICT.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(corps);
+    }
+
+    @ExceptionHandler(DateDebutGrilleAnterieureException.class)
+    public ResponseEntity<Map<String, Object>> gererDateDebutGrilleAnterieure(
+            DateDebutGrilleAnterieureException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.CONFLICT.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(corps);
+    }
+
+    @ExceptionHandler(FonctionEligibleBeneficiairesActifsException.class)
+    public ResponseEntity<Map<String, Object>> gererFonctionEligibleBeneficiairesActifs(
+            FonctionEligibleBeneficiairesActifsException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.CONFLICT.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(corps);
+    }
+
+    @ExceptionHandler(GrilleEnAttenteDrhExistanteException.class)
+    public ResponseEntity<Map<String, Object>> gererGrilleEnAttenteDrhExistante(GrilleEnAttenteDrhExistanteException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.CONFLICT.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(corps);
+    }
+
+    @ExceptionHandler(GrilleIntrouvableException.class)
+    public ResponseEntity<Map<String, Object>> gererGrilleIntrouvable(GrilleIntrouvableException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.NOT_FOUND.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(corps);
+    }
+
+    @ExceptionHandler(GrilleNonModifiableException.class)
+    public ResponseEntity<Map<String, Object>> gererGrilleNonModifiable(GrilleNonModifiableException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.BAD_REQUEST.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(corps);
+    }
+
+    @ExceptionHandler(GrilleNonEnAttenteDrhException.class)
+    public ResponseEntity<Map<String, Object>> gererGrilleNonEnAttenteDrh(GrilleNonEnAttenteDrhException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.CONFLICT.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(corps);
+    }
+
+    @ExceptionHandler(GrilleNonActiveException.class)
+    public ResponseEntity<Map<String, Object>> gererGrilleNonActive(GrilleNonActiveException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.CONFLICT.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(corps);
+    }
+
+    @ExceptionHandler(DecisionGrilleInvalideException.class)
+    public ResponseEntity<Map<String, Object>> gererDecisionGrilleInvalide(DecisionGrilleInvalideException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.BAD_REQUEST.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(corps);
+    }
+
+    @ExceptionHandler(MotifRejetObligatoireException.class)
+    public ResponseEntity<Map<String, Object>> gererMotifRejetObligatoire(MotifRejetObligatoireException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.BAD_REQUEST.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(corps);
+    }
+
+    @ExceptionHandler(ProcessusMensuelExisteDejaException.class)
+    public ResponseEntity<Map<String, Object>> gererProcessusMensuelExisteDeja(ProcessusMensuelExisteDejaException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.CONFLICT.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(corps);
+    }
+
+    @ExceptionHandler(ProcessusMensuelIntrouvableException.class)
+    public ResponseEntity<Map<String, Object>> gererProcessusMensuelIntrouvable(ProcessusMensuelIntrouvableException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.NOT_FOUND.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(corps);
+    }
+
+    @ExceptionHandler(ProcessusMensuelNonModifiableException.class)
+    public ResponseEntity<Map<String, Object>> gererProcessusMensuelNonModifiable(ProcessusMensuelNonModifiableException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.CONFLICT.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(corps);
+    }
+
+    @ExceptionHandler(MatriculeUtilisateurDejaUtiliseException.class)
+    public ResponseEntity<Map<String, Object>> gererMatriculeUtilisateurDejaUtilise(MatriculeUtilisateurDejaUtiliseException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.CONFLICT.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(corps);
+    }
+
+    @ExceptionHandler(EmailUtilisateurDejaUtiliseException.class)
+    public ResponseEntity<Map<String, Object>> gererEmailUtilisateurDejaUtilise(EmailUtilisateurDejaUtiliseException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.CONFLICT.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(corps);
+    }
+
+    @ExceptionHandler(FichierImportInvalideException.class)
+    public ResponseEntity<Map<String, Object>> gererFichierImportInvalide(FichierImportInvalideException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.BAD_REQUEST.value());
+        corps.put("erreur", "Fichier illisible ou format invalide");
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(corps);
+    }
+
+    @ExceptionHandler(UtilisateurIntrouvableException.class)
+    public ResponseEntity<Map<String, Object>> gererUtilisateurIntrouvable(UtilisateurIntrouvableException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.NOT_FOUND.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(corps);
+    }
+
+    @ExceptionHandler(RoleInvalideException.class)
+    public ResponseEntity<Map<String, Object>> gererRoleInvalide(RoleInvalideException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.BAD_REQUEST.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(corps);
+    }
+
+    @ExceptionHandler(ActionAdminNonAutoriseeException.class)
+    public ResponseEntity<Map<String, Object>> gererActionAdminNonAutorisee(ActionAdminNonAutoriseeException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.CONFLICT.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(corps);
+    }
+
+    // RG-05 : role de l'acteur incompatible avec l'etape declenchee par le
+    // statut du processus. 403 au meme titre que la violation RG-08 ci-dessous,
+    // mais motif distinct pour rester exploitable en audit et cote client.
+    @ExceptionHandler(RoleEtapeNonAutoriseException.class)
+    public ResponseEntity<Map<String, Object>> gererRoleEtapeNonAutorise(RoleEtapeNonAutoriseException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.FORBIDDEN.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(corps);
+    }
+
+    @ExceptionHandler(SeparationTachesViolationException.class)
+    public ResponseEntity<Map<String, Object>> gererSeparationTachesViolation(SeparationTachesViolationException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.FORBIDDEN.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(corps);
+    }
+
+    @ExceptionHandler(EtapeWorkflowIntrouvableException.class)
+    public ResponseEntity<Map<String, Object>> gererEtapeWorkflowIntrouvable(EtapeWorkflowIntrouvableException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.NOT_FOUND.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(corps);
+    }
+
+    @ExceptionHandler(PieceJointeIntrouvableException.class)
+    public ResponseEntity<Map<String, Object>> gererPieceJointeIntrouvable(PieceJointeIntrouvableException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.NOT_FOUND.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(corps);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> gererAccesRefuse(AccessDeniedException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.FORBIDDEN.value());
+        corps.put("erreur", "Rôle non autorisé pour cette opération");
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(corps);
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> gererErreurGenerique(Exception exception) {
+        LOGGER.error("Erreur interne non gérée", exception);
+
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.INTERNAL_SERVER_ERROR.value());
+        corps.put("erreur", "Une erreur interne est survenue");
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(corps);
+    }
+}

@@ -1,0 +1,125 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Plus } from 'lucide-react';
+import apiClient from '../../api/apiClient';
+import { PageHeader } from '../../components/layout/PageHeader';
+import { DataTable } from '../../components/ui/DataTable';
+import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
+import { Label } from '../../components/ui/Label';
+import { Select } from '../../components/ui/Select';
+import { useAuth } from '../../contexts/AuthContext';
+import { getPeriodeLabel, formatDateHeure } from '../../utils/formatters';
+import { getStatutProcessusInfo, STATUTS_PROCESSUS } from '../../utils/statutProcessus';
+
+const colonnes = [
+  {
+    cle: 'periode',
+    entete: 'Période',
+    rendu: (processus) => getPeriodeLabel(processus.moisPaiement, processus.anneePaiement),
+  },
+  {
+    cle: 'statut',
+    entete: 'Statut',
+    rendu: (processus) => {
+      const { libelle, variant } = getStatutProcessusInfo(processus.statut);
+      return <Badge variant={variant}>{libelle}</Badge>;
+    },
+  },
+  {
+    cle: 'dateCreation',
+    entete: 'Date de création',
+    rendu: (processus) => formatDateHeure(processus.dateCreation),
+  },
+];
+
+export default function ProcessusListPage() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [statut, setStatut] = useState('');
+  const [annee, setAnnee] = useState('');
+  const [anneesDisponibles, setAnneesDisponibles] = useState([]);
+  const [donnees, setDonnees] = useState([]);
+  const [chargement, setChargement] = useState(true);
+
+  // Pas d'endpoint dedie pour les annees disponibles : derivees d'un premier
+  // chargement non filtre, une seule fois (meme logique que fonctionsEligibles
+  // sur GrillesListPage, charge separement des donnees filtrees elles-memes).
+  useEffect(() => {
+    apiClient.get('/processus').then(({ data }) => {
+      const annees = [...new Set(data.map((processus) => processus.anneePaiement))].sort((a, b) => b - a);
+      setAnneesDisponibles(annees);
+    });
+  }, []);
+
+  useEffect(() => {
+    let annule = false;
+    setChargement(true);
+    apiClient
+      .get('/processus', {
+        params: {
+          statut: statut || undefined,
+          annee: annee || undefined,
+        },
+      })
+      .then(({ data }) => {
+        if (!annule) setDonnees(data);
+      })
+      .finally(() => {
+        if (!annule) setChargement(false);
+      });
+    return () => {
+      annule = true;
+    };
+  }, [statut, annee]);
+
+  return (
+    <>
+      <PageHeader surTitre="Workflow" titre="Processus mensuel" />
+      <div className="flex flex-col gap-6 p-8">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex w-48 flex-col gap-1.5">
+              <Label htmlFor="filtre-statut">Statut</Label>
+              <Select id="filtre-statut" value={statut} onChange={(e) => setStatut(e.target.value)}>
+                <option value="">Tous</option>
+                {Object.entries(STATUTS_PROCESSUS).map(([valeur, { libelle }]) => (
+                  <option key={valeur} value={valeur}>
+                    {libelle}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="flex w-36 flex-col gap-1.5">
+              <Label htmlFor="filtre-annee">Année</Label>
+              <Select id="filtre-annee" value={annee} onChange={(e) => setAnnee(e.target.value)}>
+                <option value="">Toutes</option>
+                {anneesDisponibles.map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          </div>
+
+          {user?.role === 'ARH' && (
+            <Button onClick={() => navigate('/processus/declencher')}>
+              <Plus className="h-4 w-4" />
+              Déclencher un processus
+            </Button>
+          )}
+        </div>
+
+        <DataTable
+          colonnes={colonnes}
+          donnees={donnees}
+          cleLigne={(processus) => processus.id}
+          chargement={chargement}
+          onLigneClick={(processus) => navigate(`/processus/${processus.id}`)}
+        />
+      </div>
+    </>
+  );
+}

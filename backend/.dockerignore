@@ -1,0 +1,11 @@
+target/
+.git/
+.gitignore
+.gitattributes
+*.md
+!CLAUDE.md
+.idea/
+*.iml
+.vscode/
+bin/
+*.log

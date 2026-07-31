@@ -1,0 +1,17 @@
+# NOTE : namespace et conventions de nommage definitives a confirmer
+# avec la DSI (voir CLAUDE.md section 14). Aucun namespace n'est fixe
+# ici volontairement.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dottel-config
+data:
+  SPRING_PROFILES_ACTIVE: "prod"
+  # A adapter selon l'environnement/cluster cible (nom du Service
+  # Postgres, namespace, etc.). Placeholder en attendant confirmation DSI.
+  DB_URL: "jdbc:postgresql://postgres-service.dottel.svc.cluster.local:5432/afb_dotations_telephoniques"
+  # Origine exacte du frontend DOTTEL en production, consommee par
+  # app.cors.allowed-origins (CorsConfig). Jamais de wildcard *.
+  # URL definitive a confirmer avec la DSI (CLAUDE.md section 14) --
+  # sans cette cle, le backend retomberait sur http://localhost:3000.
+  APP_CORS_ALLOWED_ORIGINS: "https://dottel.afrilandfirstbank.cm"
