@@ -16,20 +16,34 @@
 
 ## 0. Avertissement sur l'espace de travail
 
-**À lire avant MM.1.** Ce chantier déplace des dizaines de fichiers Java. Au moment de la rédaction de ce plan, le dépôt observé présente les caractéristiques suivantes :
+**Question résolue le 2026-07-31 (décision D de MM.0).** Ce chantier déplace des dizaines de fichiers Java. Il se déroule donc dans une **copie physique isolée**, jamais dans le dépôt de travail principal.
 
-| Vérification | Constat au 2026-07-31 |
-|---|---|
-| Chemin du dépôt | `D:\stage afriland\formation spécialisée DSI\projet de gestion des absences\implementation\afb-dottel` |
-| Dernier commit | `d9be38c sprint-6F.9: audit de securite OWASP et correctifs` |
-| Remote git | `origin → https://github.com/nzali-fankem-vladimir/afb-dottel.git` |
+| Élément | Chantier (ici) | Projet d'origine (à ne pas toucher) |
+|---|---|---|
+| Chemin | `…\implementation\**afb-dottel-mm**` | `…\implementation\afb-dottel` |
+| Dépôt git | Neuf, commit initial `cbbb497` | `d9be38c sprint-6F.9` |
+| Remote | **aucun** | `origin → github.com/nzali-fankem-vladimir/afb-dottel.git` |
+| Base de données | `afb_dotations_telephoniques_mm` | `afb_dotations_telephoniques` |
 
-Il s'agit du **dépôt de travail principal**, et non d'une copie isolée. MM.0 et la production de cette documentation sont sans risque (aucun fichier de code touché), mais **avant de démarrer MM.1**, deux options se présentent :
+La copie exclut `.git`, `node_modules`, `target` et `dist`. Elle n'a **aucun remote**, ce qui rend impossible de pousser par erreur sur le dépôt d'origine.
 
-- **Option A — branche dédiée** : `git checkout -b chantier/monolithe-modulaire`. Réversible à tout moment par `git checkout main`, historique conservé, pas de duplication sur disque. C'est l'option la plus simple pour un chantier de refactoring pur.
-- **Option B — copie physique du dossier** : duplication complète du répertoire vers un autre chemin, avec une base de données au nom distinct (voir MM.0, question D). Plus lourde, mais garantit qu'aucune manipulation ne peut atteindre le dépôt d'origine.
+### Vérification à faire au début de CHAQUE session du chantier
 
-**Cette décision fait partie des points à trancher en MM.0.** Ne pas démarrer MM.1 tant qu'elle n'est pas prise.
+```powershell
+(Get-Location).Path      # doit se terminer par afb-dottel-mm
+git log --oneline -1     # ne doit PAS afficher d9be38c
+git remote -v            # doit être vide
+```
+
+### Les trois variables d'environnement obligatoires
+
+```powershell
+$env:DB_URL="jdbc:postgresql://localhost:5432/afb_dotations_telephoniques_mm"
+$env:DB_PASSWORD="admin"
+$env:DOTTEL_JWT_SECRET="dottel-dev-secret-key-2026-afriland-first-bank-32chars"
+```
+
+`DB_URL` est **nouvelle par rapport au projet d'origine**, qui n'en exigeait que deux. L'oublier fait retomber silencieusement sur la base de production locale du projet d'origine, via le repli du placeholder dans `application-dev.yml`. Contrôle au premier démarrage : Flyway doit appliquer `V1` à `V4` sur une base vierge.
 
 ---
 

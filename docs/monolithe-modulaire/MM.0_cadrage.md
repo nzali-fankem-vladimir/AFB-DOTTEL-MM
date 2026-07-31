@@ -1,6 +1,6 @@
-# SPRINT MM.0
+# SPRINT MM.0 — **CLÔTURÉ le 2026-07-31**
 
-## Cadrage — décisions à trancher avant toute ligne de code
+## Cadrage — décisions actées
 
 *Module Dotations Téléphoniques Mensuelles — Backend*
 
@@ -10,6 +10,18 @@
 | **Livrable** | Ce document complété avec les décisions actées, daté et signé |
 | **Durée** | Une session de discussion — aucune écriture de code |
 | **Prérequis** | `PLAN_MONOLITHE_MODULAIRE.md` lu |
+| **Statut** | ✅ **Les 4 décisions sont actées.** MM.1 peut démarrer. |
+
+> ## Récapitulatif des décisions — à lire en premier
+>
+> | # | Décision | Retenu |
+> |---|---|---|
+> | **A** | `EligibiliteService` | **A1** — rattaché au module `referentiel`, exposé dans son API publique |
+> | **B** | `FonctionEligible` + `GrilleTarifaire` | **B1** — un seul module `referentiel` |
+> | **C** | Découpage | Proposition retenue, avec `processus` non scindé, `reporting` module à part entière, `integration` **non** regroupé (réparti), exceptions par module, `security`/`config` transverses |
+> | **D** | Espace de travail | **Copie physique** `afb-dottel-mm` + base **`afb_dotations_telephoniques_mm`** |
+>
+> Le détail et le motif de chaque décision figurent en fin de section correspondante.
 
 ## Configuration recommandée
 
@@ -69,12 +81,18 @@ Elle porte les règles **RG-01** (fonction active dans `fonction_eligible`) et *
 
 ```
 DÉCISION A — Où vit EligibiliteService :
-[ ] A1 — module référentiel
-[ ] A2 — module dédié, nom retenu : ______________
-[ ] Autre : ______________
+[X] A1 — module référentiel
+[ ] A2 — module dédié
+[ ] Autre
 
-Décidé le : ____________
+Décidé le : 2026-07-31
 ```
+
+**Motif retenu.** Sa seule dépendance technique est `FonctionEligibleRepository`, et RG-01/RG-02 sont des règles portant sur l'**éligibilité d'une fonction**, pas sur le bénéficiaire.
+
+**Conséquence pour MM.1** : `service/rules/EligibiliteService.java` rejoint le module `referentiel`. Le sous-package `service/rules/` disparaît — il ne contenait que cette classe.
+
+**Conséquence pour MM.2 et MM.3** : `EligibiliteService` doit figurer dans l'API publique du module `referentiel`, puisque `beneficiaires` (via `EnrolementService` et `BeneficiaireService`) et `processus` l'appellent tous les trois. Cohérent avec l'API de résolution de grille conçue en MM.2, qui vit dans le même module.
 
 ## 3. Étape 2. Question B — `FonctionEligible` et `GrilleTarifaire` : un module ou deux ?
 
@@ -107,11 +125,15 @@ En revanche, leurs cycles de vie diffèrent : `FonctionEligible` est un référe
 
 ```
 DÉCISION B — Référentiel et grilles :
-[ ] B1 — un seul module, nom retenu : ______________
-[ ] B2 — deux modules, noms retenus : ______________ / ______________
+[X] B1 — un seul module, nom retenu : referentiel
+[ ] B2 — deux modules
 
-Décidé le : ____________
+Décidé le : 2026-07-31
 ```
+
+**Motif retenu.** Le couplage bidirectionnel entre `FonctionEligible` et `GrilleTarifaire` n'est pas un accident à corriger : c'est une décision métier actée au Sprint 6F.7bis (création couplée fonction + grille initiale ACTIVE, documentée au contrat API §3bis).
+
+**Conséquence directe et importante pour MM.3** : la création d'une `GrilleTarifaire` par `FonctionEligibleService` devient du **couplage intra-module, donc légitime**. Le couplage C3 se réduit à la seule cascade de renommage vers `Beneficiaire` — voir la consigne explicite en MM.3 étape 3 (« si la décision B de MM.0 a retenu un module référentiel unique, NE TOUCHE PAS à la création de GrilleTarifaire »).
 
 ## 4. Étape 3. Question C — Nom exact et périmètre de chaque module
 
@@ -150,14 +172,40 @@ DÉCISION C — Découpage retenu :
 [ ] Le découpage proposé ci-dessus, tel quel
 [ ] Le découpage proposé, avec ces amendements : ______________
 
-C.1 — processus scindé ?    [ ] non   [ ] oui, en : ______________
-C.2 — reporting est-il un module ?   [ ] oui   [ ] non, alternative : ______________
-C.3 — integration regroupé ?  [ ] oui, module dédié   [ ] non, réparti dans les modules consommateurs
-Exceptions : [ ] réparties par module   [ ] transverses
-security/ et config/ : [ ] transverses (confirmé)   [ ] autre : ______________
+C.1 — processus scindé ?    [X] non
+C.2 — reporting est-il un module ?   [X] oui
+C.3 — integration regroupé ?  [ ] oui, module dédié   [X] non, réparti dans les modules consommateurs
+Exceptions : [X] réparties par module
+security/ et config/ : [X] transverses (confirmé)
 
-Décidé le : ____________
+Décidé le : 2026-07-31
 ```
+
+### Découpage final acté — **6 modules**
+
+Le module `integration` proposé **n'existe pas**. Ses composants sont répartis :
+
+| Module | Contrôleurs | Services | Repositories | Entités |
+|---|---|---|---|---|
+| **`utilisateurs`** | `AuthController`, `UtilisateurAdminController` | `AuthService`, `UtilisateurAdminService`, `AuthenticatedUserService` | `UtilisateurRepository` | `Utilisateur` |
+| **`beneficiaires`** | `BeneficiaireController`, `EnrolementController` | `BeneficiaireService`, `BeneficiaireImportService`, `BeneficiaireExportService`, `EnrolementService`, **`EhrIntegrationService`**, **`EhrIntegrationServiceStub`** | `BeneficiaireRepository`, `BeneficiaireSpecifications` | `Beneficiaire` |
+| **`referentiel`** | `FonctionEligibleController`, `GrilleTarifaireController` | `FonctionEligibleService`, `GrilleTarifaireService`, **`EligibiliteService`** *(décision A)* | `FonctionEligibleRepository`, `GrilleTarifaireRepository` | `FonctionEligible`, `GrilleTarifaire` |
+| **`processus`** | `ProcessusMensuelController`, `PieceJointeController` | `ProcessusMensuelService`, `SeparationTachesService`, `EcartMensuelService`, `DocumentService`, `SignatureService`, `SignatureServiceAutonome`, **`EvenementClotureService`**, **`NotificationService`**, **`NotificationServiceStub`** | `ProcessusMensuelRepository`, `LigneEtatMensuelRepository`, `EtapeWorkflowRepository`, `PieceJointeRepository` | `ProcessusMensuel`, `LigneEtatMensuel`, `EtapeWorkflow`, `PieceJointe` |
+| **`reporting`** | `ReportingController` | `ReportingService`, `HistoriqueExportService` | *(aucun en propre)* | *(aucune)* |
+| **`audit`** | *(aucun)* | `AuditService`, `AuditServiceImpl` | `AuditLogRepository`, `AuditLogSpecifications` | `AuditLog` |
+
+**Motifs retenus.**
+
+- **C.1 — `processus` non scindé.** `PieceJointe`, `DocumentService` et `SignatureService` sont indissociables du cycle de vie du processus : RG-06 impose un seul PDF par processus avec un compteur `nombre_signatures` de 1 à 3, piloté au fil des validations ARH → CRH → DRH.
+- **C.2 — `reporting` reste un module.** Il possède déjà son propre contrôleur (`ReportingController`), ce qui en fait une unité identifiable ; plus simple à raisonner avec Spring Modulith qu'une couche transverse hors modèle.
+- **C.3 — `integration` non regroupé.** `EhrIntegrationService` et `EvenementClotureService` sont déjà exemplaires en isolation (voir `PLAN_MONOLITHE_MODULAIRE.md` §1.5) ; les regrouper artificiellement dans un module qui n'a pas de cohérence métier n'apporterait rien.
+
+**Conséquences à retenir pour les sprints suivants.**
+
+- `EvenementClotureService` et `NotificationService` rejoignant `processus`, ils ne sont **plus des dépendances inter-modules** de `ProcessusMensuelService`. MM.2 n'a donc à traiter que les **4 repositories étrangers** (`Beneficiaire`, `FonctionEligible`, `GrilleTarifaire`, `Utilisateur`), pas ces deux services.
+- `EhrIntegrationService` rejoignant `beneficiaires`, l'appel d'`EnrolementService` vers l'EHR devient intra-module.
+- Les DTO suivent leur module : `model/dto/ehr/` → `beneficiaires`, `model/dto/importexcel/` → `beneficiaires`.
+- **Exceptions réparties par module** : `security/GlobalExceptionHandler` importera donc les 32 exceptions réparties dans les 6 modules. Point explicitement à déclarer en MM.5 étape 6 via `allowedDependencies`.
 
 ## 5. Étape 4. Question D — Espace de travail et base de données
 
@@ -189,67 +237,120 @@ Note : ce chantier ne prévoit **aucune migration Flyway** (voir `PLAN_MONOLITHE
 ```
 DÉCISION D — Espace de travail :
 D.1  [ ] Branche git dédiée, nom : ______________
-     [ ] Copie physique du dossier, chemin : ______________
+     [X] Copie physique du dossier, chemin :
+         D:\stage afriland\formation spécialisée DSI\projet de gestion
+         des absences\implementation\afb-dottel-mm
 
-D.2 (si copie physique)  [ ] Base distincte, nom : ______________
-                         [ ] Même base, risque accepté
+D.2  [X] Base distincte, nom : afb_dotations_telephoniques_mm
+     [ ] Même base, risque accepté
 
-Décidé le : ____________
+Décidé le : 2026-07-31
 ```
+
+### Mise en œuvre — **effectuée et vérifiée le 2026-07-31**
+
+| Élément | État vérifié |
+|---|---|
+| Dossier `afb-dottel-mm` | Créé — 675 fichiers, 29 Mo |
+| Exclusions de la copie | `.git`, `node_modules`, `target`, `dist` |
+| Dépôt git de la copie | Neuf, branche `main`, commit initial `cbbb497`, 639 fichiers versionnés |
+| Remote de la copie | **Aucun** — pousser par erreur sur le dépôt d'origine est impossible |
+| Base `afb_dotations_telephoniques_mm` | Créée sur PostgreSQL 16, **0 table** |
+| Dépôt d'origine `afb-dottel` | **Intact** au commit `d9be38c` |
+
+### Comment connecter la base `_mm` — aucun fichier à modifier
+
+`backend/src/main/resources/application-dev.yml` porte déjà `url: ${DB_URL:jdbc:postgresql://localhost:5432/afb_dotations_telephoniques}`. Le placeholder étant externalisé, il suffit de définir `DB_URL` dans l'environnement du shell.
+
+**Trois variables sont donc obligatoires dans ce workspace**, contre deux dans le projet d'origine :
+
+```powershell
+$env:DB_URL="jdbc:postgresql://localhost:5432/afb_dotations_telephoniques_mm"
+$env:DB_PASSWORD="admin"
+$env:DOTTEL_JWT_SECRET="dottel-dev-secret-key-2026-afriland-first-bank-32chars"
+```
+
+**Oublier `DB_URL` fait silencieusement retomber sur la base du projet d'origine** — le repli du placeholder s'active sans aucun avertissement. C'est le principal piège opérationnel de ce chantier. Contrôle simple au premier démarrage d'une session : Flyway doit appliquer `V1` à `V4` sur une base vierge. S'il annonce un schéma déjà à jour, c'est qu'on est sur la mauvaise base.
+
+Au premier démarrage sur `_mm`, Flyway rejouera `V1__creation_tables.sql` → `V4__ajout_chapitre_beneficiaires.sql`, recréant les 10 tables, les 25 fonctions éligibles avec leurs grilles ACTIVE, et les 5 utilisateurs de test (`1847` ARH, `2093` CRH, `1562` DRH, `2201` EMPLOYE, `1734` ADMIN).
 
 ## 6. Critères de validation
 
-| Élément | Statut attendu |
+| Élément | Statut |
 |---|---|
-| Question A tranchée et écrite | Fait |
-| Question B tranchée et écrite | Fait |
-| Question C tranchée et écrite, y compris C.1, C.2, C.3, exceptions, security/config | Fait |
-| Question D tranchée et écrite | Fait |
-| Aucun fichier de code modifié pendant MM.0 | Vérifié |
-| Ce document mis à jour avec les 4 décisions datées | Fait |
+| Question A tranchée et écrite | ✅ **A1** — module `referentiel` |
+| Question B tranchée et écrite | ✅ **B1** — un seul module `referentiel` |
+| Question C tranchée et écrite (C.1, C.2, C.3, exceptions, security/config) | ✅ **6 modules**, `integration` réparti |
+| Question D tranchée et écrite | ✅ copie `afb-dottel-mm` + base `_mm` |
+| Copie physique créée et vérifiée | ✅ 675 fichiers, sans `.git`, sans remote |
+| Base dédiée créée et vide | ✅ `afb_dotations_telephoniques_mm`, 0 table |
+| Dépôt d'origine intact | ✅ `d9be38c`, aucun fichier de code modifié |
+| Aucun fichier de code modifié pendant MM.0 | ✅ |
+| Ce document mis à jour avec les 4 décisions datées | ✅ 2026-07-31 |
 
 ## 7. Comment enchaîner sur MM.1
 
-Une fois les quatre blocs de décision remplis dans ce fichier, ouvrir une nouvelle session avec ce prompt :
+Les quatre décisions sont actées. **Ouvrir une nouvelle session Claude Code dont le dossier de travail est `afb-dottel-mm`** — pas le dépôt d'origine — puis coller ce prompt :
 
 ```
 Tu es mon assistant de developpement pour le projet DOTTEL (Afriland
 First Bank).
 
-AVANT TOUT :
+AVANT TOUT -- VERIFICATION D'ESPACE DE TRAVAIL, BLOQUANTE :
+Confirme-moi, en lancant reellement les commandes, que :
+  a) ton repertoire de travail se termine bien par "afb-dottel-mm"
+     et NON "afb-dottel"
+  b) `git log --oneline -1` montre le commit initial du chantier,
+     pas d9be38c
+  c) `git remote -v` ne retourne AUCUN remote
+Si l'un des trois est faux, ARRETE-TOI immediatement : tu es dans le
+depot de travail principal, pas dans la copie du chantier.
+
+ENSUITE :
 1. Lis CLAUDE.md dans son integralite.
 2. Lis docs/monolithe-modulaire/PLAN_MONOLITHE_MODULAIRE.md
-3. Lis docs/monolithe-modulaire/MM.0_cadrage.md -- les 4 decisions
-   y sont desormais actees, section par section. Confirme-moi en
-   quelques lignes le decoupage retenu avant de commencer.
+3. Lis docs/monolithe-modulaire/MM.0_cadrage.md -- les 4 decisions y
+   sont actees. Confirme-moi en quelques lignes le decoupage en
+   6 MODULES retenu (attention : le module "integration" propose
+   initialement N'EXISTE PAS, ses composants sont repartis).
 4. Lance /graphify . --update
 
 CONTEXTE : Sprint MM.1, repackaging mecanique + Spring Modulith.
-Le decoupage a suivre est celui acte en MM.0, pas celui propose --
-si tu constates un ecart entre les deux, arrete-toi et signale-le.
+Le decoupage a suivre est celui ACTE en MM.0 section 4, pas celui
+propose plus haut dans le meme document -- si tu constates un ecart,
+arrete-toi et signale-le.
+
+VARIABLES D'ENVIRONNEMENT (TROIS, pas deux -- DB_URL est nouvelle) :
+  $env:DB_URL="jdbc:postgresql://localhost:5432/afb_dotations_telephoniques_mm"
+  $env:DB_PASSWORD="admin"
+  $env:DOTTEL_JWT_SECRET="dottel-dev-secret-key-2026-afriland-first-bank-32chars"
+Oublier DB_URL fait retomber SILENCIEUSEMENT sur la base du projet
+d'origine. Au premier demarrage, verifie que Flyway applique bien V1
+a V4 sur une base vierge -- s'il annonce un schema deja a jour, tu es
+sur la mauvaise base, arrete-toi.
 
 METHODE DE TRAVAIL :
 - Suis docs/monolithe-modulaire/MM.1_repackaging_et_modularite.md
   etape par etape.
-- mvn test complet apres CHAQUE deplacement de fichier, pas
-  seulement a la fin. Si le nombre de tests passe sous 205, tu
-  t'arretes et tu me previens.
+- mvn test complet apres CHAQUE deplacement de module, pas seulement
+  a la fin. Si le nombre de tests passe sous 205, tu t'arretes et tu
+  me previens.
 - Tu ne modifies aucun comportement metier dans ce sprint : uniquement
   des deplacements de fichiers et des corrections d'import.
 
-PREMIERE ACTION : confirme le decoupage acte en MM.0, puis attaque
-l'etape 1 de MM.1.
+PREMIERE ACTION : la verification d'espace de travail ci-dessus, puis
+confirme le decoupage acte, puis attaque l'etape 1 de MM.1.
 ```
 
 ## Commit
 
-MM.0 ne produit aucun code. Le seul commit est celui de ce document complété.
+MM.0 ne produit aucun code.
 
 ```bash
-git add docs/monolithe-modulaire/MM.0_cadrage.md
-git commit -m "mm.0: cadrage du chantier monolithe modulaire, 4 decisions actees"
+git add docs/monolithe-modulaire/
+git commit -m "mm.0: cadrage acte, 6 modules retenus, workspace et base dedies"
 ```
 
 ---
 
-**Fin du Sprint MM.0** — *MM.1 ne peut pas démarrer tant que les 4 blocs de décision ne sont pas remplis*
+**Fin du Sprint MM.0** — *MM.1 peut démarrer, dans une session ouverte sur `afb-dottel-mm`*
