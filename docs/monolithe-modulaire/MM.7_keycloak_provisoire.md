@@ -121,13 +121,21 @@ Le parcours EMPLOYE utilise **exactement le même mécanisme** que les 4 rôles 
 
 Il n'existe **pas** deux chemins d'authentification dans le code : il n'y en a qu'un.
 
-### 2.3 Hypothèse à valider avec la DSI — **non documentée à ce jour**
+### 2.3 Fédération Keycloak ↔ Active Directory — ✅ **CONFIRMÉE le 2026-07-31**
 
-L'hypothèse selon laquelle le realm AFB réel fédérerait Keycloak à l'Active Directory (via LDAP, SAML ou Kerberos) est **plausible et cohérente** avec le fonctionnement décrit, mais :
+**Confirmation apportée par le responsable projet, qui exerce à la banque, à partir du fonctionnement observé sur la plateforme BAOBAB :**
+
+- Le realm Keycloak d'Afriland **est relié à l'Active Directory**.
+- Sur BAOBAB, un clic sur « Se connecter » **redirige vers la page de login Keycloak**.
+- Les identifiants saisis sont **les identifiants Windows habituels**, les mêmes que pour ouvrir sa session.
+
+Cette confirmation vaut **observation de terrain**, pas document officiel. Elle est suffisamment précise pour orienter la conception — elle a permis de trancher la question 2 en faveur de PKCE — mais elle ne remplace pas les **paramètres techniques du realm**, qui restent à obtenir de la DSI : URL du realm, nom du client, format des rôles, et surtout format de l'identifiant utilisateur (voir question 3).
+
+**Pour mémoire, état de la documentation projet :**
 
 > **Recherche exhaustive effectuée le 2026-07-31 sur l'intégralité du dépôt** (`CLAUDE.md`, `docs/`, guides de sprint, code source, manifests) pour les termes *Active Directory*, *LDAP*, *SAML*, *Kerberos*, *annuaire* : **zéro occurrence**. Les seuls résultats pour « Windows » concernent `mvnw` et un commentaire d'encodage CP1252 dans `DocumentService`.
 
-**Cette fédération est donc une hypothèse de travail, à valider explicitement auprès de la DSI. Elle ne doit être écrite nulle part comme un fait acquis.**
+Ce fonctionnement, bien que réel et quotidien sur BAOBAB, **n'est écrit nulle part dans le projet** — d'où l'intérêt de le consigner ici.
 
 ### 2.4 ⚠️ Décision de portée à arbitrer — la réduction complique techniquement
 
@@ -163,9 +171,36 @@ L'intuition « le Keycloak provisoire ne couvre que les 4 rôles internes, l'EMP
 
 ## 3. LES TROIS QUESTIONS OUVERTES — à trancher avant l'étape 2
 
-**Aucune des trois n'est tranchée ici.** Toutes trois doivent recevoir une réponse écrite avant que la moindre ligne de code de MM.7 ne soit produite. Elles sont présentées avec leurs options et leurs implications, pas avec une recommandation imposée.
+| # | Question | État au 2026-07-31 |
+|---|---|---|
+| **1** | L'enrôlement ne vérifie pas le matricule du porteur du jeton | ✅ **Tranchée** — E-3, comportement voulu, à documenter |
+| **2** | Direct Access Grant ou Authorization Code + PKCE | ✅ **Tranchée** — F-2 (PKCE), fédération AD confirmée |
+| **3** | Clé d'identité de `Utilisateur` | ⏳ **Ouverte** |
 
-### 3.1 Question 1 — L'enrôlement ne vérifie pas que le matricule est celui de l'utilisateur connecté
+Les questions 1 et 2 ont été tranchées par le responsable projet le 2026-07-31. Leurs décisions figurent dans les encadrés ci-dessous ; le raisonnement d'origine est conservé en repli pour traçabilité.
+
+**Restent bloquants avant la section 4 :** la question 3 ci-dessous, et la décision de portée P-1 contre P-2 (§2.4).
+
+### 3.1 Question 1 — ~~L'enrôlement ne vérifie pas que le matricule est celui de l'utilisateur connecté~~ ✅ **TRANCHÉE le 2026-07-31**
+
+> ## ✅ Décision actée — comportement voulu, à documenter
+>
+> **Le responsable projet a confirmé que ce comportement est intentionnel** : un collègue connecté doit pouvoir aider un autre collègue à s'enrôler via la page d'enrôlement individuel. Il ne s'agit donc **pas d'un défaut à corriger**, mais d'un choix fonctionnel à écrire noir sur blanc.
+>
+> **Option retenue : E-3 — statu quo, documenté.**
+>
+> **Aucune modification de code n'est requise** sur `EnrolementController` ni sur `EnrolementService`. Le champ `Utilisateur.idBeneficiaire` reste inutilisé.
+>
+> **Ce qui reste à faire (documentation seulement, hors MM.7) :**
+> - Ajouter une note dans `docs/reference/contrats_api_dotations_v3.md` §2, précisant que `POST /enrolement/confirmer` accepte volontairement un matricule différent de celui du porteur du jeton.
+> - Mentionner ce choix dans un futur complément de `CLAUDE.md`, pour qu'un audit ultérieur ne le re-signale pas comme une anomalie.
+>
+> **Conséquence sur la portée (§2.4) : cette décision ne réhabilite pas P-3.** Le comportement acté suppose toujours un utilisateur **authentifié** ; c'est l'authentification qui trace *qui* a enrôlé *qui* dans `audit_log` (`EnrolementService` ligne 114). P-3 supprimerait cette traçabilité en même temps que l'authentification. Les trois raisons de l'encadré §2.4 restent valables.
+>
+> **À ne pas confondre avec l'import Excel.** `POST /beneficiaires/import` est un parcours distinct, réservé à l'**ARH** (analyste RH), et n'est pas concerné par cette question.
+
+<details>
+<summary>Constat d'origine, conservé pour traçabilité</summary>
 
 **Constat vérifié, indépendant de Keycloak.**
 
@@ -189,24 +224,44 @@ Ce défaut est antérieur au chantier (présent depuis le Sprint 2) et n'a pas �
 | **E-3 — Statu quo, documenté** | Le comportement est assumé et écrit noir sur blanc comme accepté. **À n'envisager que si le métier confirme que l'enrôlement pour un tiers est voulu.** |
 | **E-4 — Reporter hors MM.7** | Traité dans un sprint dédié. **Risque : la question du mapping d'identité ressurgira de toute façon pendant MM.7.** |
 
-### 3.2 Question 2 — Direct Access Grant ou Authorization Code + PKCE ?
+</details>
 
-Le contrat `login(matricule, motDePasse)` de `AuthProvider.js` suppose que l'application manipule le mot de passe. Deux flux Keycloak sont possibles.
+### 3.2 Question 2 — ~~Direct Access Grant ou Authorization Code + PKCE ?~~ ✅ **TRANCHÉE le 2026-07-31**
 
-| Option | Implications |
-|---|---|
-| **F-1 — Direct Access Grant** (*Resource Owner Password Credentials*) | Le formulaire de connexion actuel est **conservé tel quel**. `AuthProviderKeycloak` implémente le contrat existant sans en changer la signature. **Mais** ce grant est déconseillé par OAuth 2.1, l'application continue de voir le mot de passe, et il est **incompatible avec une fédération AD par Kerberos ou SAML** — donc potentiellement inutilisable avec le realm réel de la DSI. L'étape intermédiaire ressemblerait alors peu à la cible. |
-| **F-2 — Authorization Code + PKCE** | Flux standard, compatible avec toute fédération AD. **Mais** impose d'élargir le contrat `AuthProvider` (une redirection n'a pas la forme `login(identifiant, motDePasse)`), de remplacer l'écran `Login.jsx` par un bouton de redirection, et de gérer le retour de redirection. Travail frontend nettement plus important. |
+> ## ✅ Décision actée — F-2, Authorization Code + PKCE
+>
+> **La question 2 est résolue par la confirmation apportée sur la section 2.3.** Le responsable projet, qui exerce à la banque, confirme le fonctionnement observé sur la plateforme BAOBAB :
+>
+> - Le realm Keycloak d'Afriland **est bien relié à l'Active Directory**.
+> - Sur BAOBAB, un clic sur « Se connecter » **redirige vers la page de login Keycloak**.
+> - Les identifiants utilisés y sont **les identifiants Windows habituels**, les mêmes que pour ouvrir sa session.
+>
+> C'est la description exacte d'un flux **Authorization Code par redirection**. **F-1 (Direct Access Grant) est donc écartée** : elle suppose que l'application collecte elle-même le mot de passe, ce qui est incompatible avec ce fonctionnement.
+>
+> **Conséquences concrètes pour l'implémentation :**
+>
+> 1. Le contrat `AuthProvider.js` — `login(matricule, motDePasse)` — **ne convient plus**. Une redirection n'a pas cette forme. Le contrat doit être élargi (par exemple `login()` sans argument, déclenchant la redirection, plus une méthode de traitement du retour).
+> 2. `Login.jsx` : le formulaire matricule + mot de passe est **remplacé par un bouton de redirection**, pour s'aligner sur l'expérience BAOBAB.
+> 3. Le routage doit gérer l'**URL de retour** de Keycloak (callback).
+> 4. Le travail frontend est **nettement plus important** qu'avec F-1 — c'est le prix de la fidélité au fonctionnement réel.
+>
+> **Bénéfice majeur** : l'étape provisoire ressemblera au fonctionnement cible. Le jour où la DSI fournit le realm réel, seule l'URL du realm changera — pas le flux.
+>
+> **La section 2.3 n'est plus une hypothèse** : la fédération Keycloak ↔ Active Directory est confirmée par observation directe sur BAOBAB. Reste à obtenir de la DSI les paramètres du realm (URL, nom du client, mapping des rôles), pas à valider le principe.
 
-**Interaction à ne pas manquer :** si l'hypothèse de fédération AD (section 2.3) se confirme, **F-1 pourrait ne pas fonctionner du tout** avec le realm réel. Cette question dépend donc de la réponse de la DSI, ce qui plaide pour la lui poser avant de coder.
+### 3.3 Question 3 — Quelle clé d'identité pour `Utilisateur` ? ⏳ **SEULE QUESTION ENCORE OUVERTE**
 
-### 3.3 Question 3 — Quelle clé d'identité pour `Utilisateur` ?
+**Désormais la question la plus structurante du sprint — et la confirmation de la fédération AD la rend certaine au lieu d'hypothétique.**
 
-**C'est la question la plus structurante des trois.**
+Aujourd'hui, `AuthenticatedUserService` résout l'utilisateur par `findByMatricule(SecurityContextHolder…getName())`, c'est-à-dire par le `subject` du jeton.
 
-Aujourd'hui, `AuthenticatedUserService` résout l'utilisateur par `findByMatricule(SecurityContextHolder…getName())`, c'est-à-dire par le `subject` du jeton. Si le jeton provient d'un Keycloak fédéré à l'AD, son `subject` sera un identifiant AD (`preferred_username`, `sAMAccountName`) ou un UUID Keycloak — **jamais un matricule**.
+Puisque la fédération Keycloak ↔ Active Directory est **confirmée** (§2.3 et question 2), le `subject` du jeton portera un identifiant issu de l'AD (`preferred_username`, `sAMAccountName`) ou un UUID Keycloak — **jamais un matricule**. Ce n'est plus un risque à anticiper, c'est une certitude à traiter.
+
+**Conséquence directe : sans réponse à cette question, `AuthenticatedUserService` ne trouve plus aucun utilisateur, et tout ce qui en dépend tombe** — l'audit (RG-09, `id_utilisateur` NOT NULL avec FK), la séparation des tâches (RG-08), et les champs `id_createur` des processus et des grilles.
 
 Or l'entité `Utilisateur` **n'a aucun champ pour porter cet identifiant** (section 1.2).
+
+**Information manquante pour trancher :** le format exact de l'identifiant exposé par le realm (par exemple `jmbarga` seul, ou `jmbarga@afrilandfirstbank.cm`), et s'il est déductible du `matricule` ou de l'`email` déjà présents en base. Cette information peut venir de la DSI, **ou** d'une observation directe d'un jeton BAOBAB réel — ce second chemin est probablement plus rapide.
 
 | Option | Implications |
 |---|---|
@@ -478,8 +533,11 @@ montre le contraire.
 
 | Élément | Statut attendu |
 |---|---|
-| Les 3 questions ouvertes de la section 3 tranchées **par écrit** avant tout code | Fait |
-| Décision de portée P-1 / P-2 / P-3 (section 2.4) tranchée **par écrit** | Fait |
+| Question 1 (enrôlement) tranchée — **E-3 acté le 2026-07-31** | ✅ Fait |
+| Question 2 (flux) tranchée — **F-2 / PKCE acté le 2026-07-31** | ✅ Fait |
+| Question 3 (clé d'identité `Utilisateur`) tranchée **par écrit** | ⏳ **Bloquant** |
+| Décision de portée P-1 contre P-2 (section 2.4) tranchée **par écrit** | ⏳ **Bloquant** |
+| Comportement d'enrôlement pour un tiers documenté dans le contrat API (suite de E-3) | Fait |
 | Keycloak local déclaré dans `docker-compose.yml`, port distinct de 8080 et 9092 | Vérifié |
 | Aucun identifiant Keycloak en dur dans `docker-compose.yml` | Vérifié |
 | URL du realm injectée par variable d'environnement, sans repli codé en dur | Vérifié |
