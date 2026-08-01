@@ -175,11 +175,11 @@ L'intuition « le Keycloak provisoire ne couvre que les 4 rôles internes, l'EMP
 |---|---|---|
 | **1** | L'enrôlement ne vérifie pas le matricule du porteur du jeton | ✅ **Tranchée** — E-3, comportement voulu, à documenter |
 | **2** | Direct Access Grant ou Authorization Code + PKCE | ✅ **Tranchée** — F-2 (PKCE), fédération AD confirmée |
-| **3** | Clé d'identité de `Utilisateur` | ⏳ **Ouverte** |
+| **3** | Clé d'identité de `Utilisateur` | ✅ **Tranchée** — I-2, résolution par `email` |
 
-Les questions 1 et 2 ont été tranchées par le responsable projet le 2026-07-31. Leurs décisions figurent dans les encadrés ci-dessous ; le raisonnement d'origine est conservé en repli pour traçabilité.
+**Les trois questions sont désormais tranchées** (2026-07-31). Leurs décisions figurent dans les encadrés ci-dessous ; le raisonnement d'origine est conservé en repli pour traçabilité.
 
-**Restent bloquants avant la section 4 :** la question 3 ci-dessous, et la décision de portée P-1 contre P-2 (§2.4).
+**Seul point encore bloquant avant la section 4 : la décision de portée P-1 contre P-2 (§2.4).**
 
 ### 3.1 Question 1 — ~~L'enrôlement ne vérifie pas que le matricule est celui de l'utilisateur connecté~~ ✅ **TRANCHÉE le 2026-07-31**
 
@@ -249,27 +249,38 @@ Ce défaut est antérieur au chantier (présent depuis le Sprint 2) et n'a pas �
 >
 > **La section 2.3 n'est plus une hypothèse** : la fédération Keycloak ↔ Active Directory est confirmée par observation directe sur BAOBAB. Reste à obtenir de la DSI les paramètres du realm (URL, nom du client, mapping des rôles), pas à valider le principe.
 
-### 3.3 Question 3 — Quelle clé d'identité pour `Utilisateur` ? ⏳ **SEULE QUESTION ENCORE OUVERTE**
+### 3.3 Question 3 — ~~Quelle clé d'identité pour `Utilisateur` ?~~ ✅ **TRANCHÉE le 2026-07-31**
 
-**Désormais la question la plus structurante du sprint — et la confirmation de la fédération AD la rend certaine au lieu d'hypothétique.**
-
-Aujourd'hui, `AuthenticatedUserService` résout l'utilisateur par `findByMatricule(SecurityContextHolder…getName())`, c'est-à-dire par le `subject` du jeton.
-
-Puisque la fédération Keycloak ↔ Active Directory est **confirmée** (§2.3 et question 2), le `subject` du jeton portera un identifiant issu de l'AD (`preferred_username`, `sAMAccountName`) ou un UUID Keycloak — **jamais un matricule**. Ce n'est plus un risque à anticiper, c'est une certitude à traiter.
-
-**Conséquence directe : sans réponse à cette question, `AuthenticatedUserService` ne trouve plus aucun utilisateur, et tout ce qui en dépend tombe** — l'audit (RG-09, `id_utilisateur` NOT NULL avec FK), la séparation des tâches (RG-08), et les champs `id_createur` des processus et des grilles.
-
-Or l'entité `Utilisateur` **n'a aucun champ pour porter cet identifiant** (section 1.2).
-
-**Information manquante pour trancher :** le format exact de l'identifiant exposé par le realm (par exemple `jmbarga` seul, ou `jmbarga@afrilandfirstbank.cm`), et s'il est déductible du `matricule` ou de l'`email` déjà présents en base. Cette information peut venir de la DSI, **ou** d'une observation directe d'un jeton BAOBAB réel — ce second chemin est probablement plus rapide.
-
-| Option | Implications |
-|---|---|
-| **I-1 — Ajouter un champ `identifiantAd`, garder `matricule` comme clé métier** | Migration Flyway ajoutant une colonne `identifiant_ad` (UNIQUE, nullable au début). `AuthenticatedUserService` résout par ce champ. Le matricule reste la clé métier (enrôlement, EHR, audit) mais cesse d'être un identifiant de connexion. **Le plus conservateur** — mais **ajoute une migration Flyway**, ce que le reste du chantier s'était interdit (`PLAN_MONOLITHE_MODULAIRE.md` §5). |
-| **I-2 — S'appuyer sur `email`, déjà UNIQUE et NOT NULL** | Aucune migration : `AuthenticatedUserService` résout par `findByEmail()` à partir du claim `email` du jeton. **Le moins invasif.** **Mais** suppose que l'email DOTTEL corresponde exactement à l'email AD, ce qui n'est pas garanti, et rend l'identité dépendante d'une donnée qui peut changer. |
-| **I-3 — Repenser la clé d'identité de `Utilisateur`** | `matricule` cesse d'être `UNIQUE NOT NULL` et devient un simple attribut ; un identifiant externe devient la clé. **Le plus propre à long terme**, mais **touche au modèle de données figé par `CLAUDE.md` section 4**, et impacte l'audit, RG-08 et tous les tests. **Nettement hors du périmètre annoncé du chantier.** |
-
-**Contrainte transversale à traiter quelle que soit l'option :** `Utilisateur.motDePasseHash` est **NOT NULL**. Si Keycloak porte l'authentification, il n'y a plus de mot de passe local. Faut-il rendre la colonne nullable (migration), y stocker une valeur factice (malpropre), ou conserver l'authentification locale en parallèle ? **À trancher avec cette question.**
+> ## ✅ Décision actée — I-2, résolution par `email`
+>
+> **Confirmation apportée par le responsable projet, à partir de sa propre identité AD :**
+>
+> ```
+> Nom complet AFB : NZALI FANKEM Vladimir
+> Identifiant AD  : vladimir_nzali
+> Email pro       : vladimir_nzali@afrilandfirstbank.com
+>                    └──────┬──────┘
+>                       identique à l'identifiant AD
+> ```
+>
+> **L'identifiant AD est exactement la partie locale de l'email professionnel** (avant le `@`). La convention observée est `prenom_nom` (tiret bas), avec troncature au premier élément si le nom de famille est composé (« NZALI FANKEM Vladimir » → `vladimir_nzali`, pas `vladimir_nzali_fankem`).
+>
+> **Option retenue : I-2 — résolution par `email`.**
+>
+> - Aucune migration Flyway : `email` est déjà `UNIQUE NOT NULL` sur `Utilisateur`.
+> - `AuthenticatedUserService` passe de `findByMatricule(SecurityContextHolder…getName())` à une résolution basée sur le claim `email` du jeton (ou reconstruite à partir de `preferred_username` + domaine, selon ce qu'expose réellement le realm — voir inconnue 2 ci-dessous).
+> - L'option I-1 (ajouter un champ `identifiantAd`) devient inutile : la donnée est entièrement déductible de l'email déjà présent.
+>
+> **Deux inconnues restent, à lever pendant l'implémentation, pas bloquantes pour le realm LOCAL provisoire :**
+>
+> 1. **Prénoms composés.** L'exemple confirmé tronque le second *nom de famille* (« Fankem »). Le comportement sur un **prénom** composé (« Jean Paul MBARGA ») n'est pas connu : `jeanpaul_mbarga` ou `jean_paul_mbarga` ? À vérifier avec un cas réel ou avec la DSI.
+> 2. **Forme exacte du claim.** Le realm peut exposer `preferred_username` comme `vladimir_nzali` seul, ou comme l'email complet `vladimir_nzali@afrilandfirstbank.com`. Change la ligne de résolution (comparaison directe à l'email, ou reconstruction `identifiant + "@afrilandfirstbank.com"`).
+>
+> **Contrainte `motDePasseHash` — tranchée dans la foulée.** Puisque Keycloak porte désormais l'authentification, ce champ **NOT NULL** n'a plus d'usage. Pour le realm local provisoire, il est conservé tel quel (les utilisateurs de test gardent un hash BCrypt inerte) — **aucune migration n'est nécessaire pour ce sprint**. Le rendre nullable ou le supprimer est reporté à un futur sprint, une fois le realm réel confirmé.
+>
+> **⚠️ Écart trouvé dans les données de test, corrigé dans ce commit.** `V3__insertion_utilisateurs_test.sql` utilisait un **point** (`jeanpaul.mbarga@…`) au lieu du **tiret bas** de la convention réelle (`jeanpaul_mbarga@…`). Corrigé pour que la résolution par email fonctionne dès le realm local — voir `V3__insertion_utilisateurs_test.sql`.
+>
+> **Point additionnel signalé, non corrigé ici :** les URL placeholder commitées au Sprint 6F.9 (`k8s/configmap.yaml`, `frontend/.env.production`) utilisent le domaine `.cm`, alors que l'email confirmé est en `.com`. Ces valeurs étaient explicitement marquées « à confirmer avec la DSI » — l'écart est noté pour correction ultérieure, hors périmètre de MM.7.
 
 ---
 
@@ -535,7 +546,7 @@ montre le contraire.
 |---|---|
 | Question 1 (enrôlement) tranchée — **E-3 acté le 2026-07-31** | ✅ Fait |
 | Question 2 (flux) tranchée — **F-2 / PKCE acté le 2026-07-31** | ✅ Fait |
-| Question 3 (clé d'identité `Utilisateur`) tranchée **par écrit** | ⏳ **Bloquant** |
+| Question 3 (clé d'identité `Utilisateur`) tranchée — **I-2 / `email` acté le 2026-07-31** | ✅ Fait |
 | Décision de portée P-1 contre P-2 (section 2.4) tranchée **par écrit** | ⏳ **Bloquant** |
 | Comportement d'enrôlement pour un tiers documenté dans le contrat API (suite de E-3) | Fait |
 | Keycloak local déclaré dans `docker-compose.yml`, port distinct de 8080 et 9092 | Vérifié |
