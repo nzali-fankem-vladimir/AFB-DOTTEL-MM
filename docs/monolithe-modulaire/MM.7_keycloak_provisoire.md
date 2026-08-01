@@ -137,9 +137,22 @@ Cette confirmation vaut **observation de terrain**, pas document officiel. Elle 
 
 Ce fonctionnement, bien que réel et quotidien sur BAOBAB, **n'est écrit nulle part dans le projet** — d'où l'intérêt de le consigner ici.
 
-### 2.4 ⚠️ Décision de portée à arbitrer — la réduction complique techniquement
+### 2.4 Décision de portée — ✅ **TRANCHÉE le 2026-07-31 : P-2**
 
-L'intuition « le Keycloak provisoire ne couvre que les 4 rôles internes, l'EMPLOYE reste sur matricule » est **cohérente sur le plan métier**. Mais elle a une conséquence technique qu'il faut assumer en connaissance de cause.
+> ## ✅ Décision actée — P-2, Keycloak pour les 5 rôles, EMPLOYE compris
+>
+> **Le responsable projet a tranché directement**, sans attendre de confirmation externe : si les rôles internes (ARH/CRH/DRH/ADMIN) s'authentifient via leur compte AD, il n'y a aucune raison métier de penser qu'un employé lambda venant s'enrôler en serait dépourvu — tous les employés Afriland ont un compte AD. Séparer l'EMPLOYE du reste n'aurait donc apporté que de la complexité technique (double émetteur JWT) sans bénéfice métier réel.
+>
+> **Conséquences concrètes :**
+>
+> - **Un seul émetteur, une seule `SecurityFilterChain`.** Pas d'`AuthenticationManagerResolver` à construire, pas de double `JwtDecoder`.
+> - **`AuthService.authentifier()` et `JwtUtil.genererToken()` deviennent morts** et seront supprimés en MM.7 étape 5 — avec leurs tests associés (`AuthServiceTest`, 4 tests ; `JwtUtilTest`, 3 tests). C'est le **seul cas légitime du chantier** où le nombre total de tests peut descendre sous 205, à condition de le signaler explicitement au moment de l'exécution.
+> - **`POST /auth/login` disparaît** en tant qu'endpoint applicatif : la connexion devient une redirection Keycloak (cohérent avec la décision F-2/PKCE de la question 2), pour les 5 rôles sans exception.
+> - **Le realm local provisoire doit créer les 5 rôles** (`EMPLOYE`, `ARH`, `CRH`, `DRH`, `ADMIN`), pas seulement les 4 rôles internes — impact direct sur l'étape 3 (realm de développement).
+>
+> **Ce qui ne change pas :** `EnrolementController`/`EnrolementService` restent inchangés dans leur logique métier — seul le mécanisme d'authentification en amont change, pas la vérification `@PreAuthorize("hasRole('EMPLOYE')")` ni le comportement acté à la question 1 (E-3).
+
+L'intuition initiale « le Keycloak provisoire ne couvre que les 4 rôles internes, l'EMPLOYE reste sur matricule » semblait cohérente sur le plan métier, mais avait une conséquence technique lourde : elle est documentée ci-dessous pour traçabilité, avant d'être écartée au profit de P-2.
 
 `SecurityConfig` ne déclare **qu'un seul bean `JwtDecoder`** et **une seule `SecurityFilterChain`**. Faire coexister deux modes d'authentification suppose donc :
 
@@ -165,21 +178,21 @@ L'intuition « le Keycloak provisoire ne couvre que les 4 rôles internes, l'EMP
 >
 > **Si P-3 devait malgré tout être retenue, elle exigerait une justification métier écrite et une compensation explicite** (par exemple une limitation de débit, une restriction réseau, ou un contrôle de possession du matricule) — et non le simple constat qu'elle est plus simple à implémenter.
 
-**L'arbitrage réel porte donc sur P-1 contre P-2.** Aucune des deux n'est retenue dans ce document : la décision doit être prise en même temps que les trois questions ouvertes ci-dessous, car elle interagit directement avec elles.
+L'arbitrage entre P-1 et P-2 est tranché ci-dessus : **P-2 retenue**.
 
 ---
 
-## 3. LES TROIS QUESTIONS OUVERTES — à trancher avant l'étape 2
+## 3. LES TROIS QUESTIONS — toutes tranchées le 2026-07-31
 
-| # | Question | État au 2026-07-31 |
+| # | Question | État |
 |---|---|---|
 | **1** | L'enrôlement ne vérifie pas le matricule du porteur du jeton | ✅ **Tranchée** — E-3, comportement voulu, à documenter |
 | **2** | Direct Access Grant ou Authorization Code + PKCE | ✅ **Tranchée** — F-2 (PKCE), fédération AD confirmée |
 | **3** | Clé d'identité de `Utilisateur` | ✅ **Tranchée** — I-2, résolution par `email` |
 
-**Les trois questions sont désormais tranchées** (2026-07-31). Leurs décisions figurent dans les encadrés ci-dessous ; le raisonnement d'origine est conservé en repli pour traçabilité.
+Leurs décisions figurent dans les encadrés ci-dessous ; le raisonnement d'origine est conservé en repli pour traçabilité.
 
-**Seul point encore bloquant avant la section 4 : la décision de portée P-1 contre P-2 (§2.4).**
+**Les 3 questions ET la décision de portée (§2.4, P-2) sont toutes tranchées. La section 4 (mise en œuvre) peut démarrer.**
 
 ### 3.1 Question 1 — ~~L'enrôlement ne vérifie pas que le matricule est celui de l'utilisateur connecté~~ ✅ **TRANCHÉE le 2026-07-31**
 
@@ -367,18 +380,17 @@ Cree le realm local. Deux approches, propose-moi la tienne :
     reproductible)
 
 Le realm doit contenir :
-- Un client pour le frontend, configure selon la decision F-1 ou F-2
-  de la question ouverte 2.
-- Les roles correspondant a RoleEnum. ATTENTION : RoleEnum contient
-  CINQ valeurs (EMPLOYE, ARH, CRH, DRH, ADMIN) -- lesquelles creer
-  depend de la decision de portee P-1/P-2/P-3 de la section 2.4.
-- Les utilisateurs de test, selon la decision de la question 3.
-
-RAPPEL DE LA QUESTION 3, NON TRANCHEE PAR TOI : les 5 utilisateurs de
-V3__insertion_utilisateurs_test.sql (1847 ARH, 2093 CRH, 1562 DRH,
-2201 EMPLOYE, 1734 ADMIN) doivent-ils etre recrees a l'identique dans
-Keycloak, et sous quel identifiant ? Applique la decision ecrite,
-ne l'invente pas.
+- Un client pour le frontend, configure en Authorization Code + PKCE
+  (decision F-2 de la question 2, actee).
+- Les CINQ roles de RoleEnum (EMPLOYE, ARH, CRH, DRH, ADMIN) --
+  decision de portee P-2 actee section 2.4, Keycloak couvre les
+  5 roles sans exception.
+- Les 5 utilisateurs de test recrees a l'identique de
+  V3__insertion_utilisateurs_test.sql (1847 ARH, 2093 CRH, 1562 DRH,
+  2201 EMPLOYE, 1734 ADMIN), sous leur email corrige au format
+  prenom_nom@afrilandfirstbank.com (decision I-2, question 3 actee).
+  L'identifiant Keycloak de connexion est la partie locale de cet
+  email (ex. jeanpaul_mbarga).
 ```
 
 ### 4.4 Étape 4. Bascule de `SecurityConfig`
@@ -398,39 +410,39 @@ le realm DSI reel triviale.
 1. Remplace le bean jwtDecoder() par une configuration issuer-uri.
 2. L'URL du realm doit venir d'une variable d'environnement, sans
    valeur de repli codee en dur (meme regle que DOTTEL_JWT_SECRET).
-3. Selon la decision de portee (P-1/P-2/P-3), determine s'il faut UNE
-   seule chaine de filtres ou DEUX. Rappel : aujourd'hui il n'y a
-   qu'un seul bean JwtDecoder et une seule SecurityFilterChain --
-   si P-1 est retenue, tu dois introduire un
-   AuthenticationManagerResolver ou deux SecurityFilterChain
-   discriminees par route. Montre-moi ta conception AVANT de coder.
+3. Decision de portee P-2 actee (section 2.4) : Keycloak devient
+   l'UNIQUE emetteur, pour les 5 roles sans exception. UN SEUL bean
+   JwtDecoder, UNE SEULE SecurityFilterChain suffisent -- pas
+   d'AuthenticationManagerResolver ni de double chaine a construire.
 4. NE TOUCHE PAS a csrf.disable(), SessionCreationPolicy.STATELESS,
-   ni aux permitAll sur /auth/login et /actuator/health sans me le
-   signaler -- ce sont des decisions validees par l'audit 6F.9.
+   ni au permitAll sur /actuator/health sans me le signaler -- ce
+   sont des decisions validees par l'audit 6F.9. Le permitAll sur
+   /auth/login, lui, DISPARAIT avec l'endpoint (voir etape 5).
 
 Montre-moi le diff complet.
 ```
 
-### 4.5 Étape 5. Sort de `AuthService` et `JwtUtil`
+### 4.5 Étape 5. Suppression de `AuthService` et `JwtUtil`
 
 ```
-Selon la decision de portee :
+Decision de portee P-2 actee : Keycloak couvre les 5 roles, EMPLOYE
+compris. AuthService.authentifier() et JwtUtil.genererToken()
+deviennent MORTS.
 
-- Si P-2 (Keycloak pour les 5 roles) : AuthService.authentifier() et
-  JwtUtil.genererToken() deviennent MORTS. Propose-moi leur
-  suppression, et signale-moi TOUT ce qui casse -- notamment
-  AuthController, AuthServiceTest (4 tests) et JwtUtilTest (3 tests).
-  Le nombre de tests va DESCENDRE sous 205 : c'est le seul cas
-  legitime du chantier ou c'est acceptable, mais tu me le signales
-  explicitement et tu me donnes le nouveau total.
+1. Propose-moi leur suppression (AuthService, JwtUtil, et
+   AuthController si POST /auth/login disparait entierement -- a
+   confirmer selon ce que devient l'endpoint : soit supprime, soit
+   transforme en simple redirection vers Keycloak).
+2. Signale-moi TOUT ce qui casse -- notamment AuthServiceTest
+   (4 tests) et JwtUtilTest (3 tests), qui deviennent obsoletes.
+3. Le nombre de tests va DESCENDRE sous 205 : c'est le seul cas
+   legitime du chantier ou c'est acceptable. Signale-le explicitement
+   et donne-moi le nouveau total.
 
-- Si P-1 ou P-3 : ils survivent pour le parcours EMPLOYE. Documente
-  clairement dans le code QUI les utilise encore et pourquoi.
-
-Dans les deux cas : POST /auth/logout est aujourd'hui stateless et
-sans liste noire (contrat API V3.3 section 1). Avec Keycloak, la
-deconnexion peut aussi invalider la session cote realm. Signale-moi
-si le comportement change, ne le modifie pas silencieusement.
+POST /auth/logout est aujourd'hui stateless et sans liste noire
+(contrat API V3.3 section 1). Avec Keycloak, la deconnexion peut
+aussi invalider la session cote realm. Signale-moi si le
+comportement change, ne le modifie pas silencieusement.
 ```
 
 ### 4.6 Étape 6. Mapping des rôles et de l'identité
@@ -501,22 +513,22 @@ Verification complete.
    backend. Verifie que le contexte Spring demarre avec la nouvelle
    configuration de securite.
 
-3. Parcours reel par role, dans le navigateur, pour CHACUN des roles
-   couverts par la decision de portee :
-   - connexion
+3. Parcours reel par role, dans le navigateur, pour les CINQ roles
+   (EMPLOYE, ARH, CRH, DRH, ADMIN -- decision de portee P-2, tous
+   passent desormais par Keycloak) :
+   - connexion via redirection Keycloak
    - atterrissage sur la bonne page (rappel : le CRH atterrit sur
      /processus depuis le correctif E1 de l'audit 6F.9)
    - acces a une page autorisee
    - acces refuse a une page non autorisee
+   - EMPLOYE en particulier : verifie que /enrolement/verifier et
+     /enrolement/confirmer fonctionnent toujours avec un jeton
+     Keycloak (le mecanisme d'emission a change, la verification
+     @PreAuthorize("hasRole('EMPLOYE')") non)
 
 4. Verifie en base que audit_log continue d'etre alimente
    correctement : id_utilisateur renseigne, adresse_ip NON NULLE,
    detail_json au format {"avant":..., "apres":...} (RG-09).
-
-5. Si la portee retenue est P-1 (deux emetteurs), teste
-   EXPLICITEMENT qu'un jeton EMPLOYE local est refuse sur une route
-   ARH, et qu'un jeton Keycloak ARH est refuse sur une route EMPLOYE.
-   C'est le point de rupture le plus probable de cette option.
 
 Montre-moi les resultats reels, pas une conclusion.
 ```
@@ -547,7 +559,7 @@ montre le contraire.
 | Question 1 (enrôlement) tranchée — **E-3 acté le 2026-07-31** | ✅ Fait |
 | Question 2 (flux) tranchée — **F-2 / PKCE acté le 2026-07-31** | ✅ Fait |
 | Question 3 (clé d'identité `Utilisateur`) tranchée — **I-2 / `email` acté le 2026-07-31** | ✅ Fait |
-| Décision de portée P-1 contre P-2 (section 2.4) tranchée **par écrit** | ⏳ **Bloquant** |
+| Décision de portée (section 2.4) tranchée — **P-2 acté le 2026-07-31** | ✅ Fait |
 | Comportement d'enrôlement pour un tiers documenté dans le contrat API (suite de E-3) | Fait |
 | Keycloak local déclaré dans `docker-compose.yml`, port distinct de 8080 et 9092 | Vérifié |
 | Aucun identifiant Keycloak en dur dans `docker-compose.yml` | Vérifié |
@@ -555,17 +567,17 @@ montre le contraire.
 | `SecurityConfig` valide les jetons par `issuer-uri` / JWKS | Vérifié |
 | Mapping rôles Keycloak → `RoleEnum` documenté sous forme de tableau | Fait |
 | Cas d'un utilisateur Keycloak portant plusieurs rôles : question posée, non tranchée seul | Fait |
-| `AuthenticatedUserService` résout l'utilisateur selon la décision I-1/I-2/I-3 | Vérifié |
+| `AuthenticatedUserService` résout l'utilisateur par `email` (décision I-2) | Vérifié |
 | RG-08 (séparation des tâches) fonctionne toujours après changement d'identité | Vérifié |
 | RG-09 : `audit_log.id_utilisateur` renseigné, `adresse_ip` **non nulle** | Vérifié en base |
 | `AuthProviderKeycloak` implémente le contrat `AuthProvider` existant | Vérifié |
 | Modification de `AuthContext.jsx` limitée au strict nécessaire et documentée | Vérifié |
 | Jeton toujours **en mémoire seule** — aucun `localStorage`/`sessionStorage` | Vérifié |
 | Toujours **zéro** `console.log` dans `frontend/src` | Vérifié |
-| Parcours réel testé pour chaque rôle couvert par la portée retenue | Vérifié |
-| Si P-1 retenue : rejet croisé des deux types de jetons testé explicitement | Vérifié |
-| Écart éventuel du nombre de tests par rapport à 205 signalé et expliqué | Fait |
-| Aucun contrat API modifié sur les 34 endpoints (hors `/auth/login` si P-2) | Vérifié |
+| Parcours réel testé pour les **5 rôles** (P-2 : Keycloak couvre EMPLOYE compris) | Vérifié |
+| `AuthService` et `JwtUtil` supprimés, `AuthServiceTest`/`JwtUtilTest` retirés en conséquence | Vérifié |
+| Écart du nombre de tests par rapport à 205 (suppression légitime) signalé et expliqué | Fait |
+| Aucun contrat API modifié sur les 34 endpoints, hors `POST /auth/login` (disparu ou transformé en redirection, P-2) | Vérifié |
 | Liste honnête de ce qui restera à faire pour le realm DSI réel | Fait |
 | Caractère **local et provisoire** rappelé dans `docker-compose.yml` et le README | Vérifié |
 
