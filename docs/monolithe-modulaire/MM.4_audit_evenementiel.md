@@ -67,7 +67,15 @@ Résultat : **`audit_log.adresse_ip` deviendrait `null` pour toutes les entrées
 Tu es mon assistant de developpement pour le projet DOTTEL (Afriland
 First Bank).
 
-AVANT TOUT :
+AVANT TOUT -- VERIFICATION D'ESPACE DE TRAVAIL, BLOQUANTE :
+Confirme-moi, en lancant reellement les commandes, que :
+  a) ton repertoire de travail se termine bien par "afb-dottel-mm"
+     et NON "afb-dottel"
+  b) `git log --oneline -1` ne montre PAS d9be38c
+  c) `git remote -v` ne retourne AUCUN remote
+Si l'un des trois est faux, ARRETE-TOI immediatement.
+
+ENSUITE :
 1. Lis CLAUDE.md dans son integralite, en particulier RG-09 (section
    7) et la section 9 ("AuditService.enregistrer() en fin de chaque
    methode de service", "passer le delta JSON pour toute modification").
@@ -86,13 +94,22 @@ avant toute ligne de code :
   - le mode transactionnel de l'ecouteur
   - la capture de l'adresse IP
 
+VARIABLES D'ENVIRONNEMENT (TROIS, pas deux) :
+  $env:DB_URL="jdbc:postgresql://localhost:5432/afb_dotations_telephoniques_mm"
+  $env:DB_PASSWORD="admin"
+  $env:DOTTEL_JWT_SECRET="dottel-dev-secret-key-2026-afriland-first-bank-32chars"
+Oublier DB_URL fait retomber SILENCIEUSEMENT sur la base du projet
+d'origine.
+
 METHODE DE TRAVAIL :
 - Tu NE TRANCHES PAS ces deux points seul. Tu me presentes les
   options, j'arbitre, puis tu codes.
-- Un service migre a la fois, mvn test complet apres chacun.
+- Un service migre a la fois, mvn test complet apres chacun, avec
+  les TROIS variables ci-dessus.
 - Reference : >= 205 tests, 0 echec.
 
-PREMIERE ACTION : etape 2, analyse des deux pieges. Ne code rien.
+PREMIERE ACTION : la verification d'espace de travail ci-dessus, puis
+etape 2, analyse des deux pieges. Ne code rien.
 ```
 
 ## 3. Étape 2. Trancher le mode transactionnel — **arrêt obligatoire**
@@ -200,6 +217,7 @@ Migre maintenant <SERVICE>, et LUI SEUL.
    publication de l'evenement, via ApplicationEventPublisher.
 2. Retire AuditService des dependances injectees de ce service.
 3. Lance la suite complete :
+     $env:DB_URL="jdbc:postgresql://localhost:5432/afb_dotations_telephoniques_mm"
      $env:DB_PASSWORD="admin"
      $env:DOTTEL_JWT_SECRET="dottel-dev-secret-key-2026-afriland-first-bank-32chars"
      cd backend ; .\mvnw.cmd test

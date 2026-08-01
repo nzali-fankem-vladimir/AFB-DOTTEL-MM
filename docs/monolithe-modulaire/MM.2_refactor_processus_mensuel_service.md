@@ -88,11 +88,20 @@ Quatre dépendances de services restent **légitimes** et ne doivent pas être t
 Tu es mon assistant de developpement pour le projet DOTTEL (Afriland
 First Bank).
 
-AVANT TOUT :
+AVANT TOUT -- VERIFICATION D'ESPACE DE TRAVAIL, BLOQUANTE :
+Confirme-moi, en lancant reellement les commandes, que :
+  a) ton repertoire de travail se termine bien par "afb-dottel-mm"
+     et NON "afb-dottel"
+  b) `git log --oneline -1` ne montre PAS d9be38c
+  c) `git remote -v` ne retourne AUCUN remote
+Si l'un des trois est faux, ARRETE-TOI immediatement.
+
+ENSUITE :
 1. Lis CLAUDE.md dans son integralite, en particulier la section 7
    (regles metier RG-01 a RG-12) et la section 17.
 2. Lis docs/monolithe-modulaire/PLAN_MONOLITHE_MODULAIRE.md
-3. Lis docs/monolithe-modulaire/MM.0_cadrage.md (decoupage acte)
+3. Lis docs/monolithe-modulaire/MM.0_cadrage.md (decoupage acte en
+   6 modules -- le module "integration" n'existe pas)
 4. Lance /graphify . --update
 
 CONTEXTE : Sprint MM.2, le plus risque du chantier. Objectif unique :
@@ -107,18 +116,29 @@ CE SPRINT NE TOUCHE PAS :
   FonctionEligibleService (traites en MM.3)
 - Le schema de base de donnees (aucune migration Flyway)
 - Les contrats API (34 endpoints inchanges)
+- EvenementClotureService et NotificationService : ils appartiennent
+  deja au module processus (decision C.3 de MM.0), ce ne sont PAS des
+  couplages a casser.
+
+VARIABLES D'ENVIRONNEMENT (TROIS, pas deux) :
+  $env:DB_URL="jdbc:postgresql://localhost:5432/afb_dotations_telephoniques_mm"
+  $env:DB_PASSWORD="admin"
+  $env:DOTTEL_JWT_SECRET="dottel-dev-secret-key-2026-afriland-first-bank-32chars"
+Oublier DB_URL fait retomber SILENCIEUSEMENT sur la base du projet
+d'origine.
 
 METHODE DE TRAVAIL :
 - UN couplage a la fois. Tu montres le diff, j'approuve, tu continues.
-- mvn test complet apres chaque couplage extrait. Reference : >= 205
-  tests, 0 echec.
+- mvn test complet apres chaque couplage extrait, avec les TROIS
+  variables ci-dessus. Reference : >= 205 tests, 0 echec.
 - Si tu dois modifier une regle metier pour faire passer le refactor,
   ARRETE-TOI et explique-moi -- c'est probablement une erreur de
   conception de l'API, pas un ajustement legitime.
 - Les regles RG-01, RG-02, RG-04, RG-05, RG-06, RG-07, RG-08, RG-11
   et RG-12 doivent se comporter EXACTEMENT pareil apres qu'avant.
 
-PREMIERE ACTION : etape 2, cartographie des usages.
+PREMIERE ACTION : la verification d'espace de travail ci-dessus, puis
+etape 2, cartographie des usages.
 ```
 
 ## 3. Étape 2. Cartographier avant de toucher
@@ -189,6 +209,7 @@ Extrais maintenant le couplage <N>, et LUI SEUL.
 2. Remplace les appels dans ProcessusMensuelService.
 3. Retire le repository etranger de la liste des dependances injectees.
 4. Lance la suite complete :
+     $env:DB_URL="jdbc:postgresql://localhost:5432/afb_dotations_telephoniques_mm"
      $env:DB_PASSWORD="admin"
      $env:DOTTEL_JWT_SECRET="dottel-dev-secret-key-2026-afriland-first-bank-32chars"
      cd backend ; .\mvnw.cmd test

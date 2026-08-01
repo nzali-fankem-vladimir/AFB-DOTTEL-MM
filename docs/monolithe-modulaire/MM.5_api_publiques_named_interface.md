@@ -47,10 +47,19 @@ Les trois sont complémentaires. `@NamedInterface` seul ne ferme rien ; package-
 Tu es mon assistant de developpement pour le projet DOTTEL (Afriland
 First Bank).
 
-AVANT TOUT :
+AVANT TOUT -- VERIFICATION D'ESPACE DE TRAVAIL, BLOQUANTE :
+Confirme-moi, en lancant reellement les commandes, que :
+  a) ton repertoire de travail se termine bien par "afb-dottel-mm"
+     et NON "afb-dottel"
+  b) `git log --oneline -1` ne montre PAS d9be38c
+  c) `git remote -v` ne retourne AUCUN remote
+Si l'un des trois est faux, ARRETE-TOI immediatement.
+
+ENSUITE :
 1. Lis CLAUDE.md dans son integralite (section 9, conventions de code).
 2. Lis docs/monolithe-modulaire/PLAN_MONOLITHE_MODULAIRE.md
-3. Lis docs/monolithe-modulaire/MM.0_cadrage.md (decoupage acte)
+3. Lis docs/monolithe-modulaire/MM.0_cadrage.md (decoupage acte en
+   6 modules -- le module "integration" n'existe pas)
 4. Lance /graphify . --update
 
 CONTEXTE : Sprint MM.5. Declarer les API publiques par module et
@@ -62,11 +71,20 @@ annotations. Si une methode doit changer de signature pour etre
 fermee, c'est le signe d'un couplage non traite en MM.2/MM.3 --
 arrete-toi et signale-le.
 
+VARIABLES D'ENVIRONNEMENT (TROIS, pas deux) :
+  $env:DB_URL="jdbc:postgresql://localhost:5432/afb_dotations_telephoniques_mm"
+  $env:DB_PASSWORD="admin"
+  $env:DOTTEL_JWT_SECRET="dottel-dev-secret-key-2026-afriland-first-bank-32chars"
+Oublier DB_URL fait retomber SILENCIEUSEMENT sur la base du projet
+d'origine.
+
 METHODE DE TRAVAIL :
 - Un module a la fois.
-- mvn test complet apres chaque module. Reference : >= 205 tests.
+- mvn test complet apres chaque module, avec les TROIS variables
+  ci-dessus. Reference : >= 205 tests.
 
-PREMIERE ACTION : etape 2, inventaire.
+PREMIERE ACTION : la verification d'espace de travail ci-dessus, puis
+etape 2, inventaire.
 ```
 
 ## 3. Étape 2. Inventorier ce qui est public aujourd'hui
@@ -157,6 +175,7 @@ Ferme maintenant le module <MODULE>, et LUI SEUL.
    Ne "resous" JAMAIS une erreur en remettant simplement `public`
    sans classer le cas dans l'une des deux categories.
 3. Lance la suite complete :
+     $env:DB_URL="jdbc:postgresql://localhost:5432/afb_dotations_telephoniques_mm"
      $env:DB_PASSWORD="admin"
      $env:DOTTEL_JWT_SECRET="dottel-dev-secret-key-2026-afriland-first-bank-32chars"
      cd backend ; .\mvnw.cmd test

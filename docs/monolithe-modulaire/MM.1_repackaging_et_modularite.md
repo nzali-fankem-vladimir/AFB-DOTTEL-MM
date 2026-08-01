@@ -45,25 +45,43 @@ Deux principes gouvernent MM.1 :
 Tu es mon assistant de developpement pour le projet DOTTEL (Afriland
 First Bank).
 
-AVANT TOUT :
+AVANT TOUT -- VERIFICATION D'ESPACE DE TRAVAIL, BLOQUANTE :
+Confirme-moi, en lancant reellement les commandes, que :
+  a) ton repertoire de travail se termine bien par "afb-dottel-mm"
+     et NON "afb-dottel"
+  b) `git log --oneline -1` ne montre PAS d9be38c
+  c) `git remote -v` ne retourne AUCUN remote
+Si l'un des trois est faux, ARRETE-TOI immediatement : tu es dans le
+depot de travail principal, pas dans la copie du chantier.
+
+ENSUITE :
 1. Lis CLAUDE.md dans son integralite.
 2. Lis docs/monolithe-modulaire/PLAN_MONOLITHE_MODULAIRE.md
 3. Lis docs/monolithe-modulaire/MM.0_cadrage.md et confirme-moi le
-   decoupage ACTE (pas celui propose). Si un bloc de decision est
-   encore vide, arrete-toi et dis-le-moi.
+   decoupage ACTE en 6 MODULES (le module "integration" propose
+   initialement N'EXISTE PAS, ses composants sont repartis dans
+   beneficiaires et processus). Si un bloc de decision est encore
+   vide, arrete-toi et dis-le-moi.
 4. Lance /graphify . --update
 
 CONTEXTE : Sprint MM.1. Repackaging mecanique des classes vers les
-modules metier, ajout de Spring Modulith, creation de ModularityTests.
+6 modules metier actes, ajout de Spring Modulith, creation de
+ModularityTests.
+
+VARIABLES D'ENVIRONNEMENT (TROIS, pas deux) :
+  $env:DB_URL="jdbc:postgresql://localhost:5432/afb_dotations_telephoniques_mm"
+  $env:DB_PASSWORD="admin"
+  $env:DOTTEL_JWT_SECRET="dottel-dev-secret-key-2026-afriland-first-bank-32chars"
+Oublier DB_URL fait retomber SILENCIEUSEMENT sur la base du projet
+d'origine. Au premier demarrage, verifie que Flyway applique bien V1
+a V4 sur une base vierge -- s'il annonce un schema deja a jour, tu es
+sur la mauvaise base, arrete-toi.
 
 METHODE DE TRAVAIL :
 - Aucun changement de comportement metier. Uniquement des deplacements
   de fichiers et des corrections d'import.
 - mvn test complet apres CHAQUE deplacement de module, pas seulement
-  a la fin. Commande :
-    $env:DB_PASSWORD="admin"
-    $env:DOTTEL_JWT_SECRET="dottel-dev-secret-key-2026-afriland-first-bank-32chars"
-    cd backend ; .\mvnw.cmd test
+  a la fin, avec les TROIS variables ci-dessus.
 - Reference de non-regression : 205 tests, 0 echec. Si le nombre
   DESCEND sous 205, tu t'arretes immediatement et tu me previens --
   un refactoring qui fait disparaitre des tests a supprime de la
@@ -71,8 +89,9 @@ METHODE DE TRAVAIL :
 - Utilise `git mv` plutot que supprimer/recreer, pour que git detecte
   les renommages et garde l'historique lisible.
 
-PREMIERE ACTION : confirme le decoupage acte en MM.0, puis passe a
-l'etape 2 (ajout de Spring Modulith au pom.xml).
+PREMIERE ACTION : la verification d'espace de travail ci-dessus, puis
+confirme le decoupage acte en MM.0, puis passe a l'etape 2 (ajout de
+Spring Modulith au pom.xml).
 ```
 
 ## 3. Étape 2. Ajouter Spring Modulith au `pom.xml`
@@ -163,17 +182,18 @@ Montre-moi l'arborescence creee avant de deplacer quoi que ce soit.
 
 ## 6. Étape 5 à 9. Déplacer module par module
 
+**Rappel de la décision C.3 de MM.0 : le module `integration` n'existe pas.** Le chantier compte 6 modules, pas 7.
+
 Ordre recommandé : **du moins couplé au plus couplé**. Cela permet de rencontrer les cas simples d'abord et d'arriver sur `processus` avec la méthode rodée.
 
 | Ordre | Module | Pourquoi à ce rang |
 |---|---|---|
 | 1 | `audit` | 2 services, 2 repositories, 1 entité. `AuditServiceImpl` n'appelle aucun autre service. |
-| 2 | `integration` | `EhrIntegrationService` et `EvenementClotureService` sont déjà sans dépendance (voir `PLAN_MONOLITHE_MODULAIRE.md` §1.5). |
-| 3 | `utilisateurs` | `AuthService` et `UtilisateurAdminService` ne sortent pas de leur domaine, hors appel à `AuditService`. |
-| 4 | `referentiel` | Couplage interne fort mais légitime (décision B de MM.0). |
-| 5 | `beneficiaires` | Accède au référentiel — les violations commenceront à apparaître ici. |
-| 6 | `reporting` | Lit 3 repositories étrangers. Violations attendues. |
-| 7 | `processus` | Le plus gros et le plus couplé. En dernier. |
+| 2 | `utilisateurs` | `AuthService` et `UtilisateurAdminService` ne sortent pas de leur domaine, hors appel à `AuditService`. |
+| 3 | `referentiel` | Couplage interne fort mais légitime (décision B de MM.0), inclut `EligibiliteService` (décision A). |
+| 4 | `beneficiaires` | Accède au référentiel — les violations commenceront à apparaître ici. Inclut `EhrIntegrationService`/`EhrIntegrationServiceStub`, déjà sans dépendance (voir `PLAN_MONOLITHE_MODULAIRE.md` §1.5). |
+| 5 | `reporting` | Lit 3 repositories étrangers. Violations attendues. |
+| 6 | `processus` | Le plus gros et le plus couplé. Inclut `EvenementClotureService` et `NotificationService`/`NotificationServiceStub`, déjà sans dépendance externe. En dernier. |
 
 Prompt à répéter pour chaque module, en remplaçant `<MODULE>` :
 
@@ -185,6 +205,7 @@ Deplace maintenant le module <MODULE>, et LUI SEUL.
 2. Corrige tous les imports impactes dans TOUT le projet -- y compris
    dans les fichiers de test.
 3. Lance la suite complete :
+     $env:DB_URL="jdbc:postgresql://localhost:5432/afb_dotations_telephoniques_mm"
      $env:DB_PASSWORD="admin"
      $env:DOTTEL_JWT_SECRET="dottel-dev-secret-key-2026-afriland-first-bank-32chars"
      cd backend ; .\mvnw.cmd test

@@ -43,14 +43,30 @@ Rappel de l'objectif posé en `PLAN_MONOLITHE_MODULAIRE.md` §2 — trois propri
 Tu es mon assistant de developpement pour le projet DOTTEL (Afriland
 First Bank).
 
-AVANT TOUT :
+AVANT TOUT -- VERIFICATION D'ESPACE DE TRAVAIL, BLOQUANTE :
+Confirme-moi, en lancant reellement les commandes, que :
+  a) ton repertoire de travail se termine bien par "afb-dottel-mm"
+     et NON "afb-dottel"
+  b) `git log --oneline -1` ne montre PAS d9be38c
+  c) `git remote -v` ne retourne AUCUN remote
+Si l'un des trois est faux, ARRETE-TOI immediatement.
+
+ENSUITE :
 1. Lis CLAUDE.md dans son integralite.
 2. Lis docs/monolithe-modulaire/PLAN_MONOLITHE_MODULAIRE.md
-3. Lis docs/monolithe-modulaire/MM.0_cadrage.md (decoupage acte)
+3. Lis docs/monolithe-modulaire/MM.0_cadrage.md (decoupage acte en
+   6 modules -- le module "integration" n'existe pas)
 4. Lance /graphify .  (cartographie COMPLETE, pas --update)
 
 CONTEXTE : Sprint MM.6, cloture du chantier monolithe modulaire.
 Objectif : ModularityTests vert, documentation generee, recapitulatif.
+
+VARIABLES D'ENVIRONNEMENT (TROIS, pas deux) :
+  $env:DB_URL="jdbc:postgresql://localhost:5432/afb_dotations_telephoniques_mm"
+  $env:DB_PASSWORD="admin"
+  $env:DOTTEL_JWT_SECRET="dottel-dev-secret-key-2026-afriland-first-bank-32chars"
+Oublier DB_URL fait retomber SILENCIEUSEMENT sur la base du projet
+d'origine.
 
 METHODE DE TRAVAIL :
 - Aucun changement de comportement metier dans ce sprint.
@@ -58,7 +74,8 @@ METHODE DE TRAVAIL :
   cela signifie qu'un sprint precedent est incomplet, et il vaut
   mieux y revenir que de la masquer par une declaration complaisante.
 
-PREMIERE ACTION : etape 2, etat des violations.
+PREMIERE ACTION : la verification d'espace de travail ci-dessus, puis
+etape 2, etat des violations.
 ```
 
 ## 3. Étape 2. Résorber les dernières violations
@@ -122,6 +139,7 @@ booleen ne montre pas.
 Verification de bout en bout avant cloture.
 
 BACKEND :
+  $env:DB_URL="jdbc:postgresql://localhost:5432/afb_dotations_telephoniques_mm"
   $env:DB_PASSWORD="admin"
   $env:DOTTEL_JWT_SECRET="dottel-dev-secret-key-2026-afriland-first-bank-32chars"
   cd backend ; .\mvnw.cmd test
@@ -135,7 +153,8 @@ Attendu : build reussi. Le frontend n'a ete touche par AUCUN sprint
 MM -- si git montre une modification sous frontend/, c'est une erreur
 a signaler.
 
-DEMARRAGE REEL :
+DEMARRAGE REEL (memes trois variables que ci-dessus, dans le meme
+terminal ou redefinies) :
   cd backend ; .\mvnw.cmd spring-boot:run
 Attendu : "Started DottelApplication". Le repackaging a deplace des
 @Component, @Service, @Repository et @Entity -- seul un demarrage

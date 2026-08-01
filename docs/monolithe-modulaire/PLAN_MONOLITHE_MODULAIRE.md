@@ -169,6 +169,7 @@ L'ordre n'est pas négociable sur trois points :
 **Chaque étape se termine par une suite de tests complète au vert avant tout commit.**
 
 ```powershell
+$env:DB_URL="jdbc:postgresql://localhost:5432/afb_dotations_telephoniques_mm"
 $env:DB_PASSWORD="admin"
 $env:DOTTEL_JWT_SECRET="dottel-dev-secret-key-2026-afriland-first-bank-32chars"
 cd backend
