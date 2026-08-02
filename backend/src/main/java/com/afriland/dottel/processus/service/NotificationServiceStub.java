@@ -1,6 +1,6 @@
 package com.afriland.dottel.processus.service;
 
-import com.afriland.dottel.utilisateurs.model.entity.Utilisateur;
+import com.afriland.dottel.utilisateurs.api.DestinataireNotificationDto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -12,8 +12,8 @@ public class NotificationServiceStub implements NotificationService {
     // Meme esprit que le stub EHR - contrat clair, implementation temporaire
     // remplacable plus tard par un envoi reel.
     @Override
-    public void notifier(Utilisateur destinataire, String sujet, String message) {
+    public void notifier(DestinataireNotificationDto destinataire, String sujet, String message) {
         log.info("Notification a {} ({}) - sujet: {} - message: {}",
-                destinataire.getEmail(), destinataire.getRole(), sujet, message);
+                destinataire.email(), destinataire.role(), sujet, message);
     }
 }

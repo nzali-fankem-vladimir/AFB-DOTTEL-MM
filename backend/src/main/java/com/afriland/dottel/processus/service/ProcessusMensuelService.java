@@ -1,6 +1,11 @@
 package com.afriland.dottel.processus.service;
-import com.afriland.dottel.processus.exception.SeparationTachesViolationException;
-import com.afriland.dottel.beneficiaires.service.BeneficiaireService;
+import com.afriland.dottel.beneficiaires.api.BeneficiaireApi;
+import com.afriland.dottel.beneficiaires.api.BeneficiaireDotationDto;
+import com.afriland.dottel.beneficiaires.api.BeneficiaireIdentiteDto;
+import com.afriland.dottel.referentiel.api.GrilleTarifaireApi;
+import com.afriland.dottel.referentiel.api.ResolutionGrilleDto;
+import com.afriland.dottel.utilisateurs.api.DestinataireNotificationDto;
+import com.afriland.dottel.utilisateurs.api.UtilisateurApi;
 import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
 import com.afriland.dottel.audit.service.AuditService;
 
@@ -9,7 +14,6 @@ import com.afriland.dottel.processus.exception.PieceJointeIntrouvableException;
 import com.afriland.dottel.processus.exception.ProcessusMensuelExisteDejaException;
 import com.afriland.dottel.processus.exception.ProcessusMensuelIntrouvableException;
 import com.afriland.dottel.processus.exception.ProcessusMensuelNonModifiableException;
-import com.afriland.dottel.utilisateurs.exception.UtilisateurIntrouvableException;
 import com.afriland.dottel.processus.model.dto.processus.AjustementLigneEtatDto;
 import com.afriland.dottel.processus.model.dto.processus.BeneficiaireExcluDto;
 import com.afriland.dottel.processus.model.dto.processus.DeclencherProcessusRequestDto;
@@ -24,10 +28,7 @@ import com.afriland.dottel.processus.model.dto.processus.ResultatAjustementDto;
 import com.afriland.dottel.processus.model.dto.processus.RetournerProcessusRequestDto;
 import com.afriland.dottel.processus.model.dto.processus.RetournerProcessusResponseDto;
 import com.afriland.dottel.processus.model.dto.processus.ValiderProcessusResponseDto;
-import com.afriland.dottel.beneficiaires.model.entity.Beneficiaire;
 import com.afriland.dottel.processus.model.entity.EtapeWorkflow;
-import com.afriland.dottel.referentiel.model.entity.FonctionEligible;
-import com.afriland.dottel.referentiel.model.entity.GrilleTarifaire;
 import com.afriland.dottel.processus.model.entity.LigneEtatMensuel;
 import com.afriland.dottel.processus.model.entity.PieceJointe;
 import com.afriland.dottel.processus.model.entity.ProcessusMensuel;
@@ -36,15 +37,10 @@ import com.afriland.dottel.processus.model.enums.NomEtapeEnum;
 import com.afriland.dottel.utilisateurs.model.enums.RoleEnum;
 import com.afriland.dottel.processus.model.enums.StatutEnum;
 import com.afriland.dottel.processus.model.enums.StatutEtapeEnum;
-import com.afriland.dottel.referentiel.model.enums.StatutGrilleEnum;
-import com.afriland.dottel.beneficiaires.repository.BeneficiaireRepository;
 import com.afriland.dottel.processus.repository.EtapeWorkflowRepository;
-import com.afriland.dottel.referentiel.repository.FonctionEligibleRepository;
-import com.afriland.dottel.referentiel.repository.GrilleTarifaireRepository;
 import com.afriland.dottel.processus.repository.LigneEtatMensuelRepository;
 import com.afriland.dottel.processus.repository.PieceJointeRepository;
 import com.afriland.dottel.processus.repository.ProcessusMensuelRepository;
-import com.afriland.dottel.utilisateurs.repository.UtilisateurRepository;
 import com.afriland.dottel.referentiel.service.EligibiliteService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -59,25 +55,24 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class ProcessusMensuelService {
 
-    private static final String MOTIF_GRILLE_INTROUVABLE = "Aucune grille tarifaire ACTIVE pour cette fonction";
-    private static final String MOTIF_FONCTION_DESACTIVEE = "Fonction désactivée";
-    private static final String MOTIF_FONCTION_INCONNUE = "Fonction inconnue du référentiel fonction_eligible";
+    // Les trois autres motifs d'exclusion appartiennent au module referentiel
+    // depuis MM.2 (voir ResolutionGrilleDto). Celui-ci reste ici : il depend du
+    // grade du beneficiaire, pas du referentiel, et n'intervient qu'a
+    // l'ajustement -- jamais au declenchement.
     private static final String MOTIF_GRADE_NON_ELIGIBLE = "Grade non éligible pour une fonction de corps de contrôle";
 
     private final ProcessusMensuelRepository processusMensuelRepository;
-    private final BeneficiaireRepository beneficiaireRepository;
-    private final FonctionEligibleRepository fonctionEligibleRepository;
-    private final GrilleTarifaireRepository grilleTarifaireRepository;
+    private final BeneficiaireApi beneficiaireApi;
+    private final GrilleTarifaireApi grilleTarifaireApi;
     private final LigneEtatMensuelRepository ligneEtatMensuelRepository;
     private final EtapeWorkflowRepository etapeWorkflowRepository;
-    private final UtilisateurRepository utilisateurRepository;
     private final PieceJointeRepository pieceJointeRepository;
+    private final UtilisateurApi utilisateurApi;
     private final AuditService auditService;
     private final EligibiliteService eligibiliteService;
     private final AuthenticatedUserService authenticatedUserService;
@@ -108,23 +103,23 @@ public class ProcessusMensuelService {
                 .build();
         processus = processusMensuelRepository.save(processus);
 
-        List<Beneficiaire> beneficiairesActifs = beneficiaireRepository.findByActifTrue();
+        List<BeneficiaireDotationDto> beneficiairesActifs = beneficiaireApi.listerActifsPourDotation();
         List<BeneficiaireExcluDto> beneficiairesExclus = new ArrayList<>();
         int nombreBeneficiairesInclus = 0;
 
-        for (Beneficiaire beneficiaire : beneficiairesActifs) {
-            ResolutionGrille resolution = resoudreGrillePourFonction(beneficiaire.getFonction());
+        for (BeneficiaireDotationDto beneficiaire : beneficiairesActifs) {
+            ResolutionGrilleDto resolution = grilleTarifaireApi.resoudrePourFonction(beneficiaire.fonction());
 
             String motifExclusion = resolution.motifExclusion();
             boolean inclusDansEtat = motifExclusion == null;
-            int montantApplique = resolution.grilleActive() != null ? resolution.grilleActive().getMontantFcfa() : 0;
+            int montantApplique = resolution.montantFcfa() != null ? resolution.montantFcfa() : 0;
 
             LigneEtatMensuel ligne = LigneEtatMensuel.builder()
                     .idProcessus(processus.getId())
-                    .idBeneficiaire(beneficiaire.getId())
+                    .idBeneficiaire(beneficiaire.id())
                     .montantApplique(montantApplique)
                     .inclusDansEtat(inclusDansEtat)
-                    .fonctionRetenue(beneficiaire.getFonction())
+                    .fonctionRetenue(beneficiaire.fonction())
                     .build();
             ligneEtatMensuelRepository.save(ligne);
 
@@ -132,9 +127,9 @@ public class ProcessusMensuelService {
                 nombreBeneficiairesInclus++;
             } else {
                 beneficiairesExclus.add(BeneficiaireExcluDto.builder()
-                        .matricule(beneficiaire.getMatricule())
-                        .nomPrenoms(beneficiaire.getNomPrenoms())
-                        .fonction(beneficiaire.getFonction())
+                        .matricule(beneficiaire.matricule())
+                        .nomPrenoms(beneficiaire.nomPrenoms())
+                        .fonction(beneficiaire.fonction())
                         .motif(motifExclusion)
                         .build());
             }
@@ -199,16 +194,15 @@ public class ProcessusMensuelService {
         List<LigneEtatMensuel> lignes = ligneEtatMensuelRepository.findByIdProcessus(idProcessus);
 
         List<Long> idsBeneficiaires = lignes.stream().map(LigneEtatMensuel::getIdBeneficiaire).toList();
-        Map<Long, Beneficiaire> beneficiairesParId = beneficiaireRepository.findAllById(idsBeneficiaires).stream()
-                .collect(Collectors.toMap(Beneficiaire::getId, b -> b));
+        Map<Long, BeneficiaireIdentiteDto> beneficiairesParId = beneficiaireApi.identitesParId(idsBeneficiaires);
 
         List<LigneEtatMensuelDetailDto> lignesDetail = lignes.stream()
                 .map(ligne -> {
-                    Beneficiaire beneficiaire = beneficiairesParId.get(ligne.getIdBeneficiaire());
+                    BeneficiaireIdentiteDto beneficiaire = beneficiairesParId.get(ligne.getIdBeneficiaire());
                     return LigneEtatMensuelDetailDto.builder()
                             .idBeneficiaire(ligne.getIdBeneficiaire())
-                            .matricule(beneficiaire != null ? beneficiaire.getMatricule() : null)
-                            .nomPrenoms(beneficiaire != null ? beneficiaire.getNomPrenoms() : null)
+                            .matricule(beneficiaire != null ? beneficiaire.matricule() : null)
+                            .nomPrenoms(beneficiaire != null ? beneficiaire.nomPrenoms() : null)
                             .fonctionRetenue(ligne.getFonctionRetenue())
                             .montantApplique(ligne.getMontantApplique())
                             .inclusDansEtat(ligne.getInclusDansEtat())
@@ -355,7 +349,7 @@ public class ProcessusMensuelService {
         processus.setStatut(StatutEnum.EN_ATTENTE_CRH);
         processusMensuelRepository.save(processus);
 
-        for (Utilisateur destinataireCrh : utilisateurRepository.findByRoleAndActifTrue(RoleEnum.CRH)) {
+        for (DestinataireNotificationDto destinataireCrh : utilisateurApi.destinatairesParRole(RoleEnum.CRH)) {
             notificationService.notifier(destinataireCrh, "Etat mensuel a valider",
                     "L'etat mensuel " + processus.getMoisPaiement() + "/" + processus.getAnneePaiement()
                             + " a ete valide par l'ARH et attend votre validation.");
@@ -414,7 +408,7 @@ public class ProcessusMensuelService {
         processus.setStatut(StatutEnum.EN_ATTENTE_DRH);
         processusMensuelRepository.save(processus);
 
-        for (Utilisateur destinataireDrh : utilisateurRepository.findByRoleAndActifTrue(RoleEnum.DRH)) {
+        for (DestinataireNotificationDto destinataireDrh : utilisateurApi.destinatairesParRole(RoleEnum.DRH)) {
             notificationService.notifier(destinataireDrh, "Etat mensuel a valider",
                     "L'etat mensuel " + processus.getMoisPaiement() + "/" + processus.getAnneePaiement()
                             + " a ete valide par le CRH et attend votre validation.");
@@ -559,9 +553,9 @@ public class ProcessusMensuelService {
         processus.setStatut(StatutEnum.RETOURNE);
         processusMensuelRepository.save(processus);
 
-        Utilisateur arhCreateur = utilisateurRepository.findById(processus.getIdCreateur())
-                .orElseThrow(() -> new UtilisateurIntrouvableException(
-                        "Aucun utilisateur avec l'id " + processus.getIdCreateur()));
+        // UtilisateurApi.destinataireParId() leve UtilisateurIntrouvableException
+        // si l'ARH createur n'existe plus -- meme exception, meme 404 qu'avant.
+        DestinataireNotificationDto arhCreateur = utilisateurApi.destinataireParId(processus.getIdCreateur());
         notificationService.notifier(arhCreateur, "Etat mensuel retourne pour correction",
                 "L'etat mensuel " + processus.getMoisPaiement() + "/" + processus.getAnneePaiement()
                         + " vous a ete retourne. Motif : " + motif);
@@ -608,7 +602,7 @@ public class ProcessusMensuelService {
         String fonctionCible = fonctionModifiee ? ajustement.getFonctionRetenue() : ligne.getFonctionRetenue();
 
         if (fonctionModifiee || reintegration) {
-            ResolutionGrille resolution = resoudreGrillePourFonction(fonctionCible);
+            ResolutionGrilleDto resolution = grilleTarifaireApi.resoudrePourFonction(fonctionCible);
             if (resolution.motifExclusion() != null) {
                 return rejeter(idBeneficiaire, resolution.motifExclusion());
             }
@@ -624,14 +618,12 @@ public class ProcessusMensuelService {
             // retour false ne peut plus venir que du grade -- d'ou un motif
             // precis sans dupliquer la liste des corps de controle, qui reste
             // portee par le seul EligibiliteService.
-            String grade = beneficiaireRepository.findById(idBeneficiaire)
-                    .map(Beneficiaire::getGrade)
-                    .orElse(null);
+            String grade = beneficiaireApi.gradeDe(idBeneficiaire).orElse(null);
             if (!eligibiliteService.verifierEligibilite(fonctionCible, grade)) {
                 return rejeter(idBeneficiaire, MOTIF_GRADE_NON_ELIGIBLE);
             }
 
-            int montantCible = resolution.grilleActive().getMontantFcfa();
+            int montantCible = resolution.montantFcfa();
 
             if (fonctionModifiee) {
                 avant.put("fonctionRetenue", ligne.getFonctionRetenue());
@@ -676,29 +668,4 @@ public class ProcessusMensuelService {
                 .build();
     }
 
-    // Ordre de vérification imposé : fonction inconnue -> fonction désactivée ->
-    // grille introuvable -> grade (RG-02). Cette méthode ne couvre que les trois
-    // premiers ; le contrôle du grade est fait par l'appelant, juste après, car
-    // il a besoin du bénéficiaire (le grade n'est pas porté par la ligne d'état).
-    private ResolutionGrille resoudreGrillePourFonction(String codeFonction) {
-        Optional<FonctionEligible> fonctionEligible = fonctionEligibleRepository.findByCode(codeFonction);
-
-        if (fonctionEligible.isEmpty()) {
-            return new ResolutionGrille(null, MOTIF_FONCTION_INCONNUE);
-        }
-        if (!fonctionEligible.get().isActif()) {
-            return new ResolutionGrille(null, MOTIF_FONCTION_DESACTIVEE);
-        }
-
-        Optional<GrilleTarifaire> grilleActive = grilleTarifaireRepository
-                .findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(
-                        fonctionEligible.get().getId(), StatutGrilleEnum.ACTIVE);
-
-        return grilleActive
-                .map(grille -> new ResolutionGrille(grille, null))
-                .orElseGet(() -> new ResolutionGrille(null, MOTIF_GRILLE_INTROUVABLE));
-    }
-
-    private record ResolutionGrille(GrilleTarifaire grilleActive, String motifExclusion) {
-    }
 }

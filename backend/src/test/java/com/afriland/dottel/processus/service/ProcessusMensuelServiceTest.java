@@ -1,4 +1,11 @@
 package com.afriland.dottel.processus.service;
+import com.afriland.dottel.beneficiaires.api.BeneficiaireApi;
+import com.afriland.dottel.beneficiaires.api.BeneficiaireDotationDto;
+import com.afriland.dottel.beneficiaires.api.BeneficiaireIdentiteDto;
+import com.afriland.dottel.referentiel.api.GrilleTarifaireApi;
+import com.afriland.dottel.referentiel.api.ResolutionGrilleDto;
+import com.afriland.dottel.utilisateurs.api.DestinataireNotificationDto;
+import com.afriland.dottel.utilisateurs.api.UtilisateurApi;
 import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
 import com.afriland.dottel.audit.service.AuditService;
 
@@ -21,10 +28,7 @@ import com.afriland.dottel.processus.model.dto.processus.ResultatAjustementDto;
 import com.afriland.dottel.processus.model.dto.processus.RetournerProcessusRequestDto;
 import com.afriland.dottel.processus.model.dto.processus.RetournerProcessusResponseDto;
 import com.afriland.dottel.processus.model.dto.processus.ValiderProcessusResponseDto;
-import com.afriland.dottel.beneficiaires.model.entity.Beneficiaire;
 import com.afriland.dottel.processus.model.entity.EtapeWorkflow;
-import com.afriland.dottel.referentiel.model.entity.FonctionEligible;
-import com.afriland.dottel.referentiel.model.entity.GrilleTarifaire;
 import com.afriland.dottel.processus.model.entity.LigneEtatMensuel;
 import com.afriland.dottel.processus.model.entity.PieceJointe;
 import com.afriland.dottel.processus.model.entity.ProcessusMensuel;
@@ -33,15 +37,10 @@ import com.afriland.dottel.processus.model.enums.NomEtapeEnum;
 import com.afriland.dottel.utilisateurs.model.enums.RoleEnum;
 import com.afriland.dottel.processus.model.enums.StatutEnum;
 import com.afriland.dottel.processus.model.enums.StatutEtapeEnum;
-import com.afriland.dottel.referentiel.model.enums.StatutGrilleEnum;
-import com.afriland.dottel.beneficiaires.repository.BeneficiaireRepository;
 import com.afriland.dottel.processus.repository.EtapeWorkflowRepository;
-import com.afriland.dottel.referentiel.repository.FonctionEligibleRepository;
-import com.afriland.dottel.referentiel.repository.GrilleTarifaireRepository;
 import com.afriland.dottel.processus.repository.LigneEtatMensuelRepository;
 import com.afriland.dottel.processus.repository.PieceJointeRepository;
 import com.afriland.dottel.processus.repository.ProcessusMensuelRepository;
-import com.afriland.dottel.utilisateurs.repository.UtilisateurRepository;
 import com.afriland.dottel.referentiel.service.EligibiliteService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -73,13 +72,10 @@ class ProcessusMensuelServiceTest {
     private ProcessusMensuelRepository processusMensuelRepository;
 
     @Mock
-    private BeneficiaireRepository beneficiaireRepository;
+    private BeneficiaireApi beneficiaireApi;
 
     @Mock
-    private FonctionEligibleRepository fonctionEligibleRepository;
-
-    @Mock
-    private GrilleTarifaireRepository grilleTarifaireRepository;
+    private GrilleTarifaireApi grilleTarifaireApi;
 
     @Mock
     private LigneEtatMensuelRepository ligneEtatMensuelRepository;
@@ -88,10 +84,10 @@ class ProcessusMensuelServiceTest {
     private EtapeWorkflowRepository etapeWorkflowRepository;
 
     @Mock
-    private UtilisateurRepository utilisateurRepository;
+    private PieceJointeRepository pieceJointeRepository;
 
     @Mock
-    private PieceJointeRepository pieceJointeRepository;
+    private UtilisateurApi utilisateurApi;
 
     @Mock
     private AuditService auditService;
@@ -202,26 +198,12 @@ class ProcessusMensuelServiceTest {
 
         Utilisateur arhConnecte = Utilisateur.builder().id(10L).matricule("2201").build();
 
-        Beneficiaire nkolo = Beneficiaire.builder()
-                .id(501L)
-                .matricule("3164")
-                .nomPrenoms("NKOLO Emmanuel")
-                .fonction("DA")
-                .actif(true)
-                .build();
-        Beneficiaire essama = Beneficiaire.builder()
-                .id(502L)
-                .matricule("5522")
-                .nomPrenoms("ESSAMA Solange")
-                .fonction("CHEF_DEPARTEMENT")
-                .actif(true)
-                .build();
+        BeneficiaireDotationDto nkolo =
+                new BeneficiaireDotationDto(501L, "3164", "NKOLO Emmanuel", "DA");
+        BeneficiaireDotationDto essama =
+                new BeneficiaireDotationDto(502L, "5522", "ESSAMA Solange", "CHEF_DEPARTEMENT");
 
-        FonctionEligible directeurAgence = FonctionEligible.builder().id(5L).code("DA").libelle("Directeur d'Agence").actif(true).build();
-        FonctionEligible chefDepartement = FonctionEligible.builder().id(8L).code("CHEF_DEPARTEMENT").libelle("Chef de Département").actif(true).build();
 
-        GrilleTarifaire grilleDa = GrilleTarifaire.builder().id(1L).idFonctionEligible(5L).montantFcfa(50000).statutValidation(StatutGrilleEnum.ACTIVE).build();
-        GrilleTarifaire grilleChefDept = GrilleTarifaire.builder().id(2L).idFonctionEligible(8L).montantFcfa(40000).statutValidation(StatutGrilleEnum.ACTIVE).build();
 
         when(processusMensuelRepository.existsByMoisPaiementAndAnneePaiement(7, 2026)).thenReturn(false);
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
@@ -230,13 +212,11 @@ class ProcessusMensuelServiceTest {
             processus.setId(900L);
             return processus;
         });
-        when(beneficiaireRepository.findByActifTrue()).thenReturn(List.of(nkolo, essama));
-        when(fonctionEligibleRepository.findByCode("DA")).thenReturn(Optional.of(directeurAgence));
-        when(fonctionEligibleRepository.findByCode("CHEF_DEPARTEMENT")).thenReturn(Optional.of(chefDepartement));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(5L, StatutGrilleEnum.ACTIVE))
-                .thenReturn(Optional.of(grilleDa));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(8L, StatutGrilleEnum.ACTIVE))
-                .thenReturn(Optional.of(grilleChefDept));
+        when(beneficiaireApi.listerActifsPourDotation()).thenReturn(List.of(nkolo, essama));
+        when(grilleTarifaireApi.resoudrePourFonction("DA"))
+                .thenReturn(ResolutionGrilleDto.resolue(50000));
+        when(grilleTarifaireApi.resoudrePourFonction("CHEF_DEPARTEMENT"))
+                .thenReturn(ResolutionGrilleDto.resolue(40000));
         when(ligneEtatMensuelRepository.save(any(LigneEtatMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ProcessusMensuelResponseDto reponse = processusMensuelService.declencher(requete);
@@ -274,7 +254,7 @@ class ProcessusMensuelServiceTest {
                 .isInstanceOf(ProcessusMensuelExisteDejaException.class);
 
         verify(processusMensuelRepository, never()).save(any());
-        verify(beneficiaireRepository, never()).findByActifTrue();
+        verify(beneficiaireApi, never()).listerActifsPourDotation();
     }
 
     @Test
@@ -292,7 +272,7 @@ class ProcessusMensuelServiceTest {
             processus.setId(901L);
             return processus;
         });
-        when(beneficiaireRepository.findByActifTrue()).thenReturn(List.of());
+        when(beneficiaireApi.listerActifsPourDotation()).thenReturn(List.of());
 
         ProcessusMensuelResponseDto reponse = processusMensuelService.declencher(requete);
 
@@ -317,15 +297,9 @@ class ProcessusMensuelServiceTest {
 
         Utilisateur arhConnecte = Utilisateur.builder().id(10L).matricule("2201").build();
 
-        Beneficiaire tchinda = Beneficiaire.builder()
-                .id(503L)
-                .matricule("6633")
-                .nomPrenoms("TCHINDA Paul")
-                .fonction("JURISTE")
-                .actif(true)
-                .build();
+        BeneficiaireDotationDto tchinda =
+                new BeneficiaireDotationDto(503L, "6633", "TCHINDA Paul", "JURISTE");
 
-        FonctionEligible agentRecouvrement = FonctionEligible.builder().id(20L).code("JURISTE").libelle("Agent de Recouvrement").actif(true).build();
 
         when(processusMensuelRepository.existsByMoisPaiementAndAnneePaiement(9, 2026)).thenReturn(false);
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
@@ -334,10 +308,9 @@ class ProcessusMensuelServiceTest {
             processus.setId(902L);
             return processus;
         });
-        when(beneficiaireRepository.findByActifTrue()).thenReturn(List.of(tchinda));
-        when(fonctionEligibleRepository.findByCode("JURISTE")).thenReturn(Optional.of(agentRecouvrement));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(20L, StatutGrilleEnum.ACTIVE))
-                .thenReturn(Optional.empty());
+        when(beneficiaireApi.listerActifsPourDotation()).thenReturn(List.of(tchinda));
+        when(grilleTarifaireApi.resoudrePourFonction("JURISTE"))
+                .thenReturn(ResolutionGrilleDto.exclue(ResolutionGrilleDto.MOTIF_GRILLE_INTROUVABLE));
         when(ligneEtatMensuelRepository.save(any(LigneEtatMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ProcessusMensuelResponseDto reponse = processusMensuelService.declencher(requete);
@@ -423,20 +396,13 @@ class ProcessusMensuelServiceTest {
         // Une reintegration revalide desormais RG-01/RG-04/RG-02 sur la fonction
         // courante de la ligne : le referentiel, la grille et le grade sont donc
         // interroges, contrairement a la version d'origine de ce test.
-        Beneficiaire essama = Beneficiaire.builder().id(502L).matricule("5522")
-                .nomPrenoms("ESSAMA Solange").fonction("CHEF_DEPARTEMENT").grade("Grade 3").actif(true).build();
-        FonctionEligible chefDepartement = FonctionEligible.builder().id(8L).code("CHEF_DEPARTEMENT")
-                .libelle("Chef de Département").actif(true).build();
-        GrilleTarifaire grilleChefDept = GrilleTarifaire.builder().id(2L).idFonctionEligible(8L)
-                .montantFcfa(40000).statutValidation(StatutGrilleEnum.ACTIVE).build();
 
         when(processusMensuelRepository.findById(900L)).thenReturn(Optional.of(processus));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(900L, 502L)).thenReturn(Optional.of(ligne));
-        when(fonctionEligibleRepository.findByCode("CHEF_DEPARTEMENT")).thenReturn(Optional.of(chefDepartement));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(8L, StatutGrilleEnum.ACTIVE))
-                .thenReturn(Optional.of(grilleChefDept));
-        when(beneficiaireRepository.findById(502L)).thenReturn(Optional.of(essama));
+        when(grilleTarifaireApi.resoudrePourFonction("CHEF_DEPARTEMENT"))
+                .thenReturn(ResolutionGrilleDto.resolue(40000));
+        when(beneficiaireApi.gradeDe(502L)).thenReturn(Optional.of("Grade 3"));
         when(eligibiliteService.verifierEligibilite("CHEF_DEPARTEMENT", "Grade 3")).thenReturn(true);
         when(ligneEtatMensuelRepository.save(any(LigneEtatMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -469,10 +435,6 @@ class ProcessusMensuelServiceTest {
                 .fonctionRetenue("CHEF_DEPARTEMENT")
                 .build();
 
-        FonctionEligible directeur = FonctionEligible.builder().id(6L).code("DIRECTEUR")
-                .libelle("Directeur Central/Succursale/Régional").actif(true).build();
-        GrilleTarifaire grilleDirecteur = GrilleTarifaire.builder().id(3L).idFonctionEligible(6L)
-                .montantFcfa(60000).statutValidation(StatutGrilleEnum.ACTIVE).build();
 
         AjustementLigneEtatDto ajustement = new AjustementLigneEtatDto();
         ajustement.setIdBeneficiaire(503L);
@@ -484,13 +446,10 @@ class ProcessusMensuelServiceTest {
         when(processusMensuelRepository.findById(900L)).thenReturn(Optional.of(processus));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(900L, 503L)).thenReturn(Optional.of(ligne));
-        Beneficiaire tchinda = Beneficiaire.builder().id(503L).matricule("6180")
-                .nomPrenoms("TCHINDA Paul").fonction("CHEF_DEPARTEMENT").grade("Grade 5").actif(true).build();
 
-        when(fonctionEligibleRepository.findByCode("DIRECTEUR")).thenReturn(Optional.of(directeur));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(6L, StatutGrilleEnum.ACTIVE))
-                .thenReturn(Optional.of(grilleDirecteur));
-        when(beneficiaireRepository.findById(503L)).thenReturn(Optional.of(tchinda));
+        when(grilleTarifaireApi.resoudrePourFonction("DIRECTEUR"))
+                .thenReturn(ResolutionGrilleDto.resolue(60000));
+        when(beneficiaireApi.gradeDe(503L)).thenReturn(Optional.of("Grade 5"));
         when(eligibiliteService.verifierEligibilite("DIRECTEUR", "Grade 5")).thenReturn(true);
         when(ligneEtatMensuelRepository.save(any(LigneEtatMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -566,10 +525,6 @@ class ProcessusMensuelServiceTest {
                 .fonctionRetenue("COORDONNATEUR")
                 .build();
 
-        FonctionEligible chefDivision = FonctionEligible.builder().id(17L).code("CHEF_DIVISION")
-                .libelle("Chef de Division").actif(true).build();
-        GrilleTarifaire grilleChefDivision = GrilleTarifaire.builder().id(9L).idFonctionEligible(17L)
-                .montantFcfa(35000).statutValidation(StatutGrilleEnum.ACTIVE).build();
 
         AjustementLigneEtatDto ajustement = new AjustementLigneEtatDto();
         ajustement.setIdBeneficiaire(504L);
@@ -582,13 +537,10 @@ class ProcessusMensuelServiceTest {
         when(processusMensuelRepository.findById(900L)).thenReturn(Optional.of(processus));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(900L, 504L)).thenReturn(Optional.of(ligne));
-        Beneficiaire fouda = Beneficiaire.builder().id(504L).matricule("4390")
-                .nomPrenoms("FOUDA Bertrand").fonction("COORDONNATEUR").grade("Grade 4").actif(true).build();
 
-        when(fonctionEligibleRepository.findByCode("CHEF_DIVISION")).thenReturn(Optional.of(chefDivision));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(17L, StatutGrilleEnum.ACTIVE))
-                .thenReturn(Optional.of(grilleChefDivision));
-        when(beneficiaireRepository.findById(504L)).thenReturn(Optional.of(fouda));
+        when(grilleTarifaireApi.resoudrePourFonction("CHEF_DIVISION"))
+                .thenReturn(ResolutionGrilleDto.resolue(35000));
+        when(beneficiaireApi.gradeDe(504L)).thenReturn(Optional.of("Grade 4"));
         when(eligibiliteService.verifierEligibilite("CHEF_DIVISION", "Grade 4")).thenReturn(true);
         when(ligneEtatMensuelRepository.save(any(LigneEtatMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -663,8 +615,6 @@ class ProcessusMensuelServiceTest {
                 .fonctionRetenue("CHEF_PRODUIT")
                 .build();
 
-        FonctionEligible agentRecouvrement = FonctionEligible.builder().id(20L).code("JURISTE")
-                .libelle("Agent de Recouvrement").actif(true).build();
 
         AjustementLigneEtatDto ajustement = new AjustementLigneEtatDto();
         ajustement.setIdBeneficiaire(506L);
@@ -676,9 +626,8 @@ class ProcessusMensuelServiceTest {
         when(processusMensuelRepository.findById(900L)).thenReturn(Optional.of(processus));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(900L, 506L)).thenReturn(Optional.of(ligne));
-        when(fonctionEligibleRepository.findByCode("JURISTE")).thenReturn(Optional.of(agentRecouvrement));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(20L, StatutGrilleEnum.ACTIVE))
-                .thenReturn(Optional.empty());
+        when(grilleTarifaireApi.resoudrePourFonction("JURISTE"))
+                .thenReturn(ResolutionGrilleDto.exclue(ResolutionGrilleDto.MOTIF_GRILLE_INTROUVABLE));
 
         PatchProcessusResponseDto reponse = processusMensuelService.ajuster(900L, requete);
 
@@ -690,7 +639,7 @@ class ProcessusMensuelServiceTest {
         verify(ligneEtatMensuelRepository, never()).save(any());
         verify(auditService, never()).enregistrer(any(), any(), any(), any(), any(), any());
         // Retour anticipe sur la grille : le grade n'est jamais interroge.
-        verify(beneficiaireRepository, never()).findById(any());
+        verify(beneficiaireApi, never()).gradeDe(any());
         verify(eligibiliteService, never()).verifierEligibilite(any(), any());
     }
 
@@ -733,21 +682,14 @@ class ProcessusMensuelServiceTest {
                 .id(2010L).idProcessus(900L).idBeneficiaire(507L)
                 .montantApplique(35000).inclusDansEtat(true).fonctionRetenue("CHEF_DIVISION").build();
 
-        Beneficiaire belinga = Beneficiaire.builder().id(507L).matricule("7508")
-                .nomPrenoms("BELINGA Christelle").fonction("CHEF_DIVISION").grade("NON GRADE").actif(true).build();
 
-        FonctionEligible inspecteurGeneral = FonctionEligible.builder().id(3L).code("CORPS_CONTROLE_IG")
-                .libelle("Inspecteur Général").actif(true).build();
-        GrilleTarifaire grilleIg = GrilleTarifaire.builder().id(4L).idFonctionEligible(3L)
-                .montantFcfa(70000).statutValidation(StatutGrilleEnum.ACTIVE).build();
 
         when(processusMensuelRepository.findById(900L)).thenReturn(Optional.of(processusEnCoursArh()));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(900L, 507L)).thenReturn(Optional.of(ligne));
-        when(fonctionEligibleRepository.findByCode("CORPS_CONTROLE_IG")).thenReturn(Optional.of(inspecteurGeneral));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(3L, StatutGrilleEnum.ACTIVE))
-                .thenReturn(Optional.of(grilleIg));
-        when(beneficiaireRepository.findById(507L)).thenReturn(Optional.of(belinga));
+        when(grilleTarifaireApi.resoudrePourFonction("CORPS_CONTROLE_IG"))
+                .thenReturn(ResolutionGrilleDto.resolue(70000));
+        when(beneficiaireApi.gradeDe(507L)).thenReturn(Optional.of("NON GRADE"));
         when(eligibiliteService.verifierEligibilite("CORPS_CONTROLE_IG", "NON GRADE")).thenReturn(false);
 
         PatchProcessusResponseDto reponse = processusMensuelService.ajuster(
@@ -772,21 +714,14 @@ class ProcessusMensuelServiceTest {
                 .id(2011L).idProcessus(900L).idBeneficiaire(508L)
                 .montantApplique(50000).inclusDansEtat(true).fonctionRetenue("DA").build();
 
-        Beneficiaire onana = Beneficiaire.builder().id(508L).matricule("9720")
-                .nomPrenoms("ONANA Patrice").fonction("DA").grade("Grade 6").actif(true).build();
 
-        FonctionEligible inspecteurGeneralAdjoint = FonctionEligible.builder().id(4L).code("CORPS_CONTROLE_IGA")
-                .libelle("Inspecteur Général Adjoint").actif(true).build();
-        GrilleTarifaire grilleIga = GrilleTarifaire.builder().id(5L).idFonctionEligible(4L)
-                .montantFcfa(65000).statutValidation(StatutGrilleEnum.ACTIVE).build();
 
         when(processusMensuelRepository.findById(900L)).thenReturn(Optional.of(processusEnCoursArh()));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(900L, 508L)).thenReturn(Optional.of(ligne));
-        when(fonctionEligibleRepository.findByCode("CORPS_CONTROLE_IGA")).thenReturn(Optional.of(inspecteurGeneralAdjoint));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(4L, StatutGrilleEnum.ACTIVE))
-                .thenReturn(Optional.of(grilleIga));
-        when(beneficiaireRepository.findById(508L)).thenReturn(Optional.of(onana));
+        when(grilleTarifaireApi.resoudrePourFonction("CORPS_CONTROLE_IGA"))
+                .thenReturn(ResolutionGrilleDto.resolue(65000));
+        when(beneficiaireApi.gradeDe(508L)).thenReturn(Optional.of("Grade 6"));
         when(eligibiliteService.verifierEligibilite("CORPS_CONTROLE_IGA", "Grade 6")).thenReturn(true);
         when(ligneEtatMensuelRepository.save(any(LigneEtatMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -808,21 +743,14 @@ class ProcessusMensuelServiceTest {
                 .id(2012L).idProcessus(900L).idBeneficiaire(509L)
                 .montantApplique(30000).inclusDansEtat(true).fonctionRetenue("ATTACHE_COMMERCIAL").build();
 
-        Beneficiaire nkolo = Beneficiaire.builder().id(509L).matricule("3164")
-                .nomPrenoms("NKOLO Emmanuel").fonction("ATTACHE_COMMERCIAL").grade(null).actif(true).build();
 
-        FonctionEligible comptable = FonctionEligible.builder().id(23L).code("COMPTABLE")
-                .libelle("Comptable").actif(true).build();
-        GrilleTarifaire grilleComptable = GrilleTarifaire.builder().id(12L).idFonctionEligible(23L)
-                .montantFcfa(35000).statutValidation(StatutGrilleEnum.ACTIVE).build();
 
         when(processusMensuelRepository.findById(900L)).thenReturn(Optional.of(processusEnCoursArh()));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(900L, 509L)).thenReturn(Optional.of(ligne));
-        when(fonctionEligibleRepository.findByCode("COMPTABLE")).thenReturn(Optional.of(comptable));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(23L, StatutGrilleEnum.ACTIVE))
-                .thenReturn(Optional.of(grilleComptable));
-        when(beneficiaireRepository.findById(509L)).thenReturn(Optional.of(nkolo));
+        when(grilleTarifaireApi.resoudrePourFonction("COMPTABLE"))
+                .thenReturn(ResolutionGrilleDto.resolue(35000));
+        when(beneficiaireApi.gradeDe(509L)).thenReturn(Optional.empty());
         when(eligibiliteService.verifierEligibilite("COMPTABLE", null)).thenReturn(false);
 
         PatchProcessusResponseDto reponse = processusMensuelService.ajuster(
@@ -842,21 +770,14 @@ class ProcessusMensuelServiceTest {
                 .id(2013L).idProcessus(900L).idBeneficiaire(510L)
                 .montantApplique(35000).inclusDansEtat(true).fonctionRetenue("CHEF_PRODUIT").build();
 
-        Beneficiaire eyenga = Beneficiaire.builder().id(510L).matricule("4821")
-                .nomPrenoms("EYENGA Brigitte").fonction("CHEF_PRODUIT").grade("   ").actif(true).build();
 
-        FonctionEligible controleurGestion = FonctionEligible.builder().id(21L).code("CONTROLEUR_GESTION")
-                .libelle("Contrôleur de Gestion").actif(true).build();
-        GrilleTarifaire grilleControleur = GrilleTarifaire.builder().id(10L).idFonctionEligible(21L)
-                .montantFcfa(35000).statutValidation(StatutGrilleEnum.ACTIVE).build();
 
         when(processusMensuelRepository.findById(900L)).thenReturn(Optional.of(processusEnCoursArh()));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(900L, 510L)).thenReturn(Optional.of(ligne));
-        when(fonctionEligibleRepository.findByCode("CONTROLEUR_GESTION")).thenReturn(Optional.of(controleurGestion));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(21L, StatutGrilleEnum.ACTIVE))
-                .thenReturn(Optional.of(grilleControleur));
-        when(beneficiaireRepository.findById(510L)).thenReturn(Optional.of(eyenga));
+        when(grilleTarifaireApi.resoudrePourFonction("CONTROLEUR_GESTION"))
+                .thenReturn(ResolutionGrilleDto.resolue(35000));
+        when(beneficiaireApi.gradeDe(510L)).thenReturn(Optional.of("   "));
         when(eligibiliteService.verifierEligibilite("CONTROLEUR_GESTION", "   ")).thenReturn(false);
 
         PatchProcessusResponseDto reponse = processusMensuelService.ajuster(
@@ -876,21 +797,14 @@ class ProcessusMensuelServiceTest {
                 .id(2014L).idProcessus(900L).idBeneficiaire(511L)
                 .montantApplique(40000).inclusDansEtat(true).fonctionRetenue("GFC").build();
 
-        Beneficiaire tchinda = Beneficiaire.builder().id(511L).matricule("6180")
-                .nomPrenoms("TCHINDA Paul").fonction("GFC").grade(null).actif(true).build();
 
-        FonctionEligible directeur = FonctionEligible.builder().id(6L).code("DIRECTEUR")
-                .libelle("Directeur Central/Succursale/Régional").actif(true).build();
-        GrilleTarifaire grilleDirecteur = GrilleTarifaire.builder().id(3L).idFonctionEligible(6L)
-                .montantFcfa(60000).statutValidation(StatutGrilleEnum.ACTIVE).build();
 
         when(processusMensuelRepository.findById(900L)).thenReturn(Optional.of(processusEnCoursArh()));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(900L, 511L)).thenReturn(Optional.of(ligne));
-        when(fonctionEligibleRepository.findByCode("DIRECTEUR")).thenReturn(Optional.of(directeur));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(6L, StatutGrilleEnum.ACTIVE))
-                .thenReturn(Optional.of(grilleDirecteur));
-        when(beneficiaireRepository.findById(511L)).thenReturn(Optional.of(tchinda));
+        when(grilleTarifaireApi.resoudrePourFonction("DIRECTEUR"))
+                .thenReturn(ResolutionGrilleDto.resolue(60000));
+        when(beneficiaireApi.gradeDe(511L)).thenReturn(Optional.empty());
         when(eligibiliteService.verifierEligibilite("DIRECTEUR", null)).thenReturn(true);
         when(ligneEtatMensuelRepository.save(any(LigneEtatMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -915,14 +829,15 @@ class ProcessusMensuelServiceTest {
         when(processusMensuelRepository.findById(900L)).thenReturn(Optional.of(processusEnCoursArh()));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(900L, 512L)).thenReturn(Optional.of(ligne));
-        when(fonctionEligibleRepository.findByCode("FONCTION_INEXISTANTE")).thenReturn(Optional.empty());
+        when(grilleTarifaireApi.resoudrePourFonction("FONCTION_INEXISTANTE"))
+                .thenReturn(ResolutionGrilleDto.exclue(ResolutionGrilleDto.MOTIF_FONCTION_INCONNUE));
 
         PatchProcessusResponseDto reponse = processusMensuelService.ajuster(
                 900L, requeteAvec(ajustementFonction(512L, "FONCTION_INEXISTANTE")));
 
         assertThat(reponse.getResultats().get(0).getMotifRejet())
                 .isEqualTo("Fonction inconnue du référentiel fonction_eligible");
-        verify(beneficiaireRepository, never()).findById(any());
+        verify(beneficiaireApi, never()).gradeDe(any());
         verify(eligibiliteService, never()).verifierEligibilite(any(), any());
     }
 
@@ -934,19 +849,18 @@ class ProcessusMensuelServiceTest {
                 .id(2016L).idProcessus(900L).idBeneficiaire(513L)
                 .montantApplique(35000).inclusDansEtat(true).fonctionRetenue("CHEF_DIVISION").build();
 
-        FonctionEligible comptableDesactive = FonctionEligible.builder().id(23L).code("COMPTABLE")
-                .libelle("Comptable").actif(false).build();
 
         when(processusMensuelRepository.findById(900L)).thenReturn(Optional.of(processusEnCoursArh()));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(900L, 513L)).thenReturn(Optional.of(ligne));
-        when(fonctionEligibleRepository.findByCode("COMPTABLE")).thenReturn(Optional.of(comptableDesactive));
+        when(grilleTarifaireApi.resoudrePourFonction("COMPTABLE"))
+                .thenReturn(ResolutionGrilleDto.exclue(ResolutionGrilleDto.MOTIF_FONCTION_DESACTIVEE));
 
         PatchProcessusResponseDto reponse = processusMensuelService.ajuster(
                 900L, requeteAvec(ajustementFonction(513L, "COMPTABLE")));
 
         assertThat(reponse.getResultats().get(0).getMotifRejet()).isEqualTo("Fonction désactivée");
-        verify(beneficiaireRepository, never()).findById(any());
+        verify(beneficiaireApi, never()).gradeDe(any());
         verify(eligibiliteService, never()).verifierEligibilite(any(), any());
     }
 
@@ -961,18 +875,13 @@ class ProcessusMensuelServiceTest {
                 .id(2017L).idProcessus(900L).idBeneficiaire(514L)
                 .montantApplique(35000).inclusDansEtat(true).fonctionRetenue("CHEF_DIVISION").build();
 
-        FonctionEligible controleurComptable = FonctionEligible.builder().id(22L).code("CONTROLEUR_COMPTABLE")
-                .libelle("Contrôleur Comptable").actif(true).build();
-        GrilleTarifaire grilleControleur = GrilleTarifaire.builder().id(11L).idFonctionEligible(22L)
-                .montantFcfa(35000).statutValidation(StatutGrilleEnum.ACTIVE).build();
 
         when(processusMensuelRepository.findById(900L)).thenReturn(Optional.of(processusEnCoursArh()));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(900L, 514L)).thenReturn(Optional.of(ligne));
-        when(fonctionEligibleRepository.findByCode("CONTROLEUR_COMPTABLE")).thenReturn(Optional.of(controleurComptable));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(22L, StatutGrilleEnum.ACTIVE))
-                .thenReturn(Optional.of(grilleControleur));
-        when(beneficiaireRepository.findById(514L)).thenReturn(Optional.empty());
+        when(grilleTarifaireApi.resoudrePourFonction("CONTROLEUR_COMPTABLE"))
+                .thenReturn(ResolutionGrilleDto.resolue(35000));
+        when(beneficiaireApi.gradeDe(514L)).thenReturn(Optional.empty());
         when(eligibiliteService.verifierEligibilite("CONTROLEUR_COMPTABLE", null)).thenReturn(false);
 
         PatchProcessusResponseDto reponse = processusMensuelService.ajuster(
@@ -992,13 +901,7 @@ class ProcessusMensuelServiceTest {
                 .id(2018L).idProcessus(900L).idBeneficiaire(515L)
                 .montantApplique(0).inclusDansEtat(false).fonctionRetenue("CHEF_DIVISION").build();
 
-        Beneficiaire mbarga = Beneficiaire.builder().id(515L).matricule("1847")
-                .nomPrenoms("MBARGA Jean Paul").fonction("CHEF_DIVISION").grade("NON GRADE").actif(true).build();
 
-        FonctionEligible comptable = FonctionEligible.builder().id(23L).code("COMPTABLE")
-                .libelle("Comptable").actif(true).build();
-        GrilleTarifaire grilleComptable = GrilleTarifaire.builder().id(12L).idFonctionEligible(23L)
-                .montantFcfa(35000).statutValidation(StatutGrilleEnum.ACTIVE).build();
 
         AjustementLigneEtatDto ajustement = new AjustementLigneEtatDto();
         ajustement.setIdBeneficiaire(515L);
@@ -1008,10 +911,9 @@ class ProcessusMensuelServiceTest {
         when(processusMensuelRepository.findById(900L)).thenReturn(Optional.of(processusEnCoursArh()));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(900L, 515L)).thenReturn(Optional.of(ligne));
-        when(fonctionEligibleRepository.findByCode("COMPTABLE")).thenReturn(Optional.of(comptable));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(23L, StatutGrilleEnum.ACTIVE))
-                .thenReturn(Optional.of(grilleComptable));
-        when(beneficiaireRepository.findById(515L)).thenReturn(Optional.of(mbarga));
+        when(grilleTarifaireApi.resoudrePourFonction("COMPTABLE"))
+                .thenReturn(ResolutionGrilleDto.resolue(35000));
+        when(beneficiaireApi.gradeDe(515L)).thenReturn(Optional.of("NON GRADE"));
         when(eligibiliteService.verifierEligibilite("COMPTABLE", "NON GRADE")).thenReturn(false);
 
         PatchProcessusResponseDto reponse = processusMensuelService.ajuster(900L, requeteAvec(ajustement));
@@ -1035,32 +937,18 @@ class ProcessusMensuelServiceTest {
                 .id(2020L).idProcessus(900L).idBeneficiaire(517L)
                 .montantApplique(35000).inclusDansEtat(true).fonctionRetenue("CHEF_DIVISION").build();
 
-        Beneficiaire essama = Beneficiaire.builder().id(516L).matricule("5522")
-                .nomPrenoms("ESSAMA Solange").fonction("CHEF_DEPARTEMENT").grade("Grade 3").actif(true).build();
-        Beneficiaire belinga = Beneficiaire.builder().id(517L).matricule("7508")
-                .nomPrenoms("BELINGA Christelle").fonction("CHEF_DIVISION").grade("NON GRADE").actif(true).build();
 
-        FonctionEligible directeur = FonctionEligible.builder().id(6L).code("DIRECTEUR")
-                .libelle("Directeur Central/Succursale/Régional").actif(true).build();
-        GrilleTarifaire grilleDirecteur = GrilleTarifaire.builder().id(3L).idFonctionEligible(6L)
-                .montantFcfa(60000).statutValidation(StatutGrilleEnum.ACTIVE).build();
-        FonctionEligible inspecteurGeneral = FonctionEligible.builder().id(3L).code("CORPS_CONTROLE_IG")
-                .libelle("Inspecteur Général").actif(true).build();
-        GrilleTarifaire grilleIg = GrilleTarifaire.builder().id(4L).idFonctionEligible(3L)
-                .montantFcfa(70000).statutValidation(StatutGrilleEnum.ACTIVE).build();
 
         when(processusMensuelRepository.findById(900L)).thenReturn(Optional.of(processusEnCoursArh()));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(900L, 516L)).thenReturn(Optional.of(ligneEssama));
         when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(900L, 517L)).thenReturn(Optional.of(ligneBelinga));
-        when(fonctionEligibleRepository.findByCode("DIRECTEUR")).thenReturn(Optional.of(directeur));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(6L, StatutGrilleEnum.ACTIVE))
-                .thenReturn(Optional.of(grilleDirecteur));
-        when(fonctionEligibleRepository.findByCode("CORPS_CONTROLE_IG")).thenReturn(Optional.of(inspecteurGeneral));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(3L, StatutGrilleEnum.ACTIVE))
-                .thenReturn(Optional.of(grilleIg));
-        when(beneficiaireRepository.findById(516L)).thenReturn(Optional.of(essama));
-        when(beneficiaireRepository.findById(517L)).thenReturn(Optional.of(belinga));
+        when(grilleTarifaireApi.resoudrePourFonction("DIRECTEUR"))
+                .thenReturn(ResolutionGrilleDto.resolue(60000));
+        when(grilleTarifaireApi.resoudrePourFonction("CORPS_CONTROLE_IG"))
+                .thenReturn(ResolutionGrilleDto.resolue(70000));
+        when(beneficiaireApi.gradeDe(516L)).thenReturn(Optional.of("Grade 3"));
+        when(beneficiaireApi.gradeDe(517L)).thenReturn(Optional.of("NON GRADE"));
         when(eligibiliteService.verifierEligibilite("DIRECTEUR", "Grade 3")).thenReturn(true);
         when(eligibiliteService.verifierEligibilite("CORPS_CONTROLE_IG", "NON GRADE")).thenReturn(false);
         when(ligneEtatMensuelRepository.save(any(LigneEtatMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -1092,13 +980,12 @@ class ProcessusMensuelServiceTest {
                 .id(2021L).idProcessus(900L).idBeneficiaire(518L)
                 .montantApplique(0).inclusDansEtat(false).fonctionRetenue("CHEF_PRODUIT").build();
 
-        FonctionEligible chefProduitDesactive = FonctionEligible.builder().id(18L).code("CHEF_PRODUIT")
-                .libelle("Chef de Produit").actif(false).build();
 
         when(processusMensuelRepository.findById(900L)).thenReturn(Optional.of(processusEnCoursArh()));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(900L, 518L)).thenReturn(Optional.of(ligne));
-        when(fonctionEligibleRepository.findByCode("CHEF_PRODUIT")).thenReturn(Optional.of(chefProduitDesactive));
+        when(grilleTarifaireApi.resoudrePourFonction("CHEF_PRODUIT"))
+                .thenReturn(ResolutionGrilleDto.exclue(ResolutionGrilleDto.MOTIF_FONCTION_DESACTIVEE));
 
         PatchProcessusResponseDto reponse = processusMensuelService.ajuster(
                 900L, requeteAvec(ajustementInclusion(518L, true)));
@@ -1118,15 +1005,12 @@ class ProcessusMensuelServiceTest {
                 .id(2022L).idProcessus(900L).idBeneficiaire(519L)
                 .montantApplique(0).inclusDansEtat(false).fonctionRetenue("JURISTE").build();
 
-        FonctionEligible agentRecouvrement = FonctionEligible.builder().id(20L).code("JURISTE")
-                .libelle("Agent de Recouvrement").actif(true).build();
 
         when(processusMensuelRepository.findById(900L)).thenReturn(Optional.of(processusEnCoursArh()));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(900L, 519L)).thenReturn(Optional.of(ligne));
-        when(fonctionEligibleRepository.findByCode("JURISTE")).thenReturn(Optional.of(agentRecouvrement));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(20L, StatutGrilleEnum.ACTIVE))
-                .thenReturn(Optional.empty());
+        when(grilleTarifaireApi.resoudrePourFonction("JURISTE"))
+                .thenReturn(ResolutionGrilleDto.exclue(ResolutionGrilleDto.MOTIF_GRILLE_INTROUVABLE));
 
         PatchProcessusResponseDto reponse = processusMensuelService.ajuster(
                 900L, requeteAvec(ajustementInclusion(519L, true)));
@@ -1145,21 +1029,14 @@ class ProcessusMensuelServiceTest {
                 .id(2023L).idProcessus(900L).idBeneficiaire(520L)
                 .montantApplique(0).inclusDansEtat(false).fonctionRetenue("COMPTABLE").build();
 
-        Beneficiaire ndongo = Beneficiaire.builder().id(520L).matricule("7508")
-                .nomPrenoms("NDONGO Béatrice").fonction("COMPTABLE").grade("NON GRADE").actif(true).build();
 
-        FonctionEligible comptable = FonctionEligible.builder().id(23L).code("COMPTABLE")
-                .libelle("Comptable").actif(true).build();
-        GrilleTarifaire grilleComptable = GrilleTarifaire.builder().id(12L).idFonctionEligible(23L)
-                .montantFcfa(35000).statutValidation(StatutGrilleEnum.ACTIVE).build();
 
         when(processusMensuelRepository.findById(900L)).thenReturn(Optional.of(processusEnCoursArh()));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(900L, 520L)).thenReturn(Optional.of(ligne));
-        when(fonctionEligibleRepository.findByCode("COMPTABLE")).thenReturn(Optional.of(comptable));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(23L, StatutGrilleEnum.ACTIVE))
-                .thenReturn(Optional.of(grilleComptable));
-        when(beneficiaireRepository.findById(520L)).thenReturn(Optional.of(ndongo));
+        when(grilleTarifaireApi.resoudrePourFonction("COMPTABLE"))
+                .thenReturn(ResolutionGrilleDto.resolue(35000));
+        when(beneficiaireApi.gradeDe(520L)).thenReturn(Optional.of("NON GRADE"));
         when(eligibiliteService.verifierEligibilite("COMPTABLE", "NON GRADE")).thenReturn(false);
 
         PatchProcessusResponseDto reponse = processusMensuelService.ajuster(
@@ -1182,21 +1059,14 @@ class ProcessusMensuelServiceTest {
                 .id(2024L).idProcessus(900L).idBeneficiaire(521L)
                 .montantApplique(0).inclusDansEtat(false).fonctionRetenue("GFC").build();
 
-        Beneficiaire atangana = Beneficiaire.builder().id(521L).matricule("4275")
-                .nomPrenoms("ATANGANA Sylvie").fonction("GFC").grade("Grade 2").actif(true).build();
 
-        FonctionEligible gfc = FonctionEligible.builder().id(13L).code("GFC")
-                .libelle("Gestionnaire de Fonds de Commerce").actif(true).build();
-        GrilleTarifaire grilleGfc = GrilleTarifaire.builder().id(7L).idFonctionEligible(13L)
-                .montantFcfa(40000).statutValidation(StatutGrilleEnum.ACTIVE).build();
 
         when(processusMensuelRepository.findById(900L)).thenReturn(Optional.of(processusEnCoursArh()));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(900L, 521L)).thenReturn(Optional.of(ligne));
-        when(fonctionEligibleRepository.findByCode("GFC")).thenReturn(Optional.of(gfc));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(13L, StatutGrilleEnum.ACTIVE))
-                .thenReturn(Optional.of(grilleGfc));
-        when(beneficiaireRepository.findById(521L)).thenReturn(Optional.of(atangana));
+        when(grilleTarifaireApi.resoudrePourFonction("GFC"))
+                .thenReturn(ResolutionGrilleDto.resolue(40000));
+        when(beneficiaireApi.gradeDe(521L)).thenReturn(Optional.of("Grade 2"));
         when(eligibiliteService.verifierEligibilite("GFC", "Grade 2")).thenReturn(true);
         when(ligneEtatMensuelRepository.save(any(LigneEtatMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -1225,21 +1095,14 @@ class ProcessusMensuelServiceTest {
                 .id(2025L).idProcessus(900L).idBeneficiaire(522L)
                 .montantApplique(50000).inclusDansEtat(false).fonctionRetenue("DA").build();
 
-        Beneficiaire owono = Beneficiaire.builder().id(522L).matricule("6100")
-                .nomPrenoms("OWONO Serge").fonction("DA").grade("Grade 5").actif(true).build();
 
-        FonctionEligible directeurAgence = FonctionEligible.builder().id(5L).code("DA")
-                .libelle("Directeur d'Agence").actif(true).build();
-        GrilleTarifaire grilleDa = GrilleTarifaire.builder().id(1L).idFonctionEligible(5L)
-                .montantFcfa(50000).statutValidation(StatutGrilleEnum.ACTIVE).build();
 
         when(processusMensuelRepository.findById(900L)).thenReturn(Optional.of(processusEnCoursArh()));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(900L, 522L)).thenReturn(Optional.of(ligne));
-        when(fonctionEligibleRepository.findByCode("DA")).thenReturn(Optional.of(directeurAgence));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(5L, StatutGrilleEnum.ACTIVE))
-                .thenReturn(Optional.of(grilleDa));
-        when(beneficiaireRepository.findById(522L)).thenReturn(Optional.of(owono));
+        when(grilleTarifaireApi.resoudrePourFonction("DA"))
+                .thenReturn(ResolutionGrilleDto.resolue(50000));
+        when(beneficiaireApi.gradeDe(522L)).thenReturn(Optional.of("Grade 5"));
         when(eligibiliteService.verifierEligibilite("DA", "Grade 5")).thenReturn(true);
         when(ligneEtatMensuelRepository.save(any(LigneEtatMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -1270,8 +1133,8 @@ class ProcessusMensuelServiceTest {
 
         assertThat(reponse.getResultats().get(0).getApplique()).isTrue();
         assertThat(ligne.getInclusDansEtat()).isFalse();
-        verify(fonctionEligibleRepository, never()).findByCode(any());
-        verify(beneficiaireRepository, never()).findById(any());
+        verify(grilleTarifaireApi, never()).resoudrePourFonction(any());
+        verify(beneficiaireApi, never()).gradeDe(any());
         verify(eligibiliteService, never()).verifierEligibilite(any(), any());
     }
 
@@ -1294,7 +1157,7 @@ class ProcessusMensuelServiceTest {
         when(documentService.genererInitiale(processus, List.of(ligneIncluse), arhConnecte)).thenReturn(pieceJointeGeneree);
         when(signatureService.signer(arhConnecte)).thenReturn("Jean-Paul MBARGA (matricule 2201) - 22/07/2026 10:00:00");
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(utilisateurRepository.findByRoleAndActifTrue(RoleEnum.CRH)).thenReturn(List.of());
+        when(utilisateurApi.destinatairesParRole(RoleEnum.CRH)).thenReturn(List.of());
 
         ValiderProcessusResponseDto reponse = processusMensuelService.valider(900L, "État vérifié et conforme");
 
@@ -1346,10 +1209,10 @@ class ProcessusMensuelServiceTest {
         ProcessusMensuel processus = ProcessusMensuel.builder().id(910L).moisPaiement(8).anneePaiement(2026)
                 .statut(StatutEnum.EN_COURS_ARH).build();
         Utilisateur arhConnecte = Utilisateur.builder().id(11L).matricule("2202").nom("ESSAMA").prenom("Marie-Claire").build();
-        Utilisateur crh1 = Utilisateur.builder().id(20L).matricule("3001").nom("ATANGANA").prenom("Paul")
-                .role(RoleEnum.CRH).actif(true).build();
-        Utilisateur crh2 = Utilisateur.builder().id(21L).matricule("3002").nom("NKOLO").prenom("Sylvie")
-                .role(RoleEnum.CRH).actif(true).build();
+        DestinataireNotificationDto crh1 =
+                new DestinataireNotificationDto("p.atangana@afrilandfirstbank.cm", RoleEnum.CRH);
+        DestinataireNotificationDto crh2 =
+                new DestinataireNotificationDto("s.nkolo@afrilandfirstbank.cm", RoleEnum.CRH);
 
         PieceJointe pieceJointeGeneree = PieceJointe.builder().id(701L).idProcessus(910L).build();
 
@@ -1359,7 +1222,7 @@ class ProcessusMensuelServiceTest {
         when(documentService.genererInitiale(eq(processus), any(), eq(arhConnecte))).thenReturn(pieceJointeGeneree);
         when(signatureService.signer(arhConnecte)).thenReturn("signature");
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(utilisateurRepository.findByRoleAndActifTrue(RoleEnum.CRH)).thenReturn(List.of(crh1, crh2));
+        when(utilisateurApi.destinatairesParRole(RoleEnum.CRH)).thenReturn(List.of(crh1, crh2));
 
         processusMensuelService.valider(910L, null);
 
@@ -1401,7 +1264,7 @@ class ProcessusMensuelServiceTest {
         when(documentService.ajouterSignature(pieceJointeExistante, crhConnecte, NomEtapeEnum.VALIDATION_CRH))
                 .thenReturn(pieceJointeExistante);
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(utilisateurRepository.findByRoleAndActifTrue(RoleEnum.DRH)).thenReturn(List.of());
+        when(utilisateurApi.destinatairesParRole(RoleEnum.DRH)).thenReturn(List.of());
 
         ValiderProcessusResponseDto reponse = processusMensuelService.valider(930L, "Etat verifie niveau CRH");
 
@@ -1512,10 +1375,10 @@ class ProcessusMensuelServiceTest {
                 .statut(StatutEnum.EN_ATTENTE_CRH).build();
         Utilisateur crhConnecte = Utilisateur.builder().id(22L).matricule("3003").nom("FOUDA").prenom("Bertrand")
                 .role(RoleEnum.CRH).actif(true).build();
-        Utilisateur drh1 = Utilisateur.builder().id(30L).matricule("4001").nom("BELINGA").prenom("Alice")
-                .role(RoleEnum.DRH).actif(true).build();
-        Utilisateur drh2 = Utilisateur.builder().id(31L).matricule("4002").nom("ONANA").prenom("Serge")
-                .role(RoleEnum.DRH).actif(true).build();
+        DestinataireNotificationDto drh1 =
+                new DestinataireNotificationDto("a.belinga@afrilandfirstbank.cm", RoleEnum.DRH);
+        DestinataireNotificationDto drh2 =
+                new DestinataireNotificationDto("s.onana@afrilandfirstbank.cm", RoleEnum.DRH);
 
         PieceJointe pieceJointeExistante = PieceJointe.builder().id(706L).idProcessus(932L).nombreSignatures(1).build();
 
@@ -1525,7 +1388,7 @@ class ProcessusMensuelServiceTest {
         when(documentService.ajouterSignature(pieceJointeExistante, crhConnecte, NomEtapeEnum.VALIDATION_CRH))
                 .thenReturn(pieceJointeExistante);
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(utilisateurRepository.findByRoleAndActifTrue(RoleEnum.DRH)).thenReturn(List.of(drh1, drh2));
+        when(utilisateurApi.destinatairesParRole(RoleEnum.DRH)).thenReturn(List.of(drh1, drh2));
 
         processusMensuelService.valider(932L, null);
 
@@ -1557,7 +1420,7 @@ class ProcessusMensuelServiceTest {
         when(documentService.genererInitiale(processus, List.of(ligneIncluse), arhConnecte)).thenReturn(pieceJointeGeneree);
         when(signatureService.signer(arhConnecte)).thenReturn("Christian EYENGA (matricule 2203) - 24/07/2026 09:00:00");
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(utilisateurRepository.findByRoleAndActifTrue(RoleEnum.CRH)).thenReturn(List.of());
+        when(utilisateurApi.destinatairesParRole(RoleEnum.CRH)).thenReturn(List.of());
 
         ValiderProcessusResponseDto reponse = processusMensuelService.valider(940L, "État vérifié niveau ARH");
 
@@ -1724,8 +1587,8 @@ class ProcessusMensuelServiceTest {
         when(documentService.genererInitiale(processus, List.of(ligneIncluse), arhConnecte)).thenReturn(pieceJointe);
         when(signatureService.signer(arhConnecte)).thenReturn("Paul ATANGANA (matricule 2210) - 24/07/2026 08:00:00");
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(utilisateurRepository.findByRoleAndActifTrue(RoleEnum.CRH)).thenReturn(List.of());
-        when(utilisateurRepository.findByRoleAndActifTrue(RoleEnum.DRH)).thenReturn(List.of());
+        when(utilisateurApi.destinatairesParRole(RoleEnum.CRH)).thenReturn(List.of());
+        when(utilisateurApi.destinatairesParRole(RoleEnum.DRH)).thenReturn(List.of());
         when(pieceJointeRepository.findByIdProcessus(960L)).thenReturn(Optional.of(pieceJointe));
         when(documentService.ajouterSignature(eq(pieceJointe), any(Utilisateur.class), any(NomEtapeEnum.class)))
                 .thenReturn(pieceJointe);
@@ -1757,8 +1620,8 @@ class ProcessusMensuelServiceTest {
                 .statut(StatutEnum.EN_ATTENTE_CRH).idCreateur(10L).build();
         Utilisateur crhConnecte = Utilisateur.builder().id(21L).matricule("3002").nom("NKOLO").prenom("Sylvie")
                 .role(RoleEnum.CRH).actif(true).build();
-        Utilisateur arhCreateur = Utilisateur.builder().id(10L).matricule("2201").nom("MBARGA").prenom("Jean-Paul")
-                .role(RoleEnum.ARH).actif(true).build();
+        DestinataireNotificationDto arhCreateur =
+                new DestinataireNotificationDto("jp.mbarga@afrilandfirstbank.cm", RoleEnum.ARH);
 
         RetournerProcessusRequestDto requete = new RetournerProcessusRequestDto();
         requete.setMotif("Montant incorrect pour le matricule 1562");
@@ -1766,7 +1629,7 @@ class ProcessusMensuelServiceTest {
         when(processusMensuelRepository.findById(970L)).thenReturn(Optional.of(processus));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(crhConnecte);
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(utilisateurRepository.findById(10L)).thenReturn(Optional.of(arhCreateur));
+        when(utilisateurApi.destinataireParId(10L)).thenReturn(arhCreateur);
 
         RetournerProcessusResponseDto reponse = processusMensuelService.retourner(970L, requete);
 
@@ -1795,8 +1658,8 @@ class ProcessusMensuelServiceTest {
                 .statut(StatutEnum.EN_ATTENTE_DRH).idCreateur(11L).build();
         Utilisateur drhConnecte = Utilisateur.builder().id(40L).matricule("4001").nom("BELINGA").prenom("Alice")
                 .role(RoleEnum.DRH).actif(true).build();
-        Utilisateur arhCreateur = Utilisateur.builder().id(11L).matricule("2202").nom("ESSAMA").prenom("Marie-Claire")
-                .role(RoleEnum.ARH).actif(true).build();
+        DestinataireNotificationDto arhCreateur =
+                new DestinataireNotificationDto("mc.essama@afrilandfirstbank.cm", RoleEnum.ARH);
 
         RetournerProcessusRequestDto requete = new RetournerProcessusRequestDto();
         requete.setMotif("Beneficiaire ONANA Serge exclu a tort");
@@ -1804,7 +1667,7 @@ class ProcessusMensuelServiceTest {
         when(processusMensuelRepository.findById(971L)).thenReturn(Optional.of(processus));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(drhConnecte);
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(utilisateurRepository.findById(11L)).thenReturn(Optional.of(arhCreateur));
+        when(utilisateurApi.destinataireParId(11L)).thenReturn(arhCreateur);
 
         RetournerProcessusResponseDto reponse = processusMensuelService.retourner(971L, requete);
 
@@ -1862,8 +1725,8 @@ class ProcessusMensuelServiceTest {
                 .statut(StatutEnum.EN_ATTENTE_DRH).idCreateur(12L).build();
         Utilisateur drhConnecte = Utilisateur.builder().id(41L).matricule("4002").nom("ONANA").prenom("Serge")
                 .role(RoleEnum.DRH).actif(true).build();
-        Utilisateur arhCreateur = Utilisateur.builder().id(12L).matricule("2203").nom("EYENGA").prenom("Christian")
-                .role(RoleEnum.ARH).actif(true).build();
+        DestinataireNotificationDto arhCreateur =
+                new DestinataireNotificationDto("c.eyenga@afrilandfirstbank.cm", RoleEnum.ARH);
 
         RetournerProcessusRequestDto requete = new RetournerProcessusRequestDto();
         requete.setMotif("Beneficiaire TCHINDA Paul exclu a tort");
@@ -1871,7 +1734,7 @@ class ProcessusMensuelServiceTest {
         when(processusMensuelRepository.findById(974L)).thenReturn(Optional.of(processus));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(drhConnecte);
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(utilisateurRepository.findById(12L)).thenReturn(Optional.of(arhCreateur));
+        when(utilisateurApi.destinataireParId(12L)).thenReturn(arhCreateur);
 
         processusMensuelService.retourner(974L, requete);
 
@@ -1900,7 +1763,8 @@ class ProcessusMensuelServiceTest {
         when(processusMensuelRepository.findById(980L)).thenReturn(Optional.of(processus));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(crhConnecte, arhConnecte, arhConnecte);
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(utilisateurRepository.findById(10L)).thenReturn(Optional.of(arhConnecte));
+        when(utilisateurApi.destinataireParId(10L))
+                .thenReturn(new DestinataireNotificationDto("jp.mbarga@afrilandfirstbank.cm", RoleEnum.ARH));
 
         // 1. Retour CRH -> ARH
         processusMensuelService.retourner(980L, requeteRetour);
@@ -1930,7 +1794,7 @@ class ProcessusMensuelServiceTest {
         when(ligneEtatMensuelRepository.findByIdProcessusAndInclusDansEtatTrue(980L)).thenReturn(List.of(ligneIncluse));
         when(documentService.genererInitiale(processus, List.of(ligneIncluse), arhConnecte)).thenReturn(pieceJointeRegeneree);
         when(signatureService.signer(arhConnecte)).thenReturn("Jean-Paul MBARGA (matricule 2201) - 24/07/2026 12:00:00");
-        when(utilisateurRepository.findByRoleAndActifTrue(RoleEnum.CRH)).thenReturn(List.of());
+        when(utilisateurApi.destinatairesParRole(RoleEnum.CRH)).thenReturn(List.of());
 
         ValiderProcessusResponseDto reponseRevalidation = processusMensuelService.valider(980L, "Corrige et revalide");
 
@@ -1953,12 +1817,13 @@ class ProcessusMensuelServiceTest {
         LigneEtatMensuel ligneExclue = LigneEtatMensuel.builder().id(2L).idProcessus(700L).idBeneficiaire(502L)
                 .montantApplique(0).inclusDansEtat(false).fonctionRetenue("NON_ELIGIBLE").build();
 
-        Beneficiaire nkolo = Beneficiaire.builder().id(501L).matricule("1001").nomPrenoms("NKOLO Emmanuel").build();
-        Beneficiaire essama = Beneficiaire.builder().id(502L).matricule("1002").nomPrenoms("ESSAMA Marie Claire").build();
+        BeneficiaireIdentiteDto nkolo = new BeneficiaireIdentiteDto(501L, "1001", "NKOLO Emmanuel");
+        BeneficiaireIdentiteDto essama = new BeneficiaireIdentiteDto(502L, "1002", "ESSAMA Marie Claire");
 
         when(processusMensuelRepository.findById(700L)).thenReturn(Optional.of(processus));
         when(ligneEtatMensuelRepository.findByIdProcessus(700L)).thenReturn(List.of(ligneIncluse, ligneExclue));
-        when(beneficiaireRepository.findAllById(List.of(501L, 502L))).thenReturn(List.of(nkolo, essama));
+        when(beneficiaireApi.identitesParId(List.of(501L, 502L)))
+                .thenReturn(Map.of(501L, nkolo, 502L, essama));
 
         ProcessusDetailResponseDto reponse = processusMensuelService.consulterDetail(700L);
 
@@ -1984,7 +1849,7 @@ class ProcessusMensuelServiceTest {
 
         when(processusMensuelRepository.findById(700L)).thenReturn(Optional.of(processus));
         when(ligneEtatMensuelRepository.findByIdProcessus(700L)).thenReturn(List.of());
-        when(beneficiaireRepository.findAllById(List.of())).thenReturn(List.of());
+        when(beneficiaireApi.identitesParId(List.of())).thenReturn(Map.of());
         when(etapeWorkflowRepository.findFirstByIdProcessusAndStatutEtapeOrderByDateActionDesc(700L, StatutEtapeEnum.RETOURNEE))
                 .thenReturn(Optional.of(retourCrh));
 
@@ -2010,7 +1875,7 @@ class ProcessusMensuelServiceTest {
 
         when(processusMensuelRepository.findById(701L)).thenReturn(Optional.of(processus));
         when(ligneEtatMensuelRepository.findByIdProcessus(701L)).thenReturn(List.of());
-        when(beneficiaireRepository.findAllById(List.of())).thenReturn(List.of());
+        when(beneficiaireApi.identitesParId(List.of())).thenReturn(Map.of());
         // Le repository (findFirst...OrderByDateActionDesc) ne renvoie que la
         // plus recente : le premier retour CRH n'est pas remonte ici, simulant
         // le tri reel qui l'exclurait.
@@ -2030,7 +1895,7 @@ class ProcessusMensuelServiceTest {
 
         when(processusMensuelRepository.findById(702L)).thenReturn(Optional.of(processus));
         when(ligneEtatMensuelRepository.findByIdProcessus(702L)).thenReturn(List.of());
-        when(beneficiaireRepository.findAllById(List.of())).thenReturn(List.of());
+        when(beneficiaireApi.identitesParId(List.of())).thenReturn(Map.of());
         when(etapeWorkflowRepository.findFirstByIdProcessusAndStatutEtapeOrderByDateActionDesc(702L, StatutEtapeEnum.RETOURNEE))
                 .thenReturn(Optional.empty());
 
