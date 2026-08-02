@@ -1,7 +1,7 @@
 package com.afriland.dottel.security;
 
-import com.afriland.dottel.model.entity.Utilisateur;
-import com.afriland.dottel.model.enums.RoleEnum;
+import com.afriland.dottel.utilisateurs.model.entity.Utilisateur;
+import com.afriland.dottel.utilisateurs.model.enums.RoleEnum;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import org.junit.jupiter.api.BeforeEach;

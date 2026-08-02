@@ -1,6 +1,6 @@
 package com.afriland.dottel.security;
 
-import com.afriland.dottel.model.entity.Utilisateur;
+import com.afriland.dottel.utilisateurs.model.entity.Utilisateur;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.MacAlgorithm;

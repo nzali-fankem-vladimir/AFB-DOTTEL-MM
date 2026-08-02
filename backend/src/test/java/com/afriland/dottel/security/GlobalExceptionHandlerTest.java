@@ -1,7 +1,7 @@
 package com.afriland.dottel.security;
 
-import com.afriland.dottel.exception.IdentifiantsInvalidesException;
-import com.afriland.dottel.exception.UtilisateurInactifException;
+import com.afriland.dottel.utilisateurs.exception.IdentifiantsInvalidesException;
+import com.afriland.dottel.utilisateurs.exception.UtilisateurInactifException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;

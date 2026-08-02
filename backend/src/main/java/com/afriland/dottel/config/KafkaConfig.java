@@ -1,6 +1,6 @@
 package com.afriland.dottel.config;
 
-import com.afriland.dottel.model.dto.processus.EvenementClotureDto;
+import com.afriland.dottel.processus.model.dto.processus.EvenementClotureDto;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
