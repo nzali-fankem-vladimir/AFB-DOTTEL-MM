@@ -1,0 +1,24 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`com.afriland.dottel.processus`
+|Spring components
+|_Repositories_
+
+* `c.a.d.p.repository.EtapeWorkflowRepository`
+* `c.a.d.p.repository.LigneEtatMensuelRepository`
+* `c.a.d.p.repository.PieceJointeRepository`
+* `c.a.d.p.repository.ProcessusMensuelRepository`
+|Bean references
+|* `c.a.d.b.api.BeneficiaireApi` (in Beneficiaires)
+* `c.a.d.r.api.GrilleTarifaireApi` (in Referentiel)
+* `c.a.d.u.api.UtilisateurApi` (in Utilisateurs)
+* `c.a.d.r.api.EligibiliteService` (in Referentiel)
+* `c.a.d.r.api.FonctionEligibleApi` (in Referentiel)
+* `c.a.d.u.api.AuthenticatedUserService` (in Utilisateurs)
+|Aggregate roots
+|* `c.a.d.p.model.entity.EtapeWorkflow`
+* `c.a.d.p.model.entity.LigneEtatMensuel`
+* `c.a.d.p.model.entity.PieceJointe`
+* `c.a.d.p.model.entity.ProcessusMensuel`
+|===

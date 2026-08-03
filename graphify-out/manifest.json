@@ -10,7 +10,7 @@
     "semantic_hash": "ab50dd89da7da2346b28003352eeeeeb"
   },
   "backend/pom.xml": {
-    "mtime": 1785604917.9430475,
+    "mtime": 1785772394.7665277,
     "ast_hash": "b7dae9fecca2c5095a4f4ff89105f35c",
     "semantic_hash": "b7dae9fecca2c5095a4f4ff89105f35c"
   },
@@ -25,9 +25,9 @@
     "semantic_hash": "8b675aa277dddfad180200d71c25f45a"
   },
   "backend/src/main/java/com/afriland/dottel/security/GlobalExceptionHandler.java": {
-    "mtime": 1785661442.727384,
-    "ast_hash": "ba9fc8b4e8122425302993f1817eabf3",
-    "semantic_hash": "ba9fc8b4e8122425302993f1817eabf3"
+    "mtime": 1785769967.3018432,
+    "ast_hash": "fafce11fbbd315824d6a4d52495adf01",
+    "semantic_hash": "fafce11fbbd315824d6a4d52495adf01"
   },
   "backend/src/main/java/com/afriland/dottel/security/JwtUtil.java": {
     "mtime": 1785660552.8202567,
@@ -330,14 +330,14 @@
     "semantic_hash": "2baf8b6726794b9478a23c1e2cb21876"
   },
   "backend/src/main/java/com/afriland/dottel/config/EvenementClotureSerializer.java": {
-    "mtime": 1785661442.5276697,
-    "ast_hash": "f43cdd1a2eb662d5e6a2ec6cbaf5c3e3",
-    "semantic_hash": "f43cdd1a2eb662d5e6a2ec6cbaf5c3e3"
+    "mtime": 1785767852.881299,
+    "ast_hash": "e29505fdb5d1c3bacf1a3a82a03720f9",
+    "semantic_hash": "e29505fdb5d1c3bacf1a3a82a03720f9"
   },
   "backend/src/main/java/com/afriland/dottel/config/KafkaConfig.java": {
-    "mtime": 1785661442.5276697,
-    "ast_hash": "9cf628374cb2f7b31c915cc78d252c23",
-    "semantic_hash": "9cf628374cb2f7b31c915cc78d252c23"
+    "mtime": 1785767852.881299,
+    "ast_hash": "7ceda89c7f334288c15603eda69212c0",
+    "semantic_hash": "7ceda89c7f334288c15603eda69212c0"
   },
   "docker-compose.yml": {
     "mtime": 1784905076.4769769,
@@ -745,9 +745,9 @@
     "semantic_hash": "eb18bd08aeeba811df9130a34505b80b"
   },
   "docs/monolithe-modulaire/MM.6_verification_et_documentation.md": {
-    "mtime": 1785593909.9212232,
-    "ast_hash": "8576d59bc2fee20cdcd15f42e2c4d5b2",
-    "semantic_hash": "8576d59bc2fee20cdcd15f42e2c4d5b2"
+    "mtime": 1785771379.1790507,
+    "ast_hash": "b5a6ef838190d30997604fc3f6cb7407",
+    "semantic_hash": "b5a6ef838190d30997604fc3f6cb7407"
   },
   "docs/monolithe-modulaire/MM.7_keycloak_provisoire.md": {
     "mtime": 1785603264.991874,
@@ -774,15 +774,10 @@
     "ast_hash": "07eab980974476de6a10c122178c4073",
     "semantic_hash": "07eab980974476de6a10c122178c4073"
   },
-  "backend/src/main/java/com/afriland/dottel/audit/service/AuditService.java": {
-    "mtime": 1785753936.484832,
-    "ast_hash": "20b0dad98ea7549c14c7054c0c643bc2",
-    "semantic_hash": "20b0dad98ea7549c14c7054c0c643bc2"
-  },
   "backend/src/main/java/com/afriland/dottel/audit/service/AuditServiceImpl.java": {
-    "mtime": 1785753961.6202226,
-    "ast_hash": "68184c6d0ccaef750cb53ee506996453",
-    "semantic_hash": "68184c6d0ccaef750cb53ee506996453"
+    "mtime": 1785770699.2194479,
+    "ast_hash": "8d1acfe58ac001ccd46d5096b15941e5",
+    "semantic_hash": "8d1acfe58ac001ccd46d5096b15941e5"
   },
   "backend/src/main/java/com/afriland/dottel/beneficiaires/controller/BeneficiaireController.java": {
     "mtime": 1785661088.4173548,
@@ -885,14 +880,14 @@
     "semantic_hash": "f1c38b425f3d485617397a612a488926"
   },
   "backend/src/main/java/com/afriland/dottel/beneficiaires/service/BeneficiaireImportService.java": {
-    "mtime": 1785752560.5811734,
-    "ast_hash": "bd1dada0baa3a2931256a684772ae08e",
-    "semantic_hash": "bd1dada0baa3a2931256a684772ae08e"
+    "mtime": 1785768035.1136782,
+    "ast_hash": "5a7c7892015bed393fec1a5c2753cad7",
+    "semantic_hash": "5a7c7892015bed393fec1a5c2753cad7"
   },
   "backend/src/main/java/com/afriland/dottel/beneficiaires/service/BeneficiaireService.java": {
-    "mtime": 1785752987.6045234,
-    "ast_hash": "cf512f91b1c2cebecb128ee47f213944",
-    "semantic_hash": "cf512f91b1c2cebecb128ee47f213944"
+    "mtime": 1785768035.1157153,
+    "ast_hash": "818fdba921c6d7b801f96af895f62c16",
+    "semantic_hash": "818fdba921c6d7b801f96af895f62c16"
   },
   "backend/src/main/java/com/afriland/dottel/beneficiaires/service/EhrIntegrationService.java": {
     "mtime": 1785661088.4388633,
@@ -900,14 +895,14 @@
     "semantic_hash": "02686fc80f2215debefd9e8578a54abd"
   },
   "backend/src/main/java/com/afriland/dottel/beneficiaires/service/EhrIntegrationServiceStub.java": {
-    "mtime": 1785661088.4388633,
-    "ast_hash": "ae1ae66cda524202fbf21de04695a73a",
-    "semantic_hash": "ae1ae66cda524202fbf21de04695a73a"
+    "mtime": 1785770699.1219378,
+    "ast_hash": "e1c84124d1a63374661af704c1e5b7e8",
+    "semantic_hash": "e1c84124d1a63374661af704c1e5b7e8"
   },
   "backend/src/main/java/com/afriland/dottel/beneficiaires/service/EnrolementService.java": {
-    "mtime": 1785752739.129025,
-    "ast_hash": "4b0d2bae3e50e653ecf5cb4bc12a3d5f",
-    "semantic_hash": "4b0d2bae3e50e653ecf5cb4bc12a3d5f"
+    "mtime": 1785768544.2673407,
+    "ast_hash": "a002dbf4c96aeb417b9b4789e79822bd",
+    "semantic_hash": "a002dbf4c96aeb417b9b4789e79822bd"
   },
   "backend/src/main/java/com/afriland/dottel/processus/controller/PieceJointeController.java": {
     "mtime": 1785661442.5276697,
@@ -973,11 +968,6 @@
     "mtime": 1785661442.5474224,
     "ast_hash": "6363b9bf2f87e59c2e94d6c486587447",
     "semantic_hash": "6363b9bf2f87e59c2e94d6c486587447"
-  },
-  "backend/src/main/java/com/afriland/dottel/processus/model/dto/processus/EvenementClotureDto.java": {
-    "mtime": 1785661442.5474224,
-    "ast_hash": "66a769f095262e141f508a2fd0430dd1",
-    "semantic_hash": "66a769f095262e141f508a2fd0430dd1"
   },
   "backend/src/main/java/com/afriland/dottel/processus/model/dto/processus/LigneEtatMensuelDetailDto.java": {
     "mtime": 1785661442.5474224,
@@ -1095,9 +1085,9 @@
     "semantic_hash": "e05788411b2f27b044976a94e831f39a"
   },
   "backend/src/main/java/com/afriland/dottel/processus/service/DocumentService.java": {
-    "mtime": 1785687740.8993886,
-    "ast_hash": "d8942b27e7620dcbdfa7a1932dc0aacd",
-    "semantic_hash": "d8942b27e7620dcbdfa7a1932dc0aacd"
+    "mtime": 1785768035.1202683,
+    "ast_hash": "8d6012406738eb701e55dcecd5f8c429",
+    "semantic_hash": "8d6012406738eb701e55dcecd5f8c429"
   },
   "backend/src/main/java/com/afriland/dottel/processus/service/EcartMensuelService.java": {
     "mtime": 1785661442.5900896,
@@ -1105,9 +1095,9 @@
     "semantic_hash": "057174f29482d334a1f470668b411507"
   },
   "backend/src/main/java/com/afriland/dottel/processus/service/EvenementClotureService.java": {
-    "mtime": 1785661442.601239,
-    "ast_hash": "cda00b15ec17edc511e3b12a6f55bc3b",
-    "semantic_hash": "cda00b15ec17edc511e3b12a6f55bc3b"
+    "mtime": 1785767852.881299,
+    "ast_hash": "876fef2ae9d1b1a57b3a34662a163530",
+    "semantic_hash": "876fef2ae9d1b1a57b3a34662a163530"
   },
   "backend/src/main/java/com/afriland/dottel/processus/service/NotificationService.java": {
     "mtime": 1785665464.6168244,
@@ -1115,14 +1105,14 @@
     "semantic_hash": "ed142639a8289a17fcb097365c2986e8"
   },
   "backend/src/main/java/com/afriland/dottel/processus/service/NotificationServiceStub.java": {
-    "mtime": 1785665468.035355,
-    "ast_hash": "fc3908932a5142b54b9afcaa9dc02fcc",
-    "semantic_hash": "fc3908932a5142b54b9afcaa9dc02fcc"
+    "mtime": 1785770699.1723402,
+    "ast_hash": "7e53385e33a410f4c69d191d77a7705c",
+    "semantic_hash": "7e53385e33a410f4c69d191d77a7705c"
   },
   "backend/src/main/java/com/afriland/dottel/processus/service/ProcessusMensuelService.java": {
-    "mtime": 1785753416.5625467,
-    "ast_hash": "b9e7e0520672f15f7a0e3f562b33176d",
-    "semantic_hash": "b9e7e0520672f15f7a0e3f562b33176d"
+    "mtime": 1785768035.1222696,
+    "ast_hash": "f38cdcfe407a65a24955a5522f2a598c",
+    "semantic_hash": "f38cdcfe407a65a24955a5522f2a598c"
   },
   "backend/src/main/java/com/afriland/dottel/processus/service/SeparationTachesService.java": {
     "mtime": 1785661442.6141376,
@@ -1135,19 +1125,19 @@
     "semantic_hash": "70e40f7379a6df7c18632ae6c1b0da02"
   },
   "backend/src/main/java/com/afriland/dottel/processus/service/SignatureServiceAutonome.java": {
-    "mtime": 1785661442.6141376,
-    "ast_hash": "a3c254592e1549fffdfd9a61cc012b31",
-    "semantic_hash": "a3c254592e1549fffdfd9a61cc012b31"
+    "mtime": 1785770727.3870504,
+    "ast_hash": "e8ccc7711601785e5a01bef166d0fc18",
+    "semantic_hash": "e8ccc7711601785e5a01bef166d0fc18"
   },
   "backend/src/main/java/com/afriland/dottel/referentiel/controller/FonctionEligibleController.java": {
-    "mtime": 1785660935.0588853,
-    "ast_hash": "c41a0cdd401ffee59ec5b8edbaf6c7ce",
-    "semantic_hash": "c41a0cdd401ffee59ec5b8edbaf6c7ce"
+    "mtime": 1785768035.1242685,
+    "ast_hash": "77eb7099b103d72d77936f08c676c6e6",
+    "semantic_hash": "77eb7099b103d72d77936f08c676c6e6"
   },
   "backend/src/main/java/com/afriland/dottel/referentiel/controller/GrilleTarifaireController.java": {
-    "mtime": 1785660935.0588853,
-    "ast_hash": "67631ef647e4f14e73b18ed9f8a1eb06",
-    "semantic_hash": "67631ef647e4f14e73b18ed9f8a1eb06"
+    "mtime": 1785768035.1258652,
+    "ast_hash": "fb65e20d5164109194d8bab69bf2c5e4",
+    "semantic_hash": "fb65e20d5164109194d8bab69bf2c5e4"
   },
   "backend/src/main/java/com/afriland/dottel/referentiel/exception/DateDebutGrilleAnterieureException.java": {
     "mtime": 1785660935.0588853,
@@ -1289,35 +1279,25 @@
     "ast_hash": "7a3d8a4dbe20cbd68da0ad2e4cd165ca",
     "semantic_hash": "7a3d8a4dbe20cbd68da0ad2e4cd165ca"
   },
-  "backend/src/main/java/com/afriland/dottel/referentiel/service/EligibiliteService.java": {
-    "mtime": 1785660935.0970385,
-    "ast_hash": "af73ca8bf705d3e361105dcc16396c7a",
-    "semantic_hash": "af73ca8bf705d3e361105dcc16396c7a"
-  },
   "backend/src/main/java/com/afriland/dottel/referentiel/service/FonctionEligibleService.java": {
-    "mtime": 1785752285.357141,
-    "ast_hash": "c333cbb00fe8ebae596cf34fc37a5303",
-    "semantic_hash": "c333cbb00fe8ebae596cf34fc37a5303"
+    "mtime": 1785767956.402879,
+    "ast_hash": "34aba961b7c792e9a02538de8f5ffc9c",
+    "semantic_hash": "34aba961b7c792e9a02538de8f5ffc9c"
   },
   "backend/src/main/java/com/afriland/dottel/referentiel/service/GrilleTarifaireService.java": {
-    "mtime": 1785751941.1434712,
-    "ast_hash": "2e915cbdbbec9afc096c070570d83dad",
-    "semantic_hash": "2e915cbdbbec9afc096c070570d83dad"
+    "mtime": 1785770031.0810125,
+    "ast_hash": "5ee41702ee07b12b887b65e81ef8bbf5",
+    "semantic_hash": "5ee41702ee07b12b887b65e81ef8bbf5"
   },
   "backend/src/main/java/com/afriland/dottel/reporting/controller/ReportingController.java": {
-    "mtime": 1785661218.4733768,
-    "ast_hash": "07d8b7b53e60f53aaf2a55e787571f3c",
-    "semantic_hash": "07d8b7b53e60f53aaf2a55e787571f3c"
+    "mtime": 1785767744.4671533,
+    "ast_hash": "e6d29ca8b78564b0502d1a0ad6581686",
+    "semantic_hash": "e6d29ca8b78564b0502d1a0ad6581686"
   },
   "backend/src/main/java/com/afriland/dottel/reporting/model/dto/reporting/AuditLogPageResponseDto.java": {
-    "mtime": 1785661218.4733768,
-    "ast_hash": "f4f5055bf8ed7f32fe7c163212b52c56",
-    "semantic_hash": "f4f5055bf8ed7f32fe7c163212b52c56"
-  },
-  "backend/src/main/java/com/afriland/dottel/reporting/model/dto/reporting/AuditLogResponseDto.java": {
-    "mtime": 1785661218.4733768,
-    "ast_hash": "54464315c28f485d7de41d8e2e26861d",
-    "semantic_hash": "54464315c28f485d7de41d8e2e26861d"
+    "mtime": 1785767782.8063076,
+    "ast_hash": "e77836da67b1a3812a0a648e2bf652cc",
+    "semantic_hash": "e77836da67b1a3812a0a648e2bf652cc"
   },
   "backend/src/main/java/com/afriland/dottel/reporting/model/dto/reporting/DashboardResponseDto.java": {
     "mtime": 1785661218.4733768,
@@ -1355,9 +1335,9 @@
     "semantic_hash": "983d5a28b594949aaf10bcdcf2105f01"
   },
   "backend/src/main/java/com/afriland/dottel/utilisateurs/controller/UtilisateurAdminController.java": {
-    "mtime": 1785660552.9353201,
-    "ast_hash": "72f578d6f88f18116e71653ee862f449",
-    "semantic_hash": "72f578d6f88f18116e71653ee862f449"
+    "mtime": 1785768188.3985946,
+    "ast_hash": "fc06a268a4dfdc017a40e5985a52e963",
+    "semantic_hash": "fc06a268a4dfdc017a40e5985a52e963"
   },
   "backend/src/main/java/com/afriland/dottel/utilisateurs/exception/ActionAdminNonAutoriseeException.java": {
     "mtime": 1785660552.9363184,
@@ -1454,25 +1434,20 @@
     "ast_hash": "b9b7bf7eb97c038ad3babda1a10ed630",
     "semantic_hash": "b9b7bf7eb97c038ad3babda1a10ed630"
   },
-  "backend/src/main/java/com/afriland/dottel/utilisateurs/service/AuthenticatedUserService.java": {
-    "mtime": 1785660552.950597,
-    "ast_hash": "1a2998664f2953dec51d83dccb5695de",
-    "semantic_hash": "1a2998664f2953dec51d83dccb5695de"
-  },
   "backend/src/main/java/com/afriland/dottel/utilisateurs/service/UtilisateurAdminService.java": {
     "mtime": 1785751603.7343729,
     "ast_hash": "10bb62994c23d040a0958baf592a4ee0",
     "semantic_hash": "10bb62994c23d040a0958baf592a4ee0"
   },
   "backend/src/test/java/com/afriland/dottel/ModularityTests.java": {
-    "mtime": 1785659718.7034762,
-    "ast_hash": "bc507ec7c25e24d90bb860470ccfbb4b",
-    "semantic_hash": "bc507ec7c25e24d90bb860470ccfbb4b"
+    "mtime": 1785770398.6590378,
+    "ast_hash": "a051fe1a3962ad05a95230845eacb94e",
+    "semantic_hash": "a051fe1a3962ad05a95230845eacb94e"
   },
   "backend/src/test/java/com/afriland/dottel/audit/service/AuditServiceImplTest.java": {
-    "mtime": 1785754013.7957864,
-    "ast_hash": "8bfe299b87d41ec020d5e26d9051d9c7",
-    "semantic_hash": "8bfe299b87d41ec020d5e26d9051d9c7"
+    "mtime": 1785768313.5382879,
+    "ast_hash": "2a07d8405980405c5be770f74a194729",
+    "semantic_hash": "2a07d8405980405c5be770f74a194729"
   },
   "backend/src/test/java/com/afriland/dottel/beneficiaires/service/BeneficiaireExportServiceTest.java": {
     "mtime": 1785661088.6324048,
@@ -1480,19 +1455,19 @@
     "semantic_hash": "245527bada4c1973718b10a588d49970"
   },
   "backend/src/test/java/com/afriland/dottel/beneficiaires/service/BeneficiaireImportServiceTest.java": {
-    "mtime": 1785752609.3028102,
-    "ast_hash": "bfa88440c4a53376f39c86a8c261e7a3",
-    "semantic_hash": "bfa88440c4a53376f39c86a8c261e7a3"
+    "mtime": 1785768313.4950442,
+    "ast_hash": "6d3d81e43aebdbd89bfd8b3ae08ebf7b",
+    "semantic_hash": "6d3d81e43aebdbd89bfd8b3ae08ebf7b"
   },
   "backend/src/test/java/com/afriland/dottel/beneficiaires/service/BeneficiaireServiceTest.java": {
-    "mtime": 1785753185.875538,
-    "ast_hash": "45cdcd0a12ae1093bddf1c65b5f398e0",
-    "semantic_hash": "45cdcd0a12ae1093bddf1c65b5f398e0"
+    "mtime": 1785768313.4362452,
+    "ast_hash": "63fc42378cf00f37669f988a14e45553",
+    "semantic_hash": "63fc42378cf00f37669f988a14e45553"
   },
   "backend/src/test/java/com/afriland/dottel/beneficiaires/service/EnrolementServiceTest.java": {
-    "mtime": 1785752843.366494,
-    "ast_hash": "087dfc30614cadcc84e62f6505e900cb",
-    "semantic_hash": "087dfc30614cadcc84e62f6505e900cb"
+    "mtime": 1785768313.4950442,
+    "ast_hash": "64f4aa46d9f83d343b98472ba5e99ff9",
+    "semantic_hash": "64f4aa46d9f83d343b98472ba5e99ff9"
   },
   "backend/src/test/java/com/afriland/dottel/processus/service/DocumentServiceTest.java": {
     "mtime": 1785687922.697942,
@@ -1505,9 +1480,9 @@
     "semantic_hash": "f4520ac40579e6ed6e6db2d313e43722"
   },
   "backend/src/test/java/com/afriland/dottel/processus/service/ProcessusMensuelServiceTest.java": {
-    "mtime": 1785753783.6271574,
-    "ast_hash": "9199f9286cd003ffbea7c360287dbaa3",
-    "semantic_hash": "9199f9286cd003ffbea7c360287dbaa3"
+    "mtime": 1785768313.5016632,
+    "ast_hash": "572172526c64efcccfc923aa206c8ebc",
+    "semantic_hash": "572172526c64efcccfc923aa206c8ebc"
   },
   "backend/src/test/java/com/afriland/dottel/processus/service/SeparationTachesServiceTest.java": {
     "mtime": 1785661442.8856864,
@@ -1515,9 +1490,9 @@
     "semantic_hash": "c687c91a63f043c143025fdab2113a91"
   },
   "backend/src/test/java/com/afriland/dottel/referentiel/service/EligibiliteServiceTest.java": {
-    "mtime": 1785660935.25867,
-    "ast_hash": "03894fc168299d2219f15eddcb3c6957",
-    "semantic_hash": "03894fc168299d2219f15eddcb3c6957"
+    "mtime": 1785768313.4432466,
+    "ast_hash": "5216355b87970d2988c829b999292add",
+    "semantic_hash": "5216355b87970d2988c829b999292add"
   },
   "backend/src/test/java/com/afriland/dottel/referentiel/service/FonctionEligibleServiceTest.java": {
     "mtime": 1785752425.8660982,
@@ -1525,9 +1500,9 @@
     "semantic_hash": "de30f65a2702f91b1592ef402260ab98"
   },
   "backend/src/test/java/com/afriland/dottel/referentiel/service/GrilleTarifaireServiceTest.java": {
-    "mtime": 1785752131.442628,
-    "ast_hash": "1bc5c944b26f374d23b9a1a7439471ac",
-    "semantic_hash": "1bc5c944b26f374d23b9a1a7439471ac"
+    "mtime": 1785770082.382151,
+    "ast_hash": "df0e7a118db4f8c2668ca0328f34c1c3",
+    "semantic_hash": "df0e7a118db4f8c2668ca0328f34c1c3"
   },
   "backend/src/test/java/com/afriland/dottel/reporting/service/HistoriqueExportServiceTest.java": {
     "mtime": 1785661442.9489076,
@@ -1540,9 +1515,9 @@
     "semantic_hash": "0b2296d903173c0113bee9850ebad14c"
   },
   "backend/src/test/java/com/afriland/dottel/utilisateurs/controller/UtilisateurAdminControllerTest.java": {
-    "mtime": 1785660733.3638916,
-    "ast_hash": "85fe3158dc6ab55d4a6a9ed82cb6d894",
-    "semantic_hash": "85fe3158dc6ab55d4a6a9ed82cb6d894"
+    "mtime": 1785768313.3811655,
+    "ast_hash": "e57ad003e0758ce2675c325ff5a3211c",
+    "semantic_hash": "e57ad003e0758ce2675c325ff5a3211c"
   },
   "backend/src/test/java/com/afriland/dottel/utilisateurs/service/AuthServiceTest.java": {
     "mtime": 1785751405.6621995,
@@ -1575,9 +1550,9 @@
     "semantic_hash": "9ef2d5dcbec90812ba08d7a6f2a620f6"
   },
   "backend/src/main/java/com/afriland/dottel/beneficiaires/service/BeneficiaireApiImpl.java": {
-    "mtime": 1785687649.7968948,
-    "ast_hash": "d6d1159293d5f9b02854cfe5d2854e67",
-    "semantic_hash": "d6d1159293d5f9b02854cfe5d2854e67"
+    "mtime": 1785770699.0270133,
+    "ast_hash": "5ecc033a9aaa92012f6d874e3b0b8437",
+    "semantic_hash": "5ecc033a9aaa92012f6d874e3b0b8437"
   },
   "backend/src/main/java/com/afriland/dottel/referentiel/api/GrilleTarifaireApi.java": {
     "mtime": 1785666345.2065375,
@@ -1595,9 +1570,9 @@
     "semantic_hash": "89cb74c81b53dc3121cec909e0f8beae"
   },
   "backend/src/main/java/com/afriland/dottel/referentiel/service/GrilleTarifaireApiImpl.java": {
-    "mtime": 1785666353.7904456,
-    "ast_hash": "9f89f176f9a72105df0c89e95f14e58d",
-    "semantic_hash": "9f89f176f9a72105df0c89e95f14e58d"
+    "mtime": 1785770698.9829042,
+    "ast_hash": "a809c8ad50a253103b22d4e1c77317e4",
+    "semantic_hash": "a809c8ad50a253103b22d4e1c77317e4"
   },
   "backend/src/main/java/com/afriland/dottel/utilisateurs/api/DestinataireNotificationDto.java": {
     "mtime": 1785665446.4917257,
@@ -1615,9 +1590,9 @@
     "semantic_hash": "69b865134bfd712997fb194b3d477f3a"
   },
   "backend/src/main/java/com/afriland/dottel/utilisateurs/service/UtilisateurApiImpl.java": {
-    "mtime": 1785665458.0060687,
-    "ast_hash": "7f000568ce8248f9ab14cd1ee7341b83",
-    "semantic_hash": "7f000568ce8248f9ab14cd1ee7341b83"
+    "mtime": 1785770699.0703535,
+    "ast_hash": "29d0299e9aff4b9e4490ebea88267bd0",
+    "semantic_hash": "29d0299e9aff4b9e4490ebea88267bd0"
   },
   "backend/src/test/java/com/afriland/dottel/beneficiaires/service/BeneficiaireApiImplTest.java": {
     "mtime": 1785687087.4904723,
@@ -1665,9 +1640,9 @@
     "semantic_hash": "f9503391e1b039092eefa227c89af5de"
   },
   "backend/src/main/java/com/afriland/dottel/reporting/package-info.java": {
-    "mtime": 1785738999.8082395,
-    "ast_hash": "0d998c5094f4184ea9c9fa72ca3d2ba6",
-    "semantic_hash": "0d998c5094f4184ea9c9fa72ca3d2ba6"
+    "mtime": 1785767815.9171984,
+    "ast_hash": "83639be6c494384bf78d52c4d14bda0c",
+    "semantic_hash": "83639be6c494384bf78d52c4d14bda0c"
   },
   "backend/src/main/java/com/afriland/dottel/audit/api/EvenementAudit.java": {
     "mtime": 1785750912.4745798,
@@ -1675,9 +1650,9 @@
     "semantic_hash": "abc9d856f844aa63fb966a73017db818"
   },
   "backend/src/main/java/com/afriland/dottel/audit/api/package-info.java": {
-    "mtime": 1785750920.2225218,
-    "ast_hash": "cdd01b592cb5f8541fe6b7bfc60b8026",
-    "semantic_hash": "cdd01b592cb5f8541fe6b7bfc60b8026"
+    "mtime": 1785767808.120528,
+    "ast_hash": "c4378e6e294b70b12fce04916410c450",
+    "semantic_hash": "c4378e6e294b70b12fce04916410c450"
   },
   "backend/src/main/java/com/afriland/dottel/audit/service/AuditEventListener.java": {
     "mtime": 1785750927.1282628,
@@ -1688,5 +1663,110 @@
     "mtime": 1785751136.2705886,
     "ast_hash": "b03519a7d30394cb31ac28150185dc12",
     "semantic_hash": "b03519a7d30394cb31ac28150185dc12"
+  },
+  "backend/src/main/java/com/afriland/dottel/audit/api/AuditLogResponseDto.java": {
+    "mtime": 1785767730.5806575,
+    "ast_hash": "a27cb4f37c1f6e72ab050e82e64a1654",
+    "semantic_hash": "a27cb4f37c1f6e72ab050e82e64a1654"
+  },
+  "backend/src/main/java/com/afriland/dottel/audit/api/AuditService.java": {
+    "mtime": 1785767730.6672263,
+    "ast_hash": "32487a7affc85dcfb7e44ca49ef46ca5",
+    "semantic_hash": "32487a7affc85dcfb7e44ca49ef46ca5"
+  },
+  "backend/src/main/java/com/afriland/dottel/audit/package-info.java": {
+    "mtime": 1785767684.6380906,
+    "ast_hash": "65c0dd5aa4c00f72ec2c57b47f3838cc",
+    "semantic_hash": "65c0dd5aa4c00f72ec2c57b47f3838cc"
+  },
+  "backend/src/main/java/com/afriland/dottel/beneficiaires/exception/package-info.java": {
+    "mtime": 1785770241.734937,
+    "ast_hash": "2e71467b3ea9808c442f66af3c5f19e2",
+    "semantic_hash": "2e71467b3ea9808c442f66af3c5f19e2"
+  },
+  "backend/src/main/java/com/afriland/dottel/beneficiaires/package-info.java": {
+    "mtime": 1785770299.4068217,
+    "ast_hash": "8deb2a6b4106c3792235ff670d3361b3",
+    "semantic_hash": "8deb2a6b4106c3792235ff670d3361b3"
+  },
+  "backend/src/main/java/com/afriland/dottel/config/package-info.java": {
+    "mtime": 1785769902.4902308,
+    "ast_hash": "417b8eb9c19df15ff555a7c6c1934d89",
+    "semantic_hash": "417b8eb9c19df15ff555a7c6c1934d89"
+  },
+  "backend/src/main/java/com/afriland/dottel/processus/api/EvenementClotureDto.java": {
+    "mtime": 1785767852.753783,
+    "ast_hash": "e6518a9d13e74b8adf5bb6a09c147717",
+    "semantic_hash": "e6518a9d13e74b8adf5bb6a09c147717"
+  },
+  "backend/src/main/java/com/afriland/dottel/processus/api/package-info.java": {
+    "mtime": 1785767852.8491857,
+    "ast_hash": "51633f4f38c5655543c9ae7f3b039c70",
+    "semantic_hash": "51633f4f38c5655543c9ae7f3b039c70"
+  },
+  "backend/src/main/java/com/afriland/dottel/processus/exception/package-info.java": {
+    "mtime": 1785770241.8205092,
+    "ast_hash": "498fbc7f9f54a22cf7c30f3eaf8fcf7b",
+    "semantic_hash": "498fbc7f9f54a22cf7c30f3eaf8fcf7b"
+  },
+  "backend/src/main/java/com/afriland/dottel/processus/package-info.java": {
+    "mtime": 1785770517.6881828,
+    "ast_hash": "d8d0b69cdda6e5d945d4a6b7374a9f5a",
+    "semantic_hash": "d8d0b69cdda6e5d945d4a6b7374a9f5a"
+  },
+  "backend/src/main/java/com/afriland/dottel/referentiel/api/EligibiliteService.java": {
+    "mtime": 1785767866.4625616,
+    "ast_hash": "2445752ff06337b2588568bfa75cec62",
+    "semantic_hash": "2445752ff06337b2588568bfa75cec62"
+  },
+  "backend/src/main/java/com/afriland/dottel/referentiel/api/FonctionEligibleApi.java": {
+    "mtime": 1785767877.4610262,
+    "ast_hash": "c1071718b80c59a474e2803bb58cd617",
+    "semantic_hash": "c1071718b80c59a474e2803bb58cd617"
+  },
+  "backend/src/main/java/com/afriland/dottel/referentiel/exception/GrilleTarifaireMotifRejetObligatoireException.java": {
+    "mtime": 1785769917.2579803,
+    "ast_hash": "f76bc969924c08ba7446029d5917ff0a",
+    "semantic_hash": "f76bc969924c08ba7446029d5917ff0a"
+  },
+  "backend/src/main/java/com/afriland/dottel/referentiel/exception/package-info.java": {
+    "mtime": 1785770241.7757337,
+    "ast_hash": "09bd395d88a89a6b1cfd3f7e855d4663",
+    "semantic_hash": "09bd395d88a89a6b1cfd3f7e855d4663"
+  },
+  "backend/src/main/java/com/afriland/dottel/referentiel/package-info.java": {
+    "mtime": 1785770537.6852965,
+    "ast_hash": "e69d3bcdce03e1819320a006b3c3a056",
+    "semantic_hash": "e69d3bcdce03e1819320a006b3c3a056"
+  },
+  "backend/src/main/java/com/afriland/dottel/security/package-info.java": {
+    "mtime": 1785769902.4455597,
+    "ast_hash": "e25305fcb7622aae16506d0dca1d0310",
+    "semantic_hash": "e25305fcb7622aae16506d0dca1d0310"
+  },
+  "backend/src/main/java/com/afriland/dottel/utilisateurs/api/AuthenticatedUserService.java": {
+    "mtime": 1785767999.9871051,
+    "ast_hash": "65f9fd4c2223481fecd9d7728bc110be",
+    "semantic_hash": "65f9fd4c2223481fecd9d7728bc110be"
+  },
+  "backend/src/main/java/com/afriland/dottel/utilisateurs/exception/package-info.java": {
+    "mtime": 1785770241.863318,
+    "ast_hash": "3f8ce46915599b206112791d98604288",
+    "semantic_hash": "3f8ce46915599b206112791d98604288"
+  },
+  "backend/src/main/java/com/afriland/dottel/utilisateurs/model/entity/package-info.java": {
+    "mtime": 1785770260.7279043,
+    "ast_hash": "5304a27141beb3ead97de7a5f1034ee1",
+    "semantic_hash": "5304a27141beb3ead97de7a5f1034ee1"
+  },
+  "backend/src/main/java/com/afriland/dottel/utilisateurs/model/enums/package-info.java": {
+    "mtime": 1785768051.6451695,
+    "ast_hash": "9a03932412fdef88c198f3b21804c6cb",
+    "semantic_hash": "9a03932412fdef88c198f3b21804c6cb"
+  },
+  "backend/src/main/java/com/afriland/dottel/utilisateurs/package-info.java": {
+    "mtime": 1785767684.373567,
+    "ast_hash": "59527a6dc7fff1c873e95439aa0a25b3",
+    "semantic_hash": "59527a6dc7fff1c873e95439aa0a25b3"
   }
 }

@@ -1,0 +1,10 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`com.afriland.dottel.config`
+|Spring components
+|* `c.a.d.c.CorsConfig`
+* `c.a.d.c.KafkaConfig`
+|Events listened to
+|* `org.springframework.context.event.ContextStoppedEvent` 
+|===

@@ -1,0 +1,10 @@
+[%autowidth.stretch, cols="h,a"]
+|===
+|Base package
+|`com.afriland.dottel.security`
+|Spring components
+|* `c.a.d.s.GlobalExceptionHandler`
+* `c.a.d.s.JwtUtil`
+* `c.a.d.s.RoleJwtAuthenticationConverter`
+* `c.a.d.s.SecurityConfig`
+|===

@@ -1,0 +1,43 @@
+@startuml
+title <size:24>Processus</size>
+
+set separator none
+top to bottom direction
+
+<style>
+  root {
+    BackgroundColor: #ffffff
+    FontColor: #444444
+  }
+</style>
+
+!include <C4/C4>
+!include <C4/C4_Context>
+!include <C4/C4_Component>
+
+System_Boundary("DottelApplication_boundary", "DottelApplication", $tags="") {
+  Container_Boundary("DottelApplication.DottelApplication_boundary", "DottelApplication", $tags="") {
+    Component(DottelApplication.DottelApplication.Utilisateurs, "Utilisateurs", $techn="Module", $descr="", $tags="", $link="")
+    Component(DottelApplication.DottelApplication.Audit, "Audit", $techn="Module", $descr="", $tags="", $link="")
+    Component(DottelApplication.DottelApplication.Beneficiaires, "Beneficiaires", $techn="Module", $descr="", $tags="", $link="")
+    Component(DottelApplication.DottelApplication.Processus, "Processus", $techn="Module", $descr="", $tags="", $link="")
+    Component(DottelApplication.DottelApplication.Referentiel, "Referentiel", $techn="Module", $descr="", $tags="", $link="")
+  }
+
+}
+
+Rel(DottelApplication.DottelApplication.Beneficiaires, DottelApplication.DottelApplication.Audit, "depends on", $techn="", $tags="", $link="")
+Rel(DottelApplication.DottelApplication.Beneficiaires, DottelApplication.DottelApplication.Referentiel, "uses", $techn="", $tags="", $link="")
+Rel(DottelApplication.DottelApplication.Beneficiaires, DottelApplication.DottelApplication.Utilisateurs, "uses", $techn="", $tags="", $link="")
+Rel(DottelApplication.DottelApplication.Utilisateurs, DottelApplication.DottelApplication.Audit, "depends on", $techn="", $tags="", $link="")
+Rel(DottelApplication.DottelApplication.Referentiel, DottelApplication.DottelApplication.Audit, "depends on", $techn="", $tags="", $link="")
+Rel(DottelApplication.DottelApplication.Referentiel, DottelApplication.DottelApplication.Utilisateurs, "uses", $techn="", $tags="", $link="")
+Rel(DottelApplication.DottelApplication.Referentiel, DottelApplication.DottelApplication.Beneficiaires, "uses", $techn="", $tags="", $link="")
+Rel(DottelApplication.DottelApplication.Processus, DottelApplication.DottelApplication.Audit, "depends on", $techn="", $tags="", $link="")
+Rel(DottelApplication.DottelApplication.Processus, DottelApplication.DottelApplication.Beneficiaires, "uses", $techn="", $tags="", $link="")
+Rel(DottelApplication.DottelApplication.Processus, DottelApplication.DottelApplication.Referentiel, "uses", $techn="", $tags="", $link="")
+Rel(DottelApplication.DottelApplication.Processus, DottelApplication.DottelApplication.Utilisateurs, "uses", $techn="", $tags="", $link="")
+
+SHOW_LEGEND(true)
+hide stereotypes
+@enduml

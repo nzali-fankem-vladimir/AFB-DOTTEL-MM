@@ -54,18 +54,41 @@ Déploiement : microservice conteneurisé sur Kubernetes (voir section 14).
 
 ## 3. STRUCTURE DES PACKAGES JAVA
 
+Depuis le chantier monolithe modulaire (MM.0 à MM.6), le backend n'est plus
+organisé en couches techniques mais en **6 modules métier**, chacun garant
+de son propre découpage interne, plus 2 packages transverses. Un module ne
+doit jamais accéder au repository ou à l'entité d'un autre module — voir la
+règle correspondante en section 18.
+
 com.afriland.dottel/
-├── controller/     Endpoints REST uniquement, aucune logique métier
-├── service/        Toute la logique métier
-│   └── rules/      RegleN1Service, RegleN2Service
-├── repository/     Interfaces JpaRepository uniquement
-├── model/
-│   ├── entity/     Entités JPA annotées @Entity
-│   ├── dto/        Objets de transfert (jamais d'entité dans une réponse API)
-│   └── enums/      Tous les types enum
-├── security/       SecurityConfig, JwtAuthenticationFilter,
-│                   GlobalExceptionHandler, KeycloakConfig
-└── config/         CorsConfig, SwaggerConfig, ApplicationConfig
+├── utilisateurs/    Comptes, authentification, rôles (RoleEnum), admin
+│   ├── api/         Façade publique exposée aux autres modules (@NamedInterface)
+│   ├── controller/  Endpoints REST du module
+│   ├── service/     Logique métier du module
+│   ├── repository/  Interfaces JpaRepository du module
+│   ├── model/{entity,dto,enums}/
+│   └── exception/   Exceptions propres au module
+├── beneficiaires/   Enrôlement, gestion des bénéficiaires, import/export,
+│                    intégration EHR (mêmes sous-packages que ci-dessus)
+├── referentiel/     Fonctions éligibles, grilles tarifaires, éligibilité
+│                    (EligibiliteService) — mêmes sous-packages
+├── processus/       Processus mensuel, workflow ARH/CRH/DRH, document/
+│                    signature, événement de clôture — mêmes sous-packages
+├── reporting/       Tableau de bord et export d'historique, lecture
+│                    agrégée seule (aucune entité/repository en propre)
+├── audit/           Journalisation événementielle (RG-09), écouteur de
+│                    EvenementAudit — aucun controller (pas d'endpoint)
+├── security/        SecurityConfig, JwtUtil, GlobalExceptionHandler,
+│                    RoleJwtAuthenticationConverter — transverse, type OPEN
+└── config/          CorsConfig, KafkaConfig, EvenementClotureSerializer
+                     — transverse, type OPEN
+
+Chaque module métier expose son `api/` (interfaces `@NamedInterface`) comme
+seul point d'entrée pour les autres modules ; le reste (`service/`,
+`repository/`, entités) lui est invisible depuis l'extérieur, sauf
+déclaration explicite via `@ApplicationModule(allowedDependencies = {...})`
+dans le `package-info.java` du module appelant. `ModularityTests` (Spring
+Modulith + ArchUnit) vérifie ces frontières à chaque build.
 
 ---
 
@@ -595,3 +618,5 @@ Sprint 7    : Tests d'intégration, recette, corrections, README.
     par la DSI (voir section 14).
 19. Créer un second processus mensuel pour la même combinaison
     mois/année (violation RG-12).
+20. Accéder au repository ou à l'entité d'un autre module au lieu de
+    passer par son API publique -- ModularityTests échouera.
