@@ -93,6 +93,17 @@ Pour chaque violation restante, classe-la :
       declaration @ApplicationModule(allowedDependencies = {...})
       correspondante, comme prevu en MM.5 etape 6.
 
+  (3) Cycle beneficiaires <-> referentiel (couplage C3) -> DEJA
+      TRAITE en MM.5 : isole via Violations.filter(...) dans
+      ModularityTests, pas via allowedDependencies (Spring Modulith
+      n'a pas d'equivalent "cycle autorise" pour un cycle). Ne le
+      reclasse pas en (1), ne tente pas de le "corriger" ici -- le
+      vrai fix (evenement applicatif, sur le modele de MM.4) est
+      MM.8, programme separement et obligatoire avant cloture
+      definitive. Verifie seulement que le filtre est toujours actif
+      et que le reste du graphe ne cache pas un DEUXIEME cycle
+      derriere celui-ci.
+
 Regle stricte : on ne declare comme legitime QUE ce qui a ete
 explicitement arbitre. Declarer une dependance uniquement pour faire
 passer le test au vert transformerait ModularityTests en decoration,
@@ -229,7 +240,7 @@ c'est le document normatif du projet, pas un fichier de travail.
 | Élément | Statut attendu |
 |---|---|
 | `ModularityTests` **vert**, et réactivé s'il avait été `@Disabled` en MM.1 | Vérifié |
-| Zéro violation non déclarée | Vérifié |
+| Zéro violation non déclarée, **à une exception près, actée en MM.5** : le cycle `beneficiaires` ↔ `referentiel` (couplage C3, cascade de renommage) est isolé via `Violations.filter(...)` dans `ModularityTests` — le test reste vert, mais assert explicitement sur ce cycle précis et échouerait sur toute violation nouvelle ou différente. **Le vrai correctif (événement applicatif, sur le modèle de MM.4) est un prérequis réel programmé sous le nom MM.8, à réaliser avant que ce point soit considéré clos** — pas une note vague reportée indéfiniment. | Vérifié |
 | Chaque dépendance déclarée légitime a une justification écrite | Fait |
 | Documentation Spring Modulith générée (PlantUML + module canvases) | Fait |
 | Diagrammes copiés sous `docs/monolithe-modulaire/architecture/` et versionnés | Fait |
