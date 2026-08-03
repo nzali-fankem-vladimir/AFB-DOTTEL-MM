@@ -1,5 +1,5 @@
 package com.afriland.dottel.referentiel.service;
-import com.afriland.dottel.audit.service.AuditService;
+import com.afriland.dottel.audit.api.EvenementAudit;
 
 import com.afriland.dottel.referentiel.exception.DateDebutGrilleAnterieureException;
 import com.afriland.dottel.referentiel.exception.DecisionGrilleInvalideException;
@@ -23,6 +23,7 @@ import com.afriland.dottel.referentiel.model.enums.StatutGrilleEnum;
 import com.afriland.dottel.referentiel.repository.FonctionEligibleRepository;
 import com.afriland.dottel.referentiel.repository.GrilleTarifaireRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,7 +40,7 @@ public class GrilleTarifaireService {
 
     private final GrilleTarifaireRepository grilleTarifaireRepository;
     private final FonctionEligibleRepository fonctionEligibleRepository;
-    private final AuditService auditService;
+    private final ApplicationEventPublisher eventPublisher;
 
     // Decision actee avec le metier (Sprint 4bis.1) : le contrat API
     // (docs/reference/contrats_api_dotations_v3.md) se contredit sur le statut
@@ -108,8 +109,8 @@ public class GrilleTarifaireService {
         apres.put("dateDebut", grille.getDateDebut());
         apres.put("statutValidation", grille.getStatutValidation().name());
 
-        auditService.enregistrer(idCreateur, "CREATION_GRILLE_TARIFAIRE", "grille_tarifaire",
-                grille.getId(), null, apres);
+        eventPublisher.publishEvent(new EvenementAudit(idCreateur, "CREATION_GRILLE_TARIFAIRE", "grille_tarifaire",
+                grille.getId(), null, apres));
 
         return versDto(grille, requete.getCodeFonction());
     }
@@ -133,8 +134,8 @@ public class GrilleTarifaireService {
         Map<String, Object> apres = new LinkedHashMap<>();
         apres.put("montantFcfa", grille.getMontantFcfa());
 
-        auditService.enregistrer(idModificateur, "MODIFICATION_GRILLE_TARIFAIRE", "grille_tarifaire",
-                grille.getId(), avant, apres);
+        eventPublisher.publishEvent(new EvenementAudit(idModificateur, "MODIFICATION_GRILLE_TARIFAIRE", "grille_tarifaire",
+                grille.getId(), avant, apres));
 
         String codeFonction = fonctionEligibleRepository.findById(grille.getIdFonctionEligible())
                 .map(FonctionEligible::getCode)
@@ -197,8 +198,8 @@ public class GrilleTarifaireService {
         apres.put("statutValidation", grille.getStatutValidation().name());
         apres.put("motifRejet", grille.getMotifRejet());
 
-        auditService.enregistrer(idValidateur, "DECISION_GRILLE_TARIFAIRE", "grille_tarifaire",
-                grille.getId(), avant, apres);
+        eventPublisher.publishEvent(new EvenementAudit(idValidateur, "DECISION_GRILLE_TARIFAIRE", "grille_tarifaire",
+                grille.getId(), avant, apres));
 
         String codeFonction = fonctionEligibleRepository.findById(grille.getIdFonctionEligible())
                 .map(FonctionEligible::getCode)
@@ -231,8 +232,8 @@ public class GrilleTarifaireService {
         Map<String, Object> apres = new LinkedHashMap<>();
         apres.put("dateFin", grille.getDateFin());
 
-        auditService.enregistrer(idActeur, "DESACTIVATION_GRILLE_TARIFAIRE", "grille_tarifaire",
-                grille.getId(), avant, apres);
+        eventPublisher.publishEvent(new EvenementAudit(idActeur, "DESACTIVATION_GRILLE_TARIFAIRE", "grille_tarifaire",
+                grille.getId(), avant, apres));
 
         String codeFonction = fonctionEligibleRepository.findById(grille.getIdFonctionEligible())
                 .map(FonctionEligible::getCode)

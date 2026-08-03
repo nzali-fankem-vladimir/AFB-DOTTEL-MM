@@ -1,6 +1,6 @@
 package com.afriland.dottel.beneficiaires.service;
 import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
-import com.afriland.dottel.audit.service.AuditService;
+import com.afriland.dottel.audit.api.EvenementAudit;
 
 import com.afriland.dottel.beneficiaires.exception.BeneficiaireIntrouvableException;
 import com.afriland.dottel.beneficiaires.exception.NonEligibleException;
@@ -17,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -50,7 +51,7 @@ class BeneficiaireServiceTest {
     private EligibiliteService eligibiliteService;
 
     @Mock
-    private AuditService auditService;
+    private ApplicationEventPublisher eventPublisher;
 
     @Mock
     private AuthenticatedUserService authenticatedUserService;
@@ -61,7 +62,7 @@ class BeneficiaireServiceTest {
     void setUp() {
         beneficiaireService = new BeneficiaireService(
                 beneficiaireRepository, grilleTarifaireApi,
-                eligibiliteService, auditService, authenticatedUserService);
+                eligibiliteService, eventPublisher, authenticatedUserService);
     }
 
     private Beneficiaire creerBeneficiaire(String matricule, String nomPrenoms, String fonction, boolean actif) {
@@ -141,13 +142,15 @@ class BeneficiaireServiceTest {
 
         beneficiaireService.modifier(1L, requete);
 
-        ArgumentCaptor<Map<String, Object>> avantCaptor = ArgumentCaptor.forClass(Map.class);
-        ArgumentCaptor<Map<String, Object>> apresCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(auditService).enregistrer(eq(9L), eq("MODIFICATION_BENEFICIAIRE"), eq("beneficiaires"), eq(1L),
-                avantCaptor.capture(), apresCaptor.capture());
-
-        assertThat(avantCaptor.getValue()).containsEntry("uniteRattachement", "Agence Bafoussam");
-        assertThat(apresCaptor.getValue()).containsEntry("uniteRattachement", "Agence Douala Bali");
+        ArgumentCaptor<EvenementAudit> evenementCaptor = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher).publishEvent(evenementCaptor.capture());
+        EvenementAudit evenement = evenementCaptor.getValue();
+        assertThat(evenement.idUtilisateur()).isEqualTo(9L);
+        assertThat(evenement.action()).isEqualTo("MODIFICATION_BENEFICIAIRE");
+        assertThat(evenement.entiteCible()).isEqualTo("beneficiaires");
+        assertThat(evenement.idEntite()).isEqualTo(1L);
+        assertThat(evenement.avant()).containsEntry("uniteRattachement", "Agence Bafoussam");
+        assertThat(evenement.apres()).containsEntry("uniteRattachement", "Agence Douala Bali");
     }
 
     @Test
@@ -164,7 +167,7 @@ class BeneficiaireServiceTest {
                 .isInstanceOf(NonEligibleException.class);
 
         verify(beneficiaireRepository, never()).save(any());
-        verify(auditService, never()).enregistrer(anyLong(), any(), any(), any(), any(), any());
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
@@ -181,7 +184,7 @@ class BeneficiaireServiceTest {
 
         assertThat(marie.getGrade()).isEqualTo("CADRE");
         verify(eligibiliteService, never()).verifierEligibilite(any(), any());
-        verify(auditService, never()).enregistrer(anyLong(), any(), any(), any(), any(), any());
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
@@ -282,13 +285,16 @@ class BeneficiaireServiceTest {
 
         beneficiaireService.desactiver(1L);
 
-        ArgumentCaptor<Map<String, Object>> avantCaptor = ArgumentCaptor.forClass(Map.class);
-        ArgumentCaptor<Map<String, Object>> apresCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(auditService).enregistrer(eq(9L), eq("DESACTIVATION_BENEFICIAIRE"), eq("beneficiaires"), eq(1L),
-                avantCaptor.capture(), apresCaptor.capture());
+        ArgumentCaptor<EvenementAudit> evenementCaptor = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher).publishEvent(evenementCaptor.capture());
+        EvenementAudit evenement = evenementCaptor.getValue();
+        assertThat(evenement.idUtilisateur()).isEqualTo(9L);
+        assertThat(evenement.action()).isEqualTo("DESACTIVATION_BENEFICIAIRE");
+        assertThat(evenement.entiteCible()).isEqualTo("beneficiaires");
+        assertThat(evenement.idEntite()).isEqualTo(1L);
 
-        assertThat(avantCaptor.getValue()).containsEntry("actif", true);
-        assertThat(apresCaptor.getValue()).containsEntry("actif", false);
+        assertThat(evenement.avant()).containsEntry("actif", true);
+        assertThat(evenement.apres()).containsEntry("actif", false);
     }
 
     @Test

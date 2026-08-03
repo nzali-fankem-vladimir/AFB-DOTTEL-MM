@@ -1,6 +1,6 @@
 package com.afriland.dottel.beneficiaires.service;
 import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
-import com.afriland.dottel.audit.service.AuditService;
+import com.afriland.dottel.audit.api.EvenementAudit;
 
 import com.afriland.dottel.beneficiaires.exception.BeneficiaireIntrouvableException;
 import com.afriland.dottel.beneficiaires.exception.NonEligibleException;
@@ -14,6 +14,7 @@ import com.afriland.dottel.beneficiaires.repository.BeneficiaireRepository;
 import com.afriland.dottel.beneficiaires.repository.BeneficiaireSpecifications;
 import com.afriland.dottel.referentiel.service.EligibiliteService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -29,7 +30,7 @@ public class BeneficiaireService {
     private final BeneficiaireRepository beneficiaireRepository;
     private final GrilleTarifaireApi grilleTarifaireApi;
     private final EligibiliteService eligibiliteService;
-    private final AuditService auditService;
+    private final ApplicationEventPublisher eventPublisher;
     private final AuthenticatedUserService authenticatedUserService;
 
     @Transactional(readOnly = true)
@@ -83,8 +84,8 @@ public class BeneficiaireService {
 
         if (!apres.isEmpty()) {
             Utilisateur utilisateurCourant = authenticatedUserService.utilisateurCourant();
-            auditService.enregistrer(utilisateurCourant.getId(), "MODIFICATION_BENEFICIAIRE", "beneficiaires",
-                    beneficiaire.getId(), avant, apres);
+            eventPublisher.publishEvent(new EvenementAudit(utilisateurCourant.getId(), "MODIFICATION_BENEFICIAIRE", "beneficiaires",
+                    beneficiaire.getId(), avant, apres));
         }
 
         return versDto(beneficiaire);
@@ -101,8 +102,8 @@ public class BeneficiaireService {
         Map<String, Object> apres = Map.of("actif", beneficiaire.isActif());
 
         Utilisateur utilisateurCourant = authenticatedUserService.utilisateurCourant();
-        auditService.enregistrer(utilisateurCourant.getId(), "DESACTIVATION_BENEFICIAIRE", "beneficiaires",
-                beneficiaire.getId(), avant, apres);
+        eventPublisher.publishEvent(new EvenementAudit(utilisateurCourant.getId(), "DESACTIVATION_BENEFICIAIRE", "beneficiaires",
+                beneficiaire.getId(), avant, apres));
     }
 
     // Symetrique de desactiver(), mais revalide RG-01/RG-02 avant de reactiver :
@@ -124,8 +125,8 @@ public class BeneficiaireService {
         Map<String, Object> apres = Map.of("actif", beneficiaire.isActif());
 
         Utilisateur utilisateurCourant = authenticatedUserService.utilisateurCourant();
-        auditService.enregistrer(utilisateurCourant.getId(), "REACTIVATION_BENEFICIAIRE", "beneficiaires",
-                beneficiaire.getId(), avant, apres);
+        eventPublisher.publishEvent(new EvenementAudit(utilisateurCourant.getId(), "REACTIVATION_BENEFICIAIRE", "beneficiaires",
+                beneficiaire.getId(), avant, apres));
 
         return versDto(beneficiaire);
     }

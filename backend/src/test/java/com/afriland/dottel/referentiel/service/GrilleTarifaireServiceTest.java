@@ -1,5 +1,5 @@
 package com.afriland.dottel.referentiel.service;
-import com.afriland.dottel.audit.service.AuditService;
+import com.afriland.dottel.audit.api.EvenementAudit;
 
 import com.afriland.dottel.referentiel.exception.DateDebutGrilleAnterieureException;
 import com.afriland.dottel.referentiel.exception.DecisionGrilleInvalideException;
@@ -27,18 +27,16 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -53,14 +51,14 @@ class GrilleTarifaireServiceTest {
     private FonctionEligibleRepository fonctionEligibleRepository;
 
     @Mock
-    private AuditService auditService;
+    private ApplicationEventPublisher eventPublisher;
 
     private GrilleTarifaireService grilleTarifaireService;
 
     @BeforeEach
     void setUp() {
         grilleTarifaireService = new GrilleTarifaireService(
-                grilleTarifaireRepository, fonctionEligibleRepository, auditService);
+                grilleTarifaireRepository, fonctionEligibleRepository, eventPublisher);
     }
 
     private FonctionEligible creerFonctionEligible(Long id, String code) {
@@ -210,13 +208,16 @@ class GrilleTarifaireServiceTest {
 
         assertThat(resultat.getMontantFcfa()).isEqualTo(45000);
 
-        ArgumentCaptor<Map<String, Object>> avantCaptor = ArgumentCaptor.forClass(Map.class);
-        ArgumentCaptor<Map<String, Object>> apresCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(auditService).enregistrer(eq(9L), eq("MODIFICATION_GRILLE_TARIFAIRE"), eq("grille_tarifaire"), eq(2L),
-                avantCaptor.capture(), apresCaptor.capture());
+        ArgumentCaptor<EvenementAudit> evenementCaptor = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher).publishEvent(evenementCaptor.capture());
 
-        assertThat(avantCaptor.getValue()).containsEntry("montantFcfa", 40000);
-        assertThat(apresCaptor.getValue()).containsEntry("montantFcfa", 45000);
+        EvenementAudit evenement = evenementCaptor.getValue();
+        assertThat(evenement.idUtilisateur()).isEqualTo(9L);
+        assertThat(evenement.action()).isEqualTo("MODIFICATION_GRILLE_TARIFAIRE");
+        assertThat(evenement.entiteCible()).isEqualTo("grille_tarifaire");
+        assertThat(evenement.idEntite()).isEqualTo(2L);
+        assertThat(evenement.avant()).containsEntry("montantFcfa", 40000);
+        assertThat(evenement.apres()).containsEntry("montantFcfa", 45000);
     }
 
     @Test
@@ -232,7 +233,7 @@ class GrilleTarifaireServiceTest {
                 .isInstanceOf(GrilleNonModifiableException.class);
 
         verify(grilleTarifaireRepository, never()).save(any());
-        verify(auditService, never()).enregistrer(anyLong(), any(), any(), any(), any(), any());
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
@@ -471,10 +472,15 @@ class GrilleTarifaireServiceTest {
         assertThat(grille.getDateFin()).isNotNull();
         verify(grilleTarifaireRepository).save(grille);
 
-        ArgumentCaptor<Map<String, Object>> apresCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(auditService).enregistrer(eq(12L), eq("DESACTIVATION_GRILLE_TARIFAIRE"), eq("grille_tarifaire"),
-                eq(1L), any(), apresCaptor.capture());
-        assertThat(apresCaptor.getValue()).containsKey("dateFin");
+        ArgumentCaptor<EvenementAudit> evenementCaptor = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher).publishEvent(evenementCaptor.capture());
+
+        EvenementAudit evenement = evenementCaptor.getValue();
+        assertThat(evenement.idUtilisateur()).isEqualTo(12L);
+        assertThat(evenement.action()).isEqualTo("DESACTIVATION_GRILLE_TARIFAIRE");
+        assertThat(evenement.entiteCible()).isEqualTo("grille_tarifaire");
+        assertThat(evenement.idEntite()).isEqualTo(1L);
+        assertThat(evenement.apres()).containsKey("dateFin");
     }
 
     @Test
@@ -487,7 +493,7 @@ class GrilleTarifaireServiceTest {
                 .isInstanceOf(GrilleNonActiveException.class);
 
         verify(grilleTarifaireRepository, never()).save(any());
-        verify(auditService, never()).enregistrer(anyLong(), any(), any(), any(), any(), any());
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test

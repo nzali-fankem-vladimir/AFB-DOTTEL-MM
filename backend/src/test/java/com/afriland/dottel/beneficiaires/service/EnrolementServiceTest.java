@@ -1,6 +1,6 @@
 package com.afriland.dottel.beneficiaires.service;
 import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
-import com.afriland.dottel.audit.service.AuditService;
+import com.afriland.dottel.audit.api.EvenementAudit;
 
 import com.afriland.dottel.referentiel.api.GrilleTarifaireApi;
 import com.afriland.dottel.referentiel.api.ResolutionGrilleDto;
@@ -19,21 +19,18 @@ import com.afriland.dottel.referentiel.service.EligibiliteService;
 import com.afriland.dottel.referentiel.service.FonctionEligibleService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDate;
-import java.util.Map;
 import java.util.Optional;
-
-import org.mockito.ArgumentMatchers;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -57,7 +54,7 @@ class EnrolementServiceTest {
     private GrilleTarifaireApi grilleTarifaireApi;
 
     @Mock
-    private AuditService auditService;
+    private ApplicationEventPublisher eventPublisher;
 
     @Mock
     private AuthenticatedUserService authenticatedUserService;
@@ -191,8 +188,14 @@ class EnrolementServiceTest {
         assertThat(reponse.getFonction()).isEqualTo("DA");
         assertThat(reponse.getDateEnrolement()).isEqualTo(LocalDate.now());
 
-        verify(auditService).enregistrer(eq(42L), eq("ENROLEMENT"), eq("beneficiaires"), eq(100L),
-                isNull(), ArgumentMatchers.<Map<String, Object>>any());
+        ArgumentCaptor<EvenementAudit> evenementCaptor = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher).publishEvent(evenementCaptor.capture());
+        EvenementAudit evenement = evenementCaptor.getValue();
+        assertThat(evenement.idUtilisateur()).isEqualTo(42L);
+        assertThat(evenement.action()).isEqualTo("ENROLEMENT");
+        assertThat(evenement.entiteCible()).isEqualTo("beneficiaires");
+        assertThat(evenement.idEntite()).isEqualTo(100L);
+        assertThat(evenement.avant()).isNull();
     }
 
     @Test

@@ -1,6 +1,6 @@
 package com.afriland.dottel.utilisateurs.service;
 import com.afriland.dottel.utilisateurs.service.AuthService;
-import com.afriland.dottel.audit.service.AuditService;
+import com.afriland.dottel.audit.api.EvenementAudit;
 
 import com.afriland.dottel.utilisateurs.exception.IdentifiantsInvalidesException;
 import com.afriland.dottel.utilisateurs.exception.UtilisateurInactifException;
@@ -16,6 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
@@ -42,7 +43,7 @@ class AuthServiceTest {
     private JwtUtil jwtUtil;
 
     @Mock
-    private AuditService auditService;
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private AuthService authService;
@@ -82,7 +83,7 @@ class AuthServiceTest {
         assertThat(reponse.getRole()).isEqualTo("ARH");
         assertThat(reponse.getNom()).isEqualTo("ATANGANA");
         assertThat(reponse.getPrenom()).isEqualTo("Paul");
-        verify(auditService).enregistrer(1L, "CONNEXION", "utilisateurs", 1L, null, null);
+        verify(eventPublisher).publishEvent(new EvenementAudit(1L, "CONNEXION", "utilisateurs", 1L, null, null));
     }
 
     @Test
@@ -93,7 +94,7 @@ class AuthServiceTest {
                 .isInstanceOf(IdentifiantsInvalidesException.class);
         // Aucun utilisateur trouve = aucun id valide pour audit_log.id_utilisateur
         // (NOT NULL + FK) -- ce cas ne peut pas etre trace.
-        verify(auditService, never()).enregistrer(any(), any(), any(), any(), any(), any());
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
@@ -103,8 +104,8 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> authService.authentifier(requeteLogin))
                 .isInstanceOf(IdentifiantsInvalidesException.class);
-        verify(auditService).enregistrer(1L, "CONNEXION_ECHOUEE", "utilisateurs", 1L, null,
-                Map.of("matriculeTente", "1562", "motifEchec", "MOT_DE_PASSE_INCORRECT"));
+        verify(eventPublisher).publishEvent(new EvenementAudit(1L, "CONNEXION_ECHOUEE", "utilisateurs", 1L, null,
+                Map.of("matriculeTente", "1562", "motifEchec", "MOT_DE_PASSE_INCORRECT")));
     }
 
     @Test
@@ -115,7 +116,7 @@ class AuthServiceTest {
 
         assertThatThrownBy(() -> authService.authentifier(requeteLogin))
                 .isInstanceOf(UtilisateurInactifException.class);
-        verify(auditService).enregistrer(1L, "CONNEXION_ECHOUEE", "utilisateurs", 1L, null,
-                Map.of("matriculeTente", "1562", "motifEchec", "COMPTE_INACTIF"));
+        verify(eventPublisher).publishEvent(new EvenementAudit(1L, "CONNEXION_ECHOUEE", "utilisateurs", 1L, null,
+                Map.of("matriculeTente", "1562", "motifEchec", "COMPTE_INACTIF")));
     }
 }

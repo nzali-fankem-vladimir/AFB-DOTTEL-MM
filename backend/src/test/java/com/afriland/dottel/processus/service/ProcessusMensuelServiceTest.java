@@ -7,7 +7,7 @@ import com.afriland.dottel.referentiel.api.ResolutionGrilleDto;
 import com.afriland.dottel.utilisateurs.api.DestinataireNotificationDto;
 import com.afriland.dottel.utilisateurs.api.UtilisateurApi;
 import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
-import com.afriland.dottel.audit.service.AuditService;
+import com.afriland.dottel.audit.api.EvenementAudit;
 
 import com.afriland.dottel.processus.exception.MotifRejetObligatoireException;
 import com.afriland.dottel.processus.exception.PieceJointeIntrouvableException;
@@ -49,6 +49,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -91,7 +92,7 @@ class ProcessusMensuelServiceTest {
     private UtilisateurApi utilisateurApi;
 
     @Mock
-    private AuditService auditService;
+    private ApplicationEventPublisher eventPublisher;
 
     // Attention : un mock Mockito renvoie false par defaut sur un boolean. Tout
     // test d'ajustement qui traverse la revalidation RG-02 doit donc stubber
@@ -242,12 +243,15 @@ class ProcessusMensuelServiceTest {
         assertThat(lignesSauvegardees).allMatch(LigneEtatMensuel::getInclusDansEtat);
         assertThat(lignesSauvegardees).extracting(LigneEtatMensuel::getMontantApplique).containsExactlyInAnyOrder(50000, 40000);
 
-        verify(auditService).enregistrer(org.mockito.ArgumentMatchers.eq(10L),
-                org.mockito.ArgumentMatchers.eq("DECLENCHEMENT_PROCESSUS"),
-                org.mockito.ArgumentMatchers.eq("processus_mensuel"),
-                org.mockito.ArgumentMatchers.eq(900L),
-                org.mockito.ArgumentMatchers.isNull(),
-                org.mockito.ArgumentMatchers.anyMap());
+        ArgumentCaptor<EvenementAudit> evenementCaptor900 = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher).publishEvent(evenementCaptor900.capture());
+        EvenementAudit evenement900 = evenementCaptor900.getValue();
+        assertThat(evenement900.idUtilisateur()).isEqualTo(10L);
+        assertThat(evenement900.action()).isEqualTo("DECLENCHEMENT_PROCESSUS");
+        assertThat(evenement900.entiteCible()).isEqualTo("processus_mensuel");
+        assertThat(evenement900.idEntite()).isEqualTo(900L);
+        assertThat(evenement900.avant()).isNull();
+        assertThat(evenement900.apres()).isNotNull();
     }
 
     @Test
@@ -289,12 +293,15 @@ class ProcessusMensuelServiceTest {
         assertThat(reponse.getBeneficiairesExclus()).isEmpty();
 
         verify(ligneEtatMensuelRepository, never()).save(any());
-        verify(auditService).enregistrer(org.mockito.ArgumentMatchers.eq(10L),
-                org.mockito.ArgumentMatchers.eq("DECLENCHEMENT_PROCESSUS"),
-                org.mockito.ArgumentMatchers.eq("processus_mensuel"),
-                org.mockito.ArgumentMatchers.eq(901L),
-                org.mockito.ArgumentMatchers.isNull(),
-                org.mockito.ArgumentMatchers.anyMap());
+        ArgumentCaptor<EvenementAudit> evenementCaptor901 = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher).publishEvent(evenementCaptor901.capture());
+        EvenementAudit evenement901 = evenementCaptor901.getValue();
+        assertThat(evenement901.idUtilisateur()).isEqualTo(10L);
+        assertThat(evenement901.action()).isEqualTo("DECLENCHEMENT_PROCESSUS");
+        assertThat(evenement901.entiteCible()).isEqualTo("processus_mensuel");
+        assertThat(evenement901.idEntite()).isEqualTo(901L);
+        assertThat(evenement901.avant()).isNull();
+        assertThat(evenement901.apres()).isNotNull();
     }
 
     @Test
@@ -376,8 +383,13 @@ class ProcessusMensuelServiceTest {
         verify(ligneEtatMensuelRepository).save(ligneCaptor.capture());
         assertThat(ligneCaptor.getValue().getInclusDansEtat()).isFalse();
 
-        verify(auditService).enregistrer(eq(10L), eq("AJUSTEMENT_LIGNE_ETAT_MENSUEL"), eq("ligne_etat_mensuel"),
-                eq(2001L), anyMap(), anyMap());
+        ArgumentCaptor<EvenementAudit> evenementCaptor2001 = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher).publishEvent(evenementCaptor2001.capture());
+        EvenementAudit evenement2001 = evenementCaptor2001.getValue();
+        assertThat(evenement2001.idUtilisateur()).isEqualTo(10L);
+        assertThat(evenement2001.action()).isEqualTo("AJUSTEMENT_LIGNE_ETAT_MENSUEL");
+        assertThat(evenement2001.entiteCible()).isEqualTo("ligne_etat_mensuel");
+        assertThat(evenement2001.idEntite()).isEqualTo(2001L);
     }
 
     @Test
@@ -425,8 +437,13 @@ class ProcessusMensuelServiceTest {
         assertThat(ligneCaptor.getValue().getInclusDansEtat()).isTrue();
         assertThat(ligneCaptor.getValue().getMontantApplique()).isEqualTo(40000);
 
-        verify(auditService).enregistrer(eq(10L), eq("AJUSTEMENT_LIGNE_ETAT_MENSUEL"), eq("ligne_etat_mensuel"),
-                eq(2002L), anyMap(), anyMap());
+        ArgumentCaptor<EvenementAudit> evenementCaptor2002 = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher).publishEvent(evenementCaptor2002.capture());
+        EvenementAudit evenement2002 = evenementCaptor2002.getValue();
+        assertThat(evenement2002.idUtilisateur()).isEqualTo(10L);
+        assertThat(evenement2002.action()).isEqualTo("AJUSTEMENT_LIGNE_ETAT_MENSUEL");
+        assertThat(evenement2002.entiteCible()).isEqualTo("ligne_etat_mensuel");
+        assertThat(evenement2002.idEntite()).isEqualTo(2002L);
     }
 
     @Test
@@ -516,7 +533,7 @@ class ProcessusMensuelServiceTest {
         assertThat(resultat.getMotifRejet()).isEqualTo("Aucune ligne d'état mensuel pour ce bénéficiaire dans ce processus");
 
         verify(ligneEtatMensuelRepository, never()).save(any());
-        verify(auditService, never()).enregistrer(any(), any(), any(), any(), any(), any());
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
@@ -554,15 +571,16 @@ class ProcessusMensuelServiceTest {
 
         processusMensuelService.ajuster(900L, requete);
 
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<Map<String, Object>> avantCaptor = ArgumentCaptor.forClass(Map.class);
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<Map<String, Object>> apresCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(auditService).enregistrer(eq(10L), eq("AJUSTEMENT_LIGNE_ETAT_MENSUEL"), eq("ligne_etat_mensuel"),
-                eq(2004L), avantCaptor.capture(), apresCaptor.capture());
+        ArgumentCaptor<EvenementAudit> evenementCaptor = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher).publishEvent(evenementCaptor.capture());
+        EvenementAudit evenement = evenementCaptor.getValue();
+        assertThat(evenement.idUtilisateur()).isEqualTo(10L);
+        assertThat(evenement.action()).isEqualTo("AJUSTEMENT_LIGNE_ETAT_MENSUEL");
+        assertThat(evenement.entiteCible()).isEqualTo("ligne_etat_mensuel");
+        assertThat(evenement.idEntite()).isEqualTo(2004L);
 
-        Map<String, Object> avant = avantCaptor.getValue();
-        Map<String, Object> apres = apresCaptor.getValue();
+        Map<String, Object> avant = evenement.avant();
+        Map<String, Object> apres = evenement.apres();
 
         assertThat(avant).containsEntry("fonctionRetenue", "COORDONNATEUR");
         assertThat(avant).containsEntry("montantApplique", 35000);
@@ -606,7 +624,7 @@ class ProcessusMensuelServiceTest {
         assertThat(resultat.getMotifRejet()).isNull();
 
         verify(ligneEtatMensuelRepository, never()).save(any());
-        verify(auditService, never()).enregistrer(any(), any(), any(), any(), any(), any());
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
@@ -645,7 +663,7 @@ class ProcessusMensuelServiceTest {
         assertThat(resultat.getMotifRejet()).isEqualTo("Aucune grille tarifaire ACTIVE pour cette fonction");
 
         verify(ligneEtatMensuelRepository, never()).save(any());
-        verify(auditService, never()).enregistrer(any(), any(), any(), any(), any(), any());
+        verify(eventPublisher, never()).publishEvent(any());
         // Retour anticipe sur la grille : le grade n'est jamais interroge.
         verify(beneficiaireApi, never()).gradeDe(any());
         verify(eligibiliteService, never()).verifierEligibilite(any(), any());
@@ -711,7 +729,7 @@ class ProcessusMensuelServiceTest {
         assertThat(ligne.getFonctionRetenue()).isEqualTo("CHEF_DIVISION");
         assertThat(ligne.getMontantApplique()).isEqualTo(35000);
         verify(ligneEtatMensuelRepository, never()).save(any());
-        verify(auditService, never()).enregistrer(any(), any(), any(), any(), any(), any());
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
@@ -1002,7 +1020,7 @@ class ProcessusMensuelServiceTest {
         assertThat(reponse.getResultats().get(0).getMotifRejet()).isEqualTo("Fonction désactivée");
         assertThat(ligne.getInclusDansEtat()).isFalse();
         verify(ligneEtatMensuelRepository, never()).save(any());
-        verify(auditService, never()).enregistrer(any(), any(), any(), any(), any(), any());
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
@@ -1083,14 +1101,15 @@ class ProcessusMensuelServiceTest {
         assertThat(ligne.getInclusDansEtat()).isTrue();
         assertThat(ligne.getMontantApplique()).isEqualTo(40000);
 
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<Map<String, Object>> avantCaptor = ArgumentCaptor.forClass(Map.class);
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<Map<String, Object>> apresCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(auditService).enregistrer(eq(10L), eq("AJUSTEMENT_LIGNE_ETAT_MENSUEL"), eq("ligne_etat_mensuel"),
-                eq(2024L), avantCaptor.capture(), apresCaptor.capture());
-        assertThat(avantCaptor.getValue()).containsEntry("montantApplique", 0);
-        assertThat(apresCaptor.getValue()).containsEntry("montantApplique", 40000);
+        ArgumentCaptor<EvenementAudit> evenementCaptor = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher).publishEvent(evenementCaptor.capture());
+        EvenementAudit evenement = evenementCaptor.getValue();
+        assertThat(evenement.idUtilisateur()).isEqualTo(10L);
+        assertThat(evenement.action()).isEqualTo("AJUSTEMENT_LIGNE_ETAT_MENSUEL");
+        assertThat(evenement.entiteCible()).isEqualTo("ligne_etat_mensuel");
+        assertThat(evenement.idEntite()).isEqualTo(2024L);
+        assertThat(evenement.avant()).containsEntry("montantApplique", 0);
+        assertThat(evenement.apres()).containsEntry("montantApplique", 40000);
     }
 
     // Non-regression du cas legitime : une ligne exclue par l'ARH (et non au
@@ -1185,8 +1204,13 @@ class ProcessusMensuelServiceTest {
         assertThat(etape.getStatutEtape()).isEqualTo(StatutEtapeEnum.VALIDEE);
         assertThat(etape.getSignatureNumerique()).isNotBlank();
 
-        verify(auditService).enregistrer(eq(10L), eq("VALIDATION_PROCESSUS_ARH"), eq("processus_mensuel"),
-                eq(900L), anyMap(), anyMap());
+        ArgumentCaptor<EvenementAudit> evenementCaptor = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher).publishEvent(evenementCaptor.capture());
+        EvenementAudit evenement = evenementCaptor.getValue();
+        assertThat(evenement.idUtilisateur()).isEqualTo(10L);
+        assertThat(evenement.action()).isEqualTo("VALIDATION_PROCESSUS_ARH");
+        assertThat(evenement.entiteCible()).isEqualTo("processus_mensuel");
+        assertThat(evenement.idEntite()).isEqualTo(900L);
     }
 
     @Test
@@ -1295,8 +1319,13 @@ class ProcessusMensuelServiceTest {
         assertThat(etape.getNomEtape()).isEqualTo(NomEtapeEnum.VALIDATION_CRH);
         assertThat(etape.getStatutEtape()).isEqualTo(StatutEtapeEnum.VALIDEE);
 
-        verify(auditService).enregistrer(eq(21L), eq("VALIDATION_PROCESSUS_CRH"), eq("processus_mensuel"),
-                eq(930L), anyMap(), anyMap());
+        ArgumentCaptor<EvenementAudit> evenementCaptor = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher).publishEvent(evenementCaptor.capture());
+        EvenementAudit evenement = evenementCaptor.getValue();
+        assertThat(evenement.idUtilisateur()).isEqualTo(21L);
+        assertThat(evenement.action()).isEqualTo("VALIDATION_PROCESSUS_CRH");
+        assertThat(evenement.entiteCible()).isEqualTo("processus_mensuel");
+        assertThat(evenement.idEntite()).isEqualTo(930L);
     }
 
     // RG-05, cas exact releve en recette du Sprint 6F.6 : un processus RETOURNE
@@ -1326,7 +1355,7 @@ class ProcessusMensuelServiceTest {
         verify(etapeWorkflowRepository, never()).save(any());
         verify(processusMensuelRepository, never()).save(any(ProcessusMensuel.class));
         verify(notificationService, never()).notifier(any(), any(), any());
-        verify(auditService, never()).enregistrer(any(), any(), any(), any(), any(), any());
+        verify(eventPublisher, never()).publishEvent(any());
         assertThat(processus.getStatut()).isEqualTo(StatutEnum.RETOURNE);
     }
 
@@ -1444,8 +1473,13 @@ class ProcessusMensuelServiceTest {
         verify(pieceJointeRepository, never()).findByIdProcessus(any());
         verify(separationTachesService, never()).verifier(any(), any(), any());
 
-        verify(auditService).enregistrer(eq(12L), eq("VALIDATION_PROCESSUS_ARH"), eq("processus_mensuel"),
-                eq(940L), anyMap(), anyMap());
+        ArgumentCaptor<EvenementAudit> evenementCaptor = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher).publishEvent(evenementCaptor.capture());
+        EvenementAudit evenement = evenementCaptor.getValue();
+        assertThat(evenement.idUtilisateur()).isEqualTo(12L);
+        assertThat(evenement.action()).isEqualTo("VALIDATION_PROCESSUS_ARH");
+        assertThat(evenement.entiteCible()).isEqualTo("processus_mensuel");
+        assertThat(evenement.idEntite()).isEqualTo(940L);
     }
 
     @Test
@@ -1488,10 +1522,22 @@ class ProcessusMensuelServiceTest {
         assertThat(etape.getNomEtape()).isEqualTo(NomEtapeEnum.VALIDATION_DRH);
         assertThat(etape.getStatutEtape()).isEqualTo(StatutEtapeEnum.VALIDEE);
 
-        verify(auditService).enregistrer(eq(40L), eq("VALIDATION_PROCESSUS_DRH"), eq("processus_mensuel"),
-                eq(950L), anyMap(), anyMap());
-        verify(auditService).enregistrer(eq(40L), eq("CLOTURE_PROCESSUS"), eq("processus_mensuel"),
-                eq(950L), org.mockito.ArgumentMatchers.isNull(), anyMap());
+        ArgumentCaptor<EvenementAudit> evenementCaptor = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher, times(2)).publishEvent(evenementCaptor.capture());
+        List<EvenementAudit> evenements = evenementCaptor.getAllValues();
+
+        EvenementAudit evenementValidation = evenements.stream()
+                .filter(e -> "VALIDATION_PROCESSUS_DRH".equals(e.action())).findFirst().orElseThrow();
+        assertThat(evenementValidation.idUtilisateur()).isEqualTo(40L);
+        assertThat(evenementValidation.entiteCible()).isEqualTo("processus_mensuel");
+        assertThat(evenementValidation.idEntite()).isEqualTo(950L);
+
+        EvenementAudit evenementCloture = evenements.stream()
+                .filter(e -> "CLOTURE_PROCESSUS".equals(e.action())).findFirst().orElseThrow();
+        assertThat(evenementCloture.idUtilisateur()).isEqualTo(40L);
+        assertThat(evenementCloture.entiteCible()).isEqualTo("processus_mensuel");
+        assertThat(evenementCloture.idEntite()).isEqualTo(950L);
+        assertThat(evenementCloture.avant()).isNull();
     }
 
     @Test
@@ -1659,8 +1705,13 @@ class ProcessusMensuelServiceTest {
         assertThat(etape.getStatutEtape()).isEqualTo(StatutEtapeEnum.RETOURNEE);
         assertThat(etape.getMotifRetour()).isEqualTo("Montant incorrect pour le matricule 1562");
 
-        verify(auditService).enregistrer(eq(21L), eq("RETOUR_PROCESSUS"), eq("processus_mensuel"),
-                eq(970L), anyMap(), anyMap());
+        ArgumentCaptor<EvenementAudit> evenementCaptor = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher).publishEvent(evenementCaptor.capture());
+        EvenementAudit evenement = evenementCaptor.getValue();
+        assertThat(evenement.idUtilisateur()).isEqualTo(21L);
+        assertThat(evenement.action()).isEqualTo("RETOUR_PROCESSUS");
+        assertThat(evenement.entiteCible()).isEqualTo("processus_mensuel");
+        assertThat(evenement.idEntite()).isEqualTo(970L);
     }
 
     @Test
@@ -1693,8 +1744,13 @@ class ProcessusMensuelServiceTest {
         assertThat(etape.getNomEtape()).isEqualTo(NomEtapeEnum.VALIDATION_DRH);
         assertThat(etape.getStatutEtape()).isEqualTo(StatutEtapeEnum.RETOURNEE);
 
-        verify(auditService).enregistrer(eq(40L), eq("RETOUR_PROCESSUS"), eq("processus_mensuel"),
-                eq(971L), anyMap(), anyMap());
+        ArgumentCaptor<EvenementAudit> evenementCaptor = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher).publishEvent(evenementCaptor.capture());
+        EvenementAudit evenement = evenementCaptor.getValue();
+        assertThat(evenement.idUtilisateur()).isEqualTo(40L);
+        assertThat(evenement.action()).isEqualTo("RETOUR_PROCESSUS");
+        assertThat(evenement.entiteCible()).isEqualTo("processus_mensuel");
+        assertThat(evenement.idEntite()).isEqualTo(971L);
     }
 
     @Test

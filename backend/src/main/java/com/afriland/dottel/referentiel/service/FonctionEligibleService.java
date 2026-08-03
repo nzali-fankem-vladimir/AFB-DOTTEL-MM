@@ -1,5 +1,5 @@
 package com.afriland.dottel.referentiel.service;
-import com.afriland.dottel.audit.service.AuditService;
+import com.afriland.dottel.audit.api.EvenementAudit;
 
 import com.afriland.dottel.referentiel.exception.FonctionEligibleBeneficiairesActifsException;
 import com.afriland.dottel.referentiel.exception.FonctionEligibleCodeDejaUtiliseException;
@@ -15,6 +15,7 @@ import com.afriland.dottel.referentiel.model.enums.StatutGrilleEnum;
 import com.afriland.dottel.referentiel.repository.FonctionEligibleRepository;
 import com.afriland.dottel.referentiel.repository.GrilleTarifaireRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,7 +32,7 @@ public class FonctionEligibleService {
     private final FonctionEligibleRepository fonctionEligibleRepository;
     private final GrilleTarifaireRepository grilleTarifaireRepository;
     private final BeneficiaireApi beneficiaireApi;
-    private final AuditService auditService;
+    private final ApplicationEventPublisher eventPublisher;
 
     // Sprint MM.3, couplage C2 : lecture seule du libelle d'affichage, pour
     // EnrolementService.verifier() qui n'a plus le droit d'injecter
@@ -113,8 +114,8 @@ public class FonctionEligibleService {
         apres.put("montantFcfa", grille.getMontantFcfa());
         apres.put("dateDebut", grille.getDateDebut());
 
-        auditService.enregistrer(idCreateur, "CREATION_FONCTION_ELIGIBLE", "fonction_eligible",
-                fonctionEligible.getId(), null, apres);
+        eventPublisher.publishEvent(new EvenementAudit(idCreateur, "CREATION_FONCTION_ELIGIBLE", "fonction_eligible",
+                fonctionEligible.getId(), null, apres));
 
         return FonctionEligibleAdminResponseDto.builder()
                 .code(fonctionEligible.getCode())
@@ -147,8 +148,8 @@ public class FonctionEligibleService {
         apres.put("actif", false);
         apres.put("beneficiairesActifsConcernes", beneficiairesActifsConcernes);
 
-        auditService.enregistrer(idActeur, "DESACTIVATION_FONCTION_ELIGIBLE", "fonction_eligible",
-                fonctionEligible.getId(), avant, apres);
+        eventPublisher.publishEvent(new EvenementAudit(idActeur, "DESACTIVATION_FONCTION_ELIGIBLE", "fonction_eligible",
+                fonctionEligible.getId(), avant, apres));
 
         return FonctionEligibleAdminResponseDto.builder()
                 .code(fonctionEligible.getCode())
@@ -176,8 +177,8 @@ public class FonctionEligibleService {
         Map<String, Object> apres = new LinkedHashMap<>();
         apres.put("actif", true);
 
-        auditService.enregistrer(idActeur, "REACTIVATION_FONCTION_ELIGIBLE", "fonction_eligible",
-                fonctionEligible.getId(), avant, apres);
+        eventPublisher.publishEvent(new EvenementAudit(idActeur, "REACTIVATION_FONCTION_ELIGIBLE", "fonction_eligible",
+                fonctionEligible.getId(), avant, apres));
 
         return FonctionEligibleAdminResponseDto.builder()
                 .code(fonctionEligible.getCode())
@@ -247,8 +248,8 @@ public class FonctionEligibleService {
         apres.put("code", fonctionEligible.getCode());
         apres.put("libelle", fonctionEligible.getLibelle());
 
-        auditService.enregistrer(idActeur, "MODIFICATION_FONCTION_ELIGIBLE", "fonction_eligible",
-                fonctionEligible.getId(), avant, apres);
+        eventPublisher.publishEvent(new EvenementAudit(idActeur, "MODIFICATION_FONCTION_ELIGIBLE", "fonction_eligible",
+                fonctionEligible.getId(), avant, apres));
 
         return FonctionEligibleAdminResponseDto.builder()
                 .code(fonctionEligible.getCode())

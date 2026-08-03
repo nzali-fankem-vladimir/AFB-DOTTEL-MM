@@ -1,5 +1,5 @@
 package com.afriland.dottel.referentiel.service;
-import com.afriland.dottel.audit.service.AuditService;
+import com.afriland.dottel.audit.api.EvenementAudit;
 
 import com.afriland.dottel.referentiel.exception.FonctionEligibleBeneficiairesActifsException;
 import com.afriland.dottel.referentiel.exception.FonctionEligibleCodeDejaUtiliseException;
@@ -20,17 +20,16 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDate;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -48,7 +47,7 @@ class FonctionEligibleServiceTest {
     private BeneficiaireApi beneficiaireApi;
 
     @Mock
-    private AuditService auditService;
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private FonctionEligibleService fonctionEligibleService;
@@ -121,8 +120,13 @@ class FonctionEligibleServiceTest {
         assertThat(grilleCaptor.getValue().getStatutValidation()).isEqualTo(StatutGrilleEnum.ACTIVE);
         assertThat(grilleCaptor.getValue().getMontantFcfa()).isEqualTo(40000);
 
-        verify(auditService).enregistrer(eq(1L), eq("CREATION_FONCTION_ELIGIBLE"), eq("fonction_eligible"),
-                any(), eq(null), any());
+        ArgumentCaptor<EvenementAudit> evenementCaptor = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher).publishEvent(evenementCaptor.capture());
+        EvenementAudit evenement = evenementCaptor.getValue();
+        assertThat(evenement.idUtilisateur()).isEqualTo(1L);
+        assertThat(evenement.action()).isEqualTo("CREATION_FONCTION_ELIGIBLE");
+        assertThat(evenement.entiteCible()).isEqualTo("fonction_eligible");
+        assertThat(evenement.avant()).isNull();
     }
 
     @Test
@@ -154,10 +158,14 @@ class FonctionEligibleServiceTest {
         assertThat(resultat.getNombreBeneficiairesActifs()).isEqualTo(3L);
         assertThat(fonction.isActif()).isFalse();
 
-        ArgumentCaptor<Map<String, Object>> apresCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(auditService).enregistrer(eq(5L), eq("DESACTIVATION_FONCTION_ELIGIBLE"), eq("fonction_eligible"),
-                eq(1L), any(), apresCaptor.capture());
-        assertThat(apresCaptor.getValue()).containsEntry("beneficiairesActifsConcernes", 3L);
+        ArgumentCaptor<EvenementAudit> evenementCaptor = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher).publishEvent(evenementCaptor.capture());
+        EvenementAudit evenement = evenementCaptor.getValue();
+        assertThat(evenement.idUtilisateur()).isEqualTo(5L);
+        assertThat(evenement.action()).isEqualTo("DESACTIVATION_FONCTION_ELIGIBLE");
+        assertThat(evenement.entiteCible()).isEqualTo("fonction_eligible");
+        assertThat(evenement.idEntite()).isEqualTo(1L);
+        assertThat(evenement.apres()).containsEntry("beneficiairesActifsConcernes", 3L);
     }
 
     @Test
@@ -194,12 +202,15 @@ class FonctionEligibleServiceTest {
         assertThat(resultat.isActif()).isTrue();
         assertThat(fonction.isActif()).isTrue();
 
-        ArgumentCaptor<Map<String, Object>> avantCaptor = ArgumentCaptor.forClass(Map.class);
-        ArgumentCaptor<Map<String, Object>> apresCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(auditService).enregistrer(eq(5L), eq("REACTIVATION_FONCTION_ELIGIBLE"), eq("fonction_eligible"),
-                eq(1L), avantCaptor.capture(), apresCaptor.capture());
-        assertThat(avantCaptor.getValue()).containsEntry("actif", false);
-        assertThat(apresCaptor.getValue()).containsEntry("actif", true);
+        ArgumentCaptor<EvenementAudit> evenementCaptor = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher).publishEvent(evenementCaptor.capture());
+        EvenementAudit evenement = evenementCaptor.getValue();
+        assertThat(evenement.idUtilisateur()).isEqualTo(5L);
+        assertThat(evenement.action()).isEqualTo("REACTIVATION_FONCTION_ELIGIBLE");
+        assertThat(evenement.entiteCible()).isEqualTo("fonction_eligible");
+        assertThat(evenement.idEntite()).isEqualTo(1L);
+        assertThat(evenement.avant()).containsEntry("actif", false);
+        assertThat(evenement.apres()).containsEntry("actif", true);
     }
 
     @Test
@@ -250,12 +261,15 @@ class FonctionEligibleServiceTest {
         assertThat(resultat.getCode()).isEqualTo("GESTIONNAIRE_FDC");
         verify(beneficiaireApi).renommerFonction("GFC", "GESTIONNAIRE_FDC");
 
-        ArgumentCaptor<Map<String, Object>> avantCaptor = ArgumentCaptor.forClass(Map.class);
-        ArgumentCaptor<Map<String, Object>> apresCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(auditService).enregistrer(eq(5L), eq("MODIFICATION_FONCTION_ELIGIBLE"), eq("fonction_eligible"),
-                eq(1L), avantCaptor.capture(), apresCaptor.capture());
-        assertThat(avantCaptor.getValue()).containsEntry("code", "GFC");
-        assertThat(apresCaptor.getValue()).containsEntry("code", "GESTIONNAIRE_FDC");
+        ArgumentCaptor<EvenementAudit> evenementCaptor = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher).publishEvent(evenementCaptor.capture());
+        EvenementAudit evenement = evenementCaptor.getValue();
+        assertThat(evenement.idUtilisateur()).isEqualTo(5L);
+        assertThat(evenement.action()).isEqualTo("MODIFICATION_FONCTION_ELIGIBLE");
+        assertThat(evenement.entiteCible()).isEqualTo("fonction_eligible");
+        assertThat(evenement.idEntite()).isEqualTo(1L);
+        assertThat(evenement.avant()).containsEntry("code", "GFC");
+        assertThat(evenement.apres()).containsEntry("code", "GESTIONNAIRE_FDC");
     }
 
     @Test

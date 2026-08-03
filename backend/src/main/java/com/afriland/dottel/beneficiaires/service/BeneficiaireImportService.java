@@ -1,6 +1,6 @@
 package com.afriland.dottel.beneficiaires.service;
 import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
-import com.afriland.dottel.audit.service.AuditService;
+import com.afriland.dottel.audit.api.EvenementAudit;
 
 import com.afriland.dottel.beneficiaires.exception.FichierImportInvalideException;
 import com.afriland.dottel.beneficiaires.model.dto.importexcel.ImportErreurDto;
@@ -14,6 +14,7 @@ import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -48,7 +49,7 @@ public class BeneficiaireImportService {
 
     private final BeneficiaireRepository beneficiaireRepository;
     private final FonctionEligibleService fonctionEligibleService;
-    private final AuditService auditService;
+    private final ApplicationEventPublisher eventPublisher;
     private final AuthenticatedUserService authenticatedUserService;
 
     @Transactional
@@ -154,7 +155,7 @@ public class BeneficiaireImportService {
         apres.put("numCompteCourant", beneficiaire.getNumCompteCourant());
         apres.put("dateEnrolement", beneficiaire.getDateEnrolement().toString());
 
-        auditService.enregistrer(utilisateurCourant.getId(), "IMPORT_BENEFICIAIRE", "beneficiaires",
-                beneficiaire.getId(), null, apres);
+        eventPublisher.publishEvent(new EvenementAudit(utilisateurCourant.getId(), "IMPORT_BENEFICIAIRE", "beneficiaires",
+                beneficiaire.getId(), null, apres));
     }
 }

@@ -1,6 +1,5 @@
 package com.afriland.dottel.beneficiaires.service;
 import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
-import com.afriland.dottel.audit.service.AuditService;
 
 import com.afriland.dottel.beneficiaires.model.dto.importexcel.ImportRapportDto;
 import com.afriland.dottel.beneficiaires.model.entity.Beneficiaire;
@@ -15,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.mock.web.MockMultipartFile;
 
 import java.io.ByteArrayOutputStream;
@@ -38,7 +38,7 @@ class BeneficiaireImportServiceTest {
     private FonctionEligibleService fonctionEligibleService;
 
     @Mock
-    private AuditService auditService;
+    private ApplicationEventPublisher eventPublisher;
 
     @Mock
     private AuthenticatedUserService authenticatedUserService;

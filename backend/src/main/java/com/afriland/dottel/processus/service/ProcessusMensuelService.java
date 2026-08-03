@@ -8,7 +8,7 @@ import com.afriland.dottel.referentiel.api.ResolutionGrilleDto;
 import com.afriland.dottel.utilisateurs.api.DestinataireNotificationDto;
 import com.afriland.dottel.utilisateurs.api.UtilisateurApi;
 import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
-import com.afriland.dottel.audit.service.AuditService;
+import com.afriland.dottel.audit.api.EvenementAudit;
 
 import com.afriland.dottel.processus.exception.MotifRejetObligatoireException;
 import com.afriland.dottel.processus.exception.PieceJointeIntrouvableException;
@@ -46,6 +46,7 @@ import com.afriland.dottel.processus.repository.ProcessusMensuelRepository;
 import com.afriland.dottel.referentiel.service.EligibiliteService;
 import com.afriland.dottel.referentiel.service.FonctionEligibleService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -76,7 +77,7 @@ public class ProcessusMensuelService {
     private final EtapeWorkflowRepository etapeWorkflowRepository;
     private final PieceJointeRepository pieceJointeRepository;
     private final UtilisateurApi utilisateurApi;
-    private final AuditService auditService;
+    private final ApplicationEventPublisher eventPublisher;
     private final EligibiliteService eligibiliteService;
     private final FonctionEligibleService fonctionEligibleService;
     private final AuthenticatedUserService authenticatedUserService;
@@ -146,8 +147,8 @@ public class ProcessusMensuelService {
         apres.put("nombreBeneficiairesInclus", nombreBeneficiairesInclus);
         apres.put("nombreBeneficiairesExclus", beneficiairesExclus.size());
 
-        auditService.enregistrer(utilisateurCourant.getId(), "DECLENCHEMENT_PROCESSUS", "processus_mensuel",
-                processus.getId(), null, apres);
+        eventPublisher.publishEvent(new EvenementAudit(utilisateurCourant.getId(), "DECLENCHEMENT_PROCESSUS", "processus_mensuel",
+                processus.getId(), null, apres));
 
         return ProcessusMensuelResponseDto.builder()
                 .id(processus.getId())
@@ -369,8 +370,8 @@ public class ProcessusMensuelService {
         apres.put("idPieceJointe", pieceJointe.getId());
         apres.put("commentaire", commentaire);
 
-        auditService.enregistrer(utilisateurCourant.getId(), "VALIDATION_PROCESSUS_ARH", "processus_mensuel",
-                processus.getId(), avant, apres);
+        eventPublisher.publishEvent(new EvenementAudit(utilisateurCourant.getId(), "VALIDATION_PROCESSUS_ARH", "processus_mensuel",
+                processus.getId(), avant, apres));
 
         return ValiderProcessusResponseDto.builder()
                 .id(processus.getId())
@@ -454,8 +455,8 @@ public class ProcessusMensuelService {
         apres.put("idPieceJointe", pieceJointe.getId());
         apres.put("commentaire", commentaire);
 
-        auditService.enregistrer(utilisateurCourant.getId(), "VALIDATION_PROCESSUS_CRH", "processus_mensuel",
-                processus.getId(), avant, apres);
+        eventPublisher.publishEvent(new EvenementAudit(utilisateurCourant.getId(), "VALIDATION_PROCESSUS_CRH", "processus_mensuel",
+                processus.getId(), avant, apres));
 
         return ValiderProcessusResponseDto.builder()
                 .id(processus.getId())
@@ -519,16 +520,16 @@ public class ProcessusMensuelService {
         apresValidation.put("idPieceJointe", pieceJointe.getId());
         apresValidation.put("commentaire", commentaire);
 
-        auditService.enregistrer(utilisateurCourant.getId(), "VALIDATION_PROCESSUS_DRH", "processus_mensuel",
-                processus.getId(), avantValidation, apresValidation);
+        eventPublisher.publishEvent(new EvenementAudit(utilisateurCourant.getId(), "VALIDATION_PROCESSUS_DRH", "processus_mensuel",
+                processus.getId(), avantValidation, apresValidation));
 
         Map<String, Object> apresCloture = new LinkedHashMap<>();
         apresCloture.put("statut", StatutEnum.CLOTURE.name());
         apresCloture.put("dateCloture", processus.getDateCloture().toString());
         apresCloture.put("montantTotal", montantTotal);
 
-        auditService.enregistrer(utilisateurCourant.getId(), "CLOTURE_PROCESSUS", "processus_mensuel",
-                processus.getId(), null, apresCloture);
+        eventPublisher.publishEvent(new EvenementAudit(utilisateurCourant.getId(), "CLOTURE_PROCESSUS", "processus_mensuel",
+                processus.getId(), null, apresCloture));
 
         return ValiderProcessusResponseDto.builder()
                 .id(processus.getId())
@@ -598,8 +599,8 @@ public class ProcessusMensuelService {
         apres.put("statut", processus.getStatut().name());
         apres.put("motif", motif);
 
-        auditService.enregistrer(utilisateurCourant.getId(), "RETOUR_PROCESSUS", "processus_mensuel",
-                processus.getId(), avant, apres);
+        eventPublisher.publishEvent(new EvenementAudit(utilisateurCourant.getId(), "RETOUR_PROCESSUS", "processus_mensuel",
+                processus.getId(), avant, apres));
 
         return RetournerProcessusResponseDto.builder()
                 .id(processus.getId())
@@ -681,8 +682,8 @@ public class ProcessusMensuelService {
 
         if (!apres.isEmpty()) {
             ligneEtatMensuelRepository.save(ligne);
-            auditService.enregistrer(utilisateurCourant.getId(), "AJUSTEMENT_LIGNE_ETAT_MENSUEL",
-                    "ligne_etat_mensuel", ligne.getId(), avant, apres);
+            eventPublisher.publishEvent(new EvenementAudit(utilisateurCourant.getId(), "AJUSTEMENT_LIGNE_ETAT_MENSUEL",
+                    "ligne_etat_mensuel", ligne.getId(), avant, apres));
         }
 
         return ResultatAjustementDto.builder()

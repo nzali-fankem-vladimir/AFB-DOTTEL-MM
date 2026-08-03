@@ -1,5 +1,5 @@
 package com.afriland.dottel.utilisateurs.service;
-import com.afriland.dottel.audit.service.AuditService;
+import com.afriland.dottel.audit.api.EvenementAudit;
 
 import com.afriland.dottel.utilisateurs.exception.ActionAdminNonAutoriseeException;
 import com.afriland.dottel.utilisateurs.exception.EmailUtilisateurDejaUtiliseException;
@@ -12,6 +12,7 @@ import com.afriland.dottel.utilisateurs.model.entity.Utilisateur;
 import com.afriland.dottel.utilisateurs.model.enums.RoleEnum;
 import com.afriland.dottel.utilisateurs.repository.UtilisateurRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,7 +28,7 @@ public class UtilisateurAdminService {
 
     private final UtilisateurRepository utilisateurRepository;
     private final PasswordEncoder passwordEncoder;
-    private final AuditService auditService;
+    private final ApplicationEventPublisher eventPublisher;
 
     // Pas de pagination : volume interne limite a quelques dizaines
     // d'utilisateurs (decision actee dans le guide du Sprint 4bis.3),
@@ -77,8 +78,8 @@ public class UtilisateurAdminService {
         apres.put("role", utilisateur.getRole().name());
         apres.put("actif", utilisateur.isActif());
 
-        auditService.enregistrer(idCreateur, "CREATION_UTILISATEUR", "utilisateurs",
-                utilisateur.getId(), null, apres);
+        eventPublisher.publishEvent(new EvenementAudit(idCreateur, "CREATION_UTILISATEUR", "utilisateurs",
+                utilisateur.getId(), null, apres));
 
         return versDto(utilisateur);
     }
@@ -111,8 +112,8 @@ public class UtilisateurAdminService {
         Map<String, Object> apres = new LinkedHashMap<>();
         apres.put("actif", utilisateur.isActif());
 
-        auditService.enregistrer(idAdminConnecte, "CHANGEMENT_STATUT_UTILISATEUR", "utilisateurs",
-                utilisateur.getId(), avant, apres);
+        eventPublisher.publishEvent(new EvenementAudit(idAdminConnecte, "CHANGEMENT_STATUT_UTILISATEUR", "utilisateurs",
+                utilisateur.getId(), avant, apres));
 
         return versDto(utilisateur);
     }
@@ -145,8 +146,8 @@ public class UtilisateurAdminService {
         Map<String, Object> apres = new LinkedHashMap<>();
         apres.put("role", utilisateur.getRole().name());
 
-        auditService.enregistrer(idAdminConnecte, "CHANGEMENT_ROLE_UTILISATEUR", "utilisateurs",
-                utilisateur.getId(), avant, apres);
+        eventPublisher.publishEvent(new EvenementAudit(idAdminConnecte, "CHANGEMENT_ROLE_UTILISATEUR", "utilisateurs",
+                utilisateur.getId(), avant, apres));
 
         return versDto(utilisateur);
     }

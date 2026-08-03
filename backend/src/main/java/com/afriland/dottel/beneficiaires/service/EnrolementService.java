@@ -1,6 +1,6 @@
 package com.afriland.dottel.beneficiaires.service;
 import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
-import com.afriland.dottel.audit.service.AuditService;
+import com.afriland.dottel.audit.api.EvenementAudit;
 
 import com.afriland.dottel.referentiel.api.GrilleTarifaireApi;
 import com.afriland.dottel.referentiel.api.ResolutionGrilleDto;
@@ -18,6 +18,7 @@ import com.afriland.dottel.beneficiaires.repository.BeneficiaireRepository;
 import com.afriland.dottel.referentiel.service.EligibiliteService;
 import com.afriland.dottel.referentiel.service.FonctionEligibleService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,7 +35,7 @@ public class EnrolementService {
     private final EligibiliteService eligibiliteService;
     private final FonctionEligibleService fonctionEligibleService;
     private final GrilleTarifaireApi grilleTarifaireApi;
-    private final AuditService auditService;
+    private final ApplicationEventPublisher eventPublisher;
     private final AuthenticatedUserService authenticatedUserService;
 
     public EnrolementVerificationResponseDto verifier(String matricule) {
@@ -127,8 +128,8 @@ public class EnrolementService {
         apres.put("chapitre", beneficiaire.getChapitre());
         apres.put("dateEnrolement", beneficiaire.getDateEnrolement().toString());
 
-        auditService.enregistrer(utilisateurCourant.getId(), "ENROLEMENT", "beneficiaires", beneficiaire.getId(),
-                null, apres);
+        eventPublisher.publishEvent(new EvenementAudit(utilisateurCourant.getId(), "ENROLEMENT", "beneficiaires", beneficiaire.getId(),
+                null, apres));
 
         return ConfirmerEnrolementResponseDto.builder()
                 .id(beneficiaire.getId())

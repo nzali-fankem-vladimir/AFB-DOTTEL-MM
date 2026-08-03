@@ -1,6 +1,6 @@
 package com.afriland.dottel.utilisateurs.service;
 import com.afriland.dottel.utilisateurs.service.UtilisateurAdminService;
-import com.afriland.dottel.audit.service.AuditService;
+import com.afriland.dottel.audit.api.EvenementAudit;
 
 import com.afriland.dottel.utilisateurs.exception.ActionAdminNonAutoriseeException;
 import com.afriland.dottel.utilisateurs.exception.EmailUtilisateurDejaUtiliseException;
@@ -18,6 +18,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
@@ -28,8 +29,6 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -44,13 +43,13 @@ class UtilisateurAdminServiceTest {
     private PasswordEncoder passwordEncoder;
 
     @Mock
-    private AuditService auditService;
+    private ApplicationEventPublisher eventPublisher;
 
     private UtilisateurAdminService utilisateurAdminService;
 
     @BeforeEach
     void setUp() {
-        utilisateurAdminService = new UtilisateurAdminService(utilisateurRepository, passwordEncoder, auditService);
+        utilisateurAdminService = new UtilisateurAdminService(utilisateurRepository, passwordEncoder, eventPublisher);
     }
 
     private Utilisateur creerUtilisateur(Long id, String matricule, String nom, String prenom,
@@ -184,11 +183,17 @@ class UtilisateurAdminServiceTest {
 
         utilisateurAdminService.creer(requete, 9L);
 
-        ArgumentCaptor<Map<String, Object>> apresCaptureur = ArgumentCaptor.forClass(Map.class);
-        verify(auditService).enregistrer(eq(9L), eq("CREATION_UTILISATEUR"), eq("utilisateurs"),
-                isNull(), isNull(), apresCaptureur.capture());
+        ArgumentCaptor<EvenementAudit> evenementCaptureur = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher).publishEvent(evenementCaptureur.capture());
 
-        Map<String, Object> apres = apresCaptureur.getValue();
+        EvenementAudit evenement = evenementCaptureur.getValue();
+        assertThat(evenement.idUtilisateur()).isEqualTo(9L);
+        assertThat(evenement.action()).isEqualTo("CREATION_UTILISATEUR");
+        assertThat(evenement.entiteCible()).isEqualTo("utilisateurs");
+        assertThat(evenement.idEntite()).isNull();
+        assertThat(evenement.avant()).isNull();
+
+        Map<String, Object> apres = evenement.apres();
         assertThat(apres).doesNotContainKey("motDePasse");
         assertThat(apres).doesNotContainKey("motDePasseHash");
         assertThat(apres.values()).noneMatch(valeur -> "Test1234".equals(valeur) || "hash-bcrypt".equals(valeur));
@@ -203,8 +208,8 @@ class UtilisateurAdminServiceTest {
         UtilisateurResponseDto reponse = utilisateurAdminService.changerStatut(5L, false, 9L);
 
         assertThat(reponse.isActif()).isFalse();
-        verify(auditService).enregistrer(eq(9L), eq("CHANGEMENT_STATUT_UTILISATEUR"), eq("utilisateurs"),
-                eq(5L), eq(Map.of("actif", true)), eq(Map.of("actif", false)));
+        verify(eventPublisher).publishEvent(new EvenementAudit(9L, "CHANGEMENT_STATUT_UTILISATEUR", "utilisateurs",
+                5L, Map.of("actif", true), Map.of("actif", false)));
     }
 
     @Test
@@ -251,8 +256,8 @@ class UtilisateurAdminServiceTest {
         UtilisateurResponseDto reponse = utilisateurAdminService.changerRole(3L, "CRH", 9L);
 
         assertThat(reponse.getRole()).isEqualTo(RoleEnum.CRH);
-        verify(auditService).enregistrer(eq(9L), eq("CHANGEMENT_ROLE_UTILISATEUR"), eq("utilisateurs"),
-                eq(3L), eq(Map.of("role", "EMPLOYE")), eq(Map.of("role", "CRH")));
+        verify(eventPublisher).publishEvent(new EvenementAudit(9L, "CHANGEMENT_ROLE_UTILISATEUR", "utilisateurs",
+                3L, Map.of("role", "EMPLOYE"), Map.of("role", "CRH")));
     }
 
     @Test
