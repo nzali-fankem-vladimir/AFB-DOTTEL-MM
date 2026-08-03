@@ -8,11 +8,10 @@ import com.afriland.dottel.referentiel.model.dto.fonctioneligible.CreerFonctionE
 import com.afriland.dottel.referentiel.model.dto.fonctioneligible.FonctionEligibleAdminResponseDto;
 import com.afriland.dottel.referentiel.model.dto.fonctioneligible.FonctionEligibleResponseDto;
 import com.afriland.dottel.referentiel.model.dto.fonctioneligible.ModifierFonctionEligibleRequestDto;
-import com.afriland.dottel.beneficiaires.model.entity.Beneficiaire;
+import com.afriland.dottel.beneficiaires.api.BeneficiaireApi;
 import com.afriland.dottel.referentiel.model.entity.FonctionEligible;
 import com.afriland.dottel.referentiel.model.entity.GrilleTarifaire;
 import com.afriland.dottel.referentiel.model.enums.StatutGrilleEnum;
-import com.afriland.dottel.beneficiaires.repository.BeneficiaireRepository;
 import com.afriland.dottel.referentiel.repository.FonctionEligibleRepository;
 import com.afriland.dottel.referentiel.repository.GrilleTarifaireRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +22,7 @@ import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -30,8 +30,25 @@ public class FonctionEligibleService {
 
     private final FonctionEligibleRepository fonctionEligibleRepository;
     private final GrilleTarifaireRepository grilleTarifaireRepository;
-    private final BeneficiaireRepository beneficiaireRepository;
+    private final BeneficiaireApi beneficiaireApi;
     private final AuditService auditService;
+
+    // Sprint MM.3, couplage C2 : lecture seule du libelle d'affichage, pour
+    // EnrolementService.verifier() qui n'a plus le droit d'injecter
+    // FonctionEligibleRepository directement.
+    @Transactional(readOnly = true)
+    public Optional<String> libelle(String codeFonction) {
+        return fonctionEligibleRepository.findByCode(codeFonction).map(FonctionEligible::getLibelle);
+    }
+
+    // Sprint MM.3, couplage C2 : pour BeneficiaireImportService (RG-11), qui doit
+    // distinguer "fonction inconnue" (Optional vide) de "fonction desactivee"
+    // (present, false) dans le rapport d'import -- EligibiliteService.verifierEligibilite()
+    // ne renvoie qu'un booleen global et perdrait cette distinction.
+    @Transactional(readOnly = true)
+    public Optional<Boolean> estActive(String codeFonction) {
+        return fonctionEligibleRepository.findByCode(codeFonction).map(FonctionEligible::isActif);
+    }
 
     @Transactional(readOnly = true)
     public List<FonctionEligibleResponseDto> listerActives() {
@@ -54,7 +71,7 @@ public class FonctionEligibleService {
                         .libelle(fonctionEligible.getLibelle())
                         .actif(fonctionEligible.isActif())
                         .nombreBeneficiairesActifs(
-                                beneficiaireRepository.countByFonctionAndActifTrue(fonctionEligible.getCode()))
+                                beneficiaireApi.compterActifsParFonction(fonctionEligible.getCode()))
                         .build())
                 .toList();
     }
@@ -118,7 +135,7 @@ public class FonctionEligibleService {
                 .orElseThrow(() -> new FonctionEligibleIntrouvableException(
                         "Aucune fonction éligible avec le code " + code));
 
-        long beneficiairesActifsConcernes = beneficiaireRepository.countByFonctionAndActifTrue(code);
+        long beneficiairesActifsConcernes = beneficiaireApi.compterActifsParFonction(code);
 
         Map<String, Object> avant = new LinkedHashMap<>();
         avant.put("actif", fonctionEligible.isActif());
@@ -166,7 +183,7 @@ public class FonctionEligibleService {
                 .code(fonctionEligible.getCode())
                 .libelle(fonctionEligible.getLibelle())
                 .actif(true)
-                .nombreBeneficiairesActifs(beneficiaireRepository.countByFonctionAndActifTrue(code))
+                .nombreBeneficiairesActifs(beneficiaireApi.compterActifsParFonction(code))
                 .build();
     }
 
@@ -201,7 +218,7 @@ public class FonctionEligibleService {
 
         String codeFinal = fonctionEligible.getCode();
         if (requete.getNouveauCode() != null && !requete.getNouveauCode().equals(fonctionEligible.getCode())) {
-            long beneficiairesActifs = beneficiaireRepository.countByFonctionAndActifTrue(code);
+            long beneficiairesActifs = beneficiaireApi.compterActifsParFonction(code);
             if (beneficiairesActifs > 1) {
                 throw new FonctionEligibleBeneficiairesActifsException(
                         "Impossible de modifier le code : " + beneficiairesActifs
@@ -214,9 +231,11 @@ public class FonctionEligibleService {
                                 "Une fonction éligible avec le code " + requete.getNouveauCode() + " existe déjà");
                     });
 
-            List<Beneficiaire> beneficiairesInactifsRattaches = beneficiaireRepository.findByFonction(code);
-            beneficiairesInactifsRattaches.forEach(beneficiaire -> beneficiaire.setFonction(requete.getNouveauCode()));
-            beneficiaireRepository.saveAll(beneficiairesInactifsRattaches);
+            // Couplage C3 (Sprint MM.3) : la cascade vit desormais dans le module
+            // beneficiaires (BeneficiaireApi.renommerFonction()), appelee en
+            // synchrone pour rester dans CETTE transaction @Transactional -- meme
+            // atomicite qu'avant, decision actee avec l'utilisateur (option B-1).
+            beneficiaireApi.renommerFonction(code, requete.getNouveauCode());
 
             fonctionEligible.setCode(requete.getNouveauCode());
             codeFinal = requete.getNouveauCode();
@@ -235,7 +254,7 @@ public class FonctionEligibleService {
                 .code(fonctionEligible.getCode())
                 .libelle(fonctionEligible.getLibelle())
                 .actif(fonctionEligible.isActif())
-                .nombreBeneficiairesActifs(beneficiaireRepository.countByFonctionAndActifTrue(codeFinal))
+                .nombreBeneficiairesActifs(beneficiaireApi.compterActifsParFonction(codeFinal))
                 .build();
     }
 }

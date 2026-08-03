@@ -1,5 +1,6 @@
 package com.afriland.dottel.processus.service;
 import com.afriland.dottel.beneficiaires.api.BeneficiaireApi;
+import com.afriland.dottel.beneficiaires.api.BeneficiaireDocumentDto;
 import com.afriland.dottel.beneficiaires.api.BeneficiaireDotationDto;
 import com.afriland.dottel.beneficiaires.api.BeneficiaireIdentiteDto;
 import com.afriland.dottel.referentiel.api.GrilleTarifaireApi;
@@ -17,6 +18,7 @@ import com.afriland.dottel.processus.exception.ProcessusMensuelNonModifiableExce
 import com.afriland.dottel.processus.model.dto.processus.AjustementLigneEtatDto;
 import com.afriland.dottel.processus.model.dto.processus.BeneficiaireExcluDto;
 import com.afriland.dottel.processus.model.dto.processus.DeclencherProcessusRequestDto;
+import com.afriland.dottel.processus.model.dto.processus.LigneDocumentDto;
 import com.afriland.dottel.processus.model.dto.processus.LigneEtatMensuelDetailDto;
 import com.afriland.dottel.processus.model.dto.processus.PatchProcessusRequestDto;
 import com.afriland.dottel.processus.model.dto.processus.PatchProcessusResponseDto;
@@ -42,6 +44,7 @@ import com.afriland.dottel.processus.repository.LigneEtatMensuelRepository;
 import com.afriland.dottel.processus.repository.PieceJointeRepository;
 import com.afriland.dottel.processus.repository.ProcessusMensuelRepository;
 import com.afriland.dottel.referentiel.service.EligibiliteService;
+import com.afriland.dottel.referentiel.service.FonctionEligibleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -75,6 +78,7 @@ public class ProcessusMensuelService {
     private final UtilisateurApi utilisateurApi;
     private final AuditService auditService;
     private final EligibiliteService eligibiliteService;
+    private final FonctionEligibleService fonctionEligibleService;
     private final AuthenticatedUserService authenticatedUserService;
     private final DocumentService documentService;
     private final SignatureService signatureService;
@@ -331,8 +335,9 @@ public class ProcessusMensuelService {
         separationTachesService.verifierRoleAttendu(NomEtapeEnum.VALIDATION_ARH, utilisateurCourant);
 
         List<LigneEtatMensuel> lignesIncluses = ligneEtatMensuelRepository.findByIdProcessusAndInclusDansEtatTrue(processus.getId());
+        Map<Long, LigneDocumentDto> donneesDocumentParBeneficiaire = assemblerDonneesDocument(lignesIncluses);
 
-        PieceJointe pieceJointe = documentService.genererInitiale(processus, lignesIncluses, utilisateurCourant);
+        PieceJointe pieceJointe = documentService.genererInitiale(processus, lignesIncluses, donneesDocumentParBeneficiaire, utilisateurCourant);
 
         EtapeWorkflow etape = EtapeWorkflow.builder()
                 .idProcessus(processus.getId())
@@ -373,6 +378,32 @@ public class ProcessusMensuelService {
                 .etapeValidee(NomEtapeEnum.VALIDATION_ARH.name())
                 .idPieceJointe(pieceJointe.getId())
                 .build();
+    }
+
+    // Couplage C4 (Sprint MM.3) : DocumentService ne va plus chercher Beneficiaire
+    // ni FonctionEligible lui-meme -- c'est l'appelant (ici) qui assemble le DTO
+    // via les API des modules deja creees en MM.2/MM.3. libelleFonction se replie
+    // sur le code brut si le referentiel ne connait plus fonctionRetenue, exactement
+    // le comportement precedent de DocumentService.ajouterTableau().
+    private Map<Long, LigneDocumentDto> assemblerDonneesDocument(List<LigneEtatMensuel> lignes) {
+        List<Long> idsBeneficiaires = lignes.stream().map(LigneEtatMensuel::getIdBeneficiaire).toList();
+        Map<Long, BeneficiaireDocumentDto> beneficiairesParId = beneficiaireApi.donneesDocumentParId(idsBeneficiaires);
+
+        Map<Long, LigneDocumentDto> donneesParBeneficiaire = new LinkedHashMap<>();
+        for (LigneEtatMensuel ligne : lignes) {
+            BeneficiaireDocumentDto beneficiaire = beneficiairesParId.get(ligne.getIdBeneficiaire());
+            String libelleFonction = fonctionEligibleService.libelle(ligne.getFonctionRetenue())
+                    .orElse(ligne.getFonctionRetenue());
+
+            donneesParBeneficiaire.put(ligne.getIdBeneficiaire(), LigneDocumentDto.builder()
+                    .nomPrenoms(beneficiaire != null ? beneficiaire.nomPrenoms() : null)
+                    .codeUnite(beneficiaire != null ? beneficiaire.codeUnite() : null)
+                    .numCompteCourant(beneficiaire != null ? beneficiaire.numCompteCourant() : null)
+                    .chapitre(beneficiaire != null ? beneficiaire.chapitre() : null)
+                    .libelleFonction(libelleFonction)
+                    .build());
+        }
+        return donneesParBeneficiaire;
     }
 
     // RG-05 : seul un CRH peut declencher cette branche (voir validerBrancheArh).

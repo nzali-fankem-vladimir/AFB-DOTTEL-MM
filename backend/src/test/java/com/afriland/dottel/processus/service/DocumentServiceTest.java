@@ -1,15 +1,12 @@
 package com.afriland.dottel.processus.service;
 
-import com.afriland.dottel.beneficiaires.model.entity.Beneficiaire;
-import com.afriland.dottel.referentiel.model.entity.FonctionEligible;
+import com.afriland.dottel.processus.model.dto.processus.LigneDocumentDto;
 import com.afriland.dottel.processus.model.entity.LigneEtatMensuel;
 import com.afriland.dottel.processus.model.entity.PieceJointe;
 import com.afriland.dottel.processus.model.entity.ProcessusMensuel;
 import com.afriland.dottel.utilisateurs.model.entity.Utilisateur;
 import com.afriland.dottel.processus.model.enums.NomEtapeEnum;
 import com.afriland.dottel.processus.model.enums.StatutEnum;
-import com.afriland.dottel.beneficiaires.repository.BeneficiaireRepository;
-import com.afriland.dottel.referentiel.repository.FonctionEligibleRepository;
 import com.afriland.dottel.processus.repository.PieceJointeRepository;
 import com.itextpdf.forms.PdfAcroForm;
 import com.itextpdf.forms.fields.PdfFormCreator;
@@ -27,6 +24,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -36,12 +34,6 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class DocumentServiceTest {
-
-    @Mock
-    private BeneficiaireRepository beneficiaireRepository;
-
-    @Mock
-    private FonctionEligibleRepository fonctionEligibleRepository;
 
     @Mock
     private PieceJointeRepository pieceJointeRepository;
@@ -57,27 +49,24 @@ class DocumentServiceTest {
 
     @Test
     void genererInitiale_chapitreAbsentDeLehr_utiliseValeurDeRepliConfiguree() throws IOException {
-        DocumentService documentService = new DocumentService(beneficiaireRepository, fonctionEligibleRepository,
-                pieceJointeRepository, ecartMensuelService, signatureService);
+        DocumentService documentService = new DocumentService(pieceJointeRepository, ecartMensuelService, signatureService);
         ReflectionTestUtils.setField(documentService, "cheminStockage", dossierTemporaire.toString() + "/");
         ReflectionTestUtils.setField(documentService, "chapitreDefaut", "37210199");
 
         ProcessusMensuel processus = ProcessusMensuel.builder().id(900L).moisPaiement(7).anneePaiement(2026)
                 .statut(StatutEnum.EN_COURS_ARH).build();
 
-        // Beneficiaire enrole avant le Sprint 3.4 : aucune valeur de chapitre
-        // fournie par l'EHR a l'epoque -> le repli configure doit s'appliquer.
-        Beneficiaire ndongo = Beneficiaire.builder().id(510L).nomPrenoms("NDONGO Béatrice")
-                .codeUnite("YDE-IG01").numCompteCourant("10019720002").chapitre(null).build();
-
         LigneEtatMensuel ligne = LigneEtatMensuel.builder().idProcessus(900L).idBeneficiaire(510L)
                 .montantApplique(65000).inclusDansEtat(true).fonctionRetenue("CORPS_CONTROLE_IGA").build();
 
+        // Beneficiaire enrole avant le Sprint 3.4 : aucune valeur de chapitre
+        // fournie par l'EHR a l'epoque -> le repli configure doit s'appliquer.
+        LigneDocumentDto donnees = LigneDocumentDto.builder()
+                .nomPrenoms("NDONGO Béatrice").codeUnite("YDE-IG01").numCompteCourant("10019720002")
+                .chapitre(null).libelleFonction("Inspecteur Général Adjoint").build();
+
         Utilisateur arh = Utilisateur.builder().id(10L).nom("MBARGA").prenom("Jean-Paul").matricule("2201").build();
 
-        when(beneficiaireRepository.findById(510L)).thenReturn(Optional.of(ndongo));
-        when(fonctionEligibleRepository.findByCode("CORPS_CONTROLE_IGA")).thenReturn(Optional.of(
-                FonctionEligible.builder().code("CORPS_CONTROLE_IGA").libelle("Inspecteur Général Adjoint").build()));
         when(ecartMensuelService.rechercherResultatMensuel(any(), any()))
                 .thenReturn(new EcartMensuelService.ResultatEcartMensuel(null, null));
         when(signatureService.signer(arh)).thenReturn("Jean-Paul MBARGA (matricule 2201) - 22/07/2026 10:00:00");
@@ -87,7 +76,7 @@ class DocumentServiceTest {
             return pieceJointe;
         });
 
-        PieceJointe pieceJointe = documentService.genererInitiale(processus, List.of(ligne), arh);
+        PieceJointe pieceJointe = documentService.genererInitiale(processus, List.of(ligne), Map.of(510L, donnees), arh);
 
         Path fichierGenere = Path.of(pieceJointe.getCheminStockage());
         assertThat(fichierGenere).exists();
@@ -103,25 +92,22 @@ class DocumentServiceTest {
         // Police par defaut Helvetica/StandardEncoding ne rend pas les accents
         // francais -> verifie que le fix CP1252 (PdfFontFactory.createFont)
         // preserve "Contrôleur Comptable" et "NDONGO Béatrice" a l'extraction.
-        DocumentService documentService = new DocumentService(beneficiaireRepository, fonctionEligibleRepository,
-                pieceJointeRepository, ecartMensuelService, signatureService);
+        DocumentService documentService = new DocumentService(pieceJointeRepository, ecartMensuelService, signatureService);
         ReflectionTestUtils.setField(documentService, "cheminStockage", dossierTemporaire.toString() + "/");
         ReflectionTestUtils.setField(documentService, "chapitreDefaut", "37210100");
 
         ProcessusMensuel processus = ProcessusMensuel.builder().id(901L).moisPaiement(8).anneePaiement(2026)
                 .statut(StatutEnum.EN_COURS_ARH).build();
 
-        Beneficiaire beneficiaire = Beneficiaire.builder().id(520L).nomPrenoms("NDONGO Béatrice")
-                .codeUnite("YDE-IG01").numCompteCourant("10019720002").chapitre("37210170").build();
-
         LigneEtatMensuel ligne = LigneEtatMensuel.builder().idProcessus(901L).idBeneficiaire(520L)
                 .montantApplique(35000).inclusDansEtat(true).fonctionRetenue("CONTROLEUR_COMPTABLE").build();
 
+        LigneDocumentDto donnees = LigneDocumentDto.builder()
+                .nomPrenoms("NDONGO Béatrice").codeUnite("YDE-IG01").numCompteCourant("10019720002")
+                .chapitre("37210170").libelleFonction("Contrôleur Comptable").build();
+
         Utilisateur arh = Utilisateur.builder().id(10L).nom("MBARGA").prenom("Jean-Paul").matricule("2201").build();
 
-        when(beneficiaireRepository.findById(520L)).thenReturn(Optional.of(beneficiaire));
-        when(fonctionEligibleRepository.findByCode("CONTROLEUR_COMPTABLE")).thenReturn(Optional.of(
-                FonctionEligible.builder().code("CONTROLEUR_COMPTABLE").libelle("Contrôleur Comptable").build()));
         when(ecartMensuelService.rechercherResultatMensuel(any(), any()))
                 .thenReturn(new EcartMensuelService.ResultatEcartMensuel(null, null));
         when(signatureService.signer(arh)).thenReturn("Jean-Paul MBARGA (matricule 2201) - 22/07/2026 10:00:00");
@@ -131,7 +117,7 @@ class DocumentServiceTest {
             return pieceJointe;
         });
 
-        PieceJointe pieceJointe = documentService.genererInitiale(processus, List.of(ligne), arh);
+        PieceJointe pieceJointe = documentService.genererInitiale(processus, List.of(ligne), Map.of(520L, donnees), arh);
 
         try (PdfDocument pdfDocument = new PdfDocument(new PdfReader(pieceJointe.getCheminStockage()))) {
             String texte = PdfTextExtractor.getTextFromPage(pdfDocument.getFirstPage());
@@ -153,19 +139,19 @@ class DocumentServiceTest {
         // ce processus (id_processus est UNIQUE en base). genererInitiale()
         // doit le remplacer en place -- meme id -- plutot que d'en creer un
         // second, qui violerait la contrainte d'unicite.
-        DocumentService documentService = new DocumentService(beneficiaireRepository, fonctionEligibleRepository,
-                pieceJointeRepository, ecartMensuelService, signatureService);
+        DocumentService documentService = new DocumentService(pieceJointeRepository, ecartMensuelService, signatureService);
         ReflectionTestUtils.setField(documentService, "cheminStockage", dossierTemporaire.toString() + "/");
         ReflectionTestUtils.setField(documentService, "chapitreDefaut", "37210199");
 
         ProcessusMensuel processus = ProcessusMensuel.builder().id(903L).moisPaiement(7).anneePaiement(2026)
                 .statut(StatutEnum.RETOURNE).build();
 
-        Beneficiaire beneficiaire = Beneficiaire.builder().id(540L).nomPrenoms("ONANA Serge")
-                .codeUnite("DLA-AG05").numCompteCourant("10033450009").chapitre("37210170").build();
-
         LigneEtatMensuel ligne = LigneEtatMensuel.builder().idProcessus(903L).idBeneficiaire(540L)
                 .montantApplique(50000).inclusDansEtat(true).fonctionRetenue("DA").build();
+
+        LigneDocumentDto donnees = LigneDocumentDto.builder()
+                .nomPrenoms("ONANA Serge").codeUnite("DLA-AG05").numCompteCourant("10033450009")
+                .chapitre("37210170").libelleFonction("Directeur d'Agence").build();
 
         Utilisateur arh = Utilisateur.builder().id(10L).nom("MBARGA").prenom("Jean-Paul").matricule("2201").build();
 
@@ -176,16 +162,13 @@ class DocumentServiceTest {
                 .nomFichier("dotations-telephoniques-6-2026.pdf").cheminStockage("ancien-chemin.pdf")
                 .nombreSignatures(3).build();
 
-        when(beneficiaireRepository.findById(540L)).thenReturn(Optional.of(beneficiaire));
-        when(fonctionEligibleRepository.findByCode("DA")).thenReturn(Optional.of(
-                FonctionEligible.builder().code("DA").libelle("Directeur d'Agence").build()));
         when(ecartMensuelService.rechercherResultatMensuel(any(), any()))
                 .thenReturn(new EcartMensuelService.ResultatEcartMensuel(null, null));
         when(signatureService.signer(arh)).thenReturn("Jean-Paul MBARGA (matricule 2201) - 24/07/2026 11:00:00");
         when(pieceJointeRepository.findByIdProcessus(903L)).thenReturn(Optional.of(pieceJointeExistante));
         when(pieceJointeRepository.save(any(PieceJointe.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        PieceJointe pieceJointeRegeneree = documentService.genererInitiale(processus, List.of(ligne), arh);
+        PieceJointe pieceJointeRegeneree = documentService.genererInitiale(processus, List.of(ligne), Map.of(540L, donnees), arh);
 
         assertThat(pieceJointeRegeneree.getId()).isEqualTo(50L);
         assertThat(pieceJointeRegeneree.getNombreSignatures()).isEqualTo(1);
@@ -200,27 +183,24 @@ class DocumentServiceTest {
         ProcessusMensuel processus = ProcessusMensuel.builder().id(902L).moisPaiement(9).anneePaiement(2026)
                 .statut(StatutEnum.EN_COURS_ARH).build();
 
-        Beneficiaire beneficiaire = Beneficiaire.builder().id(530L).nomPrenoms("ESSAMA Paul")
-                .codeUnite("DLA-AG03").numCompteCourant("10023410005").chapitre("37210170").build();
-
         LigneEtatMensuel ligne = LigneEtatMensuel.builder().idProcessus(902L).idBeneficiaire(530L)
                 .montantApplique(40000).inclusDansEtat(true).fonctionRetenue("GFC").build();
 
-        when(beneficiaireRepository.findById(530L)).thenReturn(Optional.of(beneficiaire));
-        when(fonctionEligibleRepository.findByCode("GFC")).thenReturn(Optional.of(
-                FonctionEligible.builder().code("GFC").libelle("Gestionnaire de Fonds de Commerce").build()));
+        LigneDocumentDto donnees = LigneDocumentDto.builder()
+                .nomPrenoms("ESSAMA Paul").codeUnite("DLA-AG03").numCompteCourant("10023410005")
+                .chapitre("37210170").libelleFonction("Gestionnaire de Fonds de Commerce").build();
+
         when(ecartMensuelService.rechercherResultatMensuel(any(), any()))
                 .thenReturn(new EcartMensuelService.ResultatEcartMensuel(null, null));
         when(signatureService.signer(arh)).thenReturn("Jean-Paul MBARGA (matricule 2201) - 22/07/2026 10:00:00");
         when(pieceJointeRepository.save(any(PieceJointe.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        return documentService.genererInitiale(processus, List.of(ligne), arh);
+        return documentService.genererInitiale(processus, List.of(ligne), Map.of(530L, donnees), arh);
     }
 
     @Test
     void ajouterSignature_casNominal_incrementeNombreSignatures() throws IOException {
-        DocumentService documentService = new DocumentService(beneficiaireRepository, fonctionEligibleRepository,
-                pieceJointeRepository, ecartMensuelService, signatureService);
+        DocumentService documentService = new DocumentService(pieceJointeRepository, ecartMensuelService, signatureService);
         ReflectionTestUtils.setField(documentService, "cheminStockage", dossierTemporaire.toString() + "/");
         ReflectionTestUtils.setField(documentService, "chapitreDefaut", "37210199");
 
@@ -253,8 +233,7 @@ class DocumentServiceTest {
 
     @Test
     void ajouterSignature_neCreePasUnNouveauFichier() {
-        DocumentService documentService = new DocumentService(beneficiaireRepository, fonctionEligibleRepository,
-                pieceJointeRepository, ecartMensuelService, signatureService);
+        DocumentService documentService = new DocumentService(pieceJointeRepository, ecartMensuelService, signatureService);
         ReflectionTestUtils.setField(documentService, "cheminStockage", dossierTemporaire.toString() + "/");
         ReflectionTestUtils.setField(documentService, "chapitreDefaut", "37210199");
 

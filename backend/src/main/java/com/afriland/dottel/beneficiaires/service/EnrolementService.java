@@ -2,6 +2,8 @@ package com.afriland.dottel.beneficiaires.service;
 import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
 import com.afriland.dottel.audit.service.AuditService;
 
+import com.afriland.dottel.referentiel.api.GrilleTarifaireApi;
+import com.afriland.dottel.referentiel.api.ResolutionGrilleDto;
 import com.afriland.dottel.referentiel.exception.GrilleTarifaireIntrouvableException;
 import com.afriland.dottel.beneficiaires.exception.MatriculeDejaEnroleException;
 import com.afriland.dottel.beneficiaires.exception.MatriculeInconnuException;
@@ -11,13 +13,10 @@ import com.afriland.dottel.beneficiaires.model.dto.enrolement.ConfirmerEnrolemen
 import com.afriland.dottel.beneficiaires.model.dto.enrolement.ConfirmerEnrolementResponseDto;
 import com.afriland.dottel.beneficiaires.model.dto.enrolement.EnrolementVerificationResponseDto;
 import com.afriland.dottel.beneficiaires.model.entity.Beneficiaire;
-import com.afriland.dottel.referentiel.model.entity.FonctionEligible;
 import com.afriland.dottel.utilisateurs.model.entity.Utilisateur;
-import com.afriland.dottel.referentiel.model.enums.StatutGrilleEnum;
 import com.afriland.dottel.beneficiaires.repository.BeneficiaireRepository;
-import com.afriland.dottel.referentiel.repository.FonctionEligibleRepository;
-import com.afriland.dottel.referentiel.repository.GrilleTarifaireRepository;
 import com.afriland.dottel.referentiel.service.EligibiliteService;
+import com.afriland.dottel.referentiel.service.FonctionEligibleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,8 +32,8 @@ public class EnrolementService {
     private final BeneficiaireRepository beneficiaireRepository;
     private final EhrIntegrationService ehrIntegrationService;
     private final EligibiliteService eligibiliteService;
-    private final FonctionEligibleRepository fonctionEligibleRepository;
-    private final GrilleTarifaireRepository grilleTarifaireRepository;
+    private final FonctionEligibleService fonctionEligibleService;
+    private final GrilleTarifaireApi grilleTarifaireApi;
     private final AuditService auditService;
     private final AuthenticatedUserService authenticatedUserService;
 
@@ -48,9 +47,7 @@ public class EnrolementService {
 
         boolean eligible = eligibiliteService.verifierEligibilite(employeEhr.getFonction(), employeEhr.getGrade());
 
-        String libelleFonction = fonctionEligibleRepository.findByCode(employeEhr.getFonction())
-                .map(FonctionEligible::getLibelle)
-                .orElse(null);
+        String libelleFonction = fonctionEligibleService.libelle(employeEhr.getFonction()).orElse(null);
 
         return EnrolementVerificationResponseDto.builder()
                 .matricule(employeEhr.getMatricule())
@@ -90,13 +87,17 @@ public class EnrolementService {
             throw new NonEligibleException("Fonction ou grade non éligible à la dotation téléphonique");
         }
 
-        FonctionEligible fonctionEligible = fonctionEligibleRepository.findByCode(employeEhr.getFonction())
-                .orElseThrow(() -> new NonEligibleException("Fonction inconnue du référentiel des fonctions éligibles"));
-
-        grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(
-                        fonctionEligible.getId(), StatutGrilleEnum.ACTIVE)
-                .orElseThrow(() -> new GrilleTarifaireIntrouvableException(
-                        "Aucune grille tarifaire ACTIVE pour la fonction " + employeEhr.getFonction()));
+        // Couplage C2 (Sprint MM.3) : delegue au referentiel plutot que de relire
+        // FonctionEligibleRepository et GrilleTarifaireRepository directement.
+        // eligibiliteService.verifierEligibilite() ci-dessus a deja valide RG-01
+        // (fonction connue et active) ; seule l'absence de grille ACTIVE peut donc
+        // encore etre remontee ici en pratique. GrilleTarifaireIntrouvableException
+        // reste levee -> 400 via GlobalExceptionHandler (contrat API V3.1 inchange).
+        ResolutionGrilleDto resolutionGrille = grilleTarifaireApi.resoudrePourFonction(employeEhr.getFonction());
+        if (!resolutionGrille.estResolue()) {
+            throw new GrilleTarifaireIntrouvableException(
+                    "Aucune grille tarifaire ACTIVE pour la fonction " + employeEhr.getFonction());
+        }
 
         Beneficiaire beneficiaire = Beneficiaire.builder()
                 .matricule(employeEhr.getMatricule())

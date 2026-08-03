@@ -6,10 +6,9 @@ import com.afriland.dottel.beneficiaires.exception.FichierImportInvalideExceptio
 import com.afriland.dottel.beneficiaires.model.dto.importexcel.ImportErreurDto;
 import com.afriland.dottel.beneficiaires.model.dto.importexcel.ImportRapportDto;
 import com.afriland.dottel.beneficiaires.model.entity.Beneficiaire;
-import com.afriland.dottel.referentiel.model.entity.FonctionEligible;
 import com.afriland.dottel.utilisateurs.model.entity.Utilisateur;
 import com.afriland.dottel.beneficiaires.repository.BeneficiaireRepository;
-import com.afriland.dottel.referentiel.repository.FonctionEligibleRepository;
+import com.afriland.dottel.referentiel.service.FonctionEligibleService;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
@@ -48,7 +47,7 @@ public class BeneficiaireImportService {
             "CONTROLEUR_COMPTABLE", "COMPTABLE");
 
     private final BeneficiaireRepository beneficiaireRepository;
-    private final FonctionEligibleRepository fonctionEligibleRepository;
+    private final FonctionEligibleService fonctionEligibleService;
     private final AuditService auditService;
     private final AuthenticatedUserService authenticatedUserService;
 
@@ -130,11 +129,11 @@ public class BeneficiaireImportService {
             return "Matricule déjà enrôlé";
         }
 
-        Optional<FonctionEligible> fonctionEligible = fonctionEligibleRepository.findByCode(fonction);
-        if (fonctionEligible.isEmpty()) {
+        Optional<Boolean> fonctionActive = fonctionEligibleService.estActive(fonction);
+        if (fonctionActive.isEmpty()) {
             return "Fonction inconnue : " + fonction;
         }
-        if (!fonctionEligible.get().isActif()) {
+        if (!fonctionActive.get()) {
             return "Fonction désactivée : " + fonction;
         }
 

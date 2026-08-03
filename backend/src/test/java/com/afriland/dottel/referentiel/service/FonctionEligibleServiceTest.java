@@ -8,11 +8,10 @@ import com.afriland.dottel.referentiel.model.dto.fonctioneligible.CreerFonctionE
 import com.afriland.dottel.referentiel.model.dto.fonctioneligible.FonctionEligibleAdminResponseDto;
 import com.afriland.dottel.referentiel.model.dto.fonctioneligible.FonctionEligibleResponseDto;
 import com.afriland.dottel.referentiel.model.dto.fonctioneligible.ModifierFonctionEligibleRequestDto;
-import com.afriland.dottel.beneficiaires.model.entity.Beneficiaire;
+import com.afriland.dottel.beneficiaires.api.BeneficiaireApi;
 import com.afriland.dottel.referentiel.model.entity.FonctionEligible;
 import com.afriland.dottel.referentiel.model.entity.GrilleTarifaire;
 import com.afriland.dottel.referentiel.model.enums.StatutGrilleEnum;
-import com.afriland.dottel.beneficiaires.repository.BeneficiaireRepository;
 import com.afriland.dottel.referentiel.repository.FonctionEligibleRepository;
 import com.afriland.dottel.referentiel.repository.GrilleTarifaireRepository;
 import org.junit.jupiter.api.Test;
@@ -46,7 +45,7 @@ class FonctionEligibleServiceTest {
     private GrilleTarifaireRepository grilleTarifaireRepository;
 
     @Mock
-    private BeneficiaireRepository beneficiaireRepository;
+    private BeneficiaireApi beneficiaireApi;
 
     @Mock
     private AuditService auditService;
@@ -56,6 +55,27 @@ class FonctionEligibleServiceTest {
 
     private FonctionEligible creerFonctionEligible(Long id, String code, boolean actif) {
         return FonctionEligible.builder().id(id).code(code).libelle(code).actif(actif).build();
+    }
+
+    // Sprint MM.3, couplage C2 : lecture seule utilisee par
+    // EnrolementService.verifier() sans injecter FonctionEligibleRepository.
+    @Test
+    void libelle_fonctionConnue_retourneLeLibelle() {
+        when(fonctionEligibleRepository.findByCode("DA"))
+                .thenReturn(Optional.of(creerFonctionEligible(5L, "DA", true)));
+
+        Optional<String> libelle = fonctionEligibleService.libelle("DA");
+
+        assertThat(libelle).contains("DA");
+    }
+
+    @Test
+    void libelle_fonctionInconnue_retourneOptionalVide() {
+        when(fonctionEligibleRepository.findByCode("INCONNUE")).thenReturn(Optional.empty());
+
+        Optional<String> libelle = fonctionEligibleService.libelle("INCONNUE");
+
+        assertThat(libelle).isEmpty();
     }
 
     @Test
@@ -126,7 +146,7 @@ class FonctionEligibleServiceTest {
         FonctionEligible fonction = creerFonctionEligible(1L, "GFC", true);
 
         when(fonctionEligibleRepository.findByCode("GFC")).thenReturn(Optional.of(fonction));
-        when(beneficiaireRepository.countByFonctionAndActifTrue("GFC")).thenReturn(3L);
+        when(beneficiaireApi.compterActifsParFonction("GFC")).thenReturn(3L);
 
         FonctionEligibleAdminResponseDto resultat = fonctionEligibleService.desactiver("GFC", 5L);
 
@@ -145,7 +165,7 @@ class FonctionEligibleServiceTest {
         FonctionEligible fonction = creerFonctionEligible(1L, "GFC", true);
 
         when(fonctionEligibleRepository.findByCode("GFC")).thenReturn(Optional.of(fonction));
-        when(beneficiaireRepository.countByFonctionAndActifTrue("GFC")).thenReturn(0L);
+        when(beneficiaireApi.compterActifsParFonction("GFC")).thenReturn(0L);
 
         FonctionEligibleAdminResponseDto resultat = fonctionEligibleService.desactiver("GFC", 5L);
 
@@ -167,7 +187,7 @@ class FonctionEligibleServiceTest {
         FonctionEligible fonction = creerFonctionEligible(1L, "GFC", false);
 
         when(fonctionEligibleRepository.findByCode("GFC")).thenReturn(Optional.of(fonction));
-        when(beneficiaireRepository.countByFonctionAndActifTrue("GFC")).thenReturn(0L);
+        when(beneficiaireApi.compterActifsParFonction("GFC")).thenReturn(0L);
 
         FonctionEligibleAdminResponseDto resultat = fonctionEligibleService.reactiver("GFC", 5L);
 
@@ -202,32 +222,33 @@ class FonctionEligibleServiceTest {
                 .libelle("Gestionnaire de Fonds de Commerce (corrige)").build();
 
         when(fonctionEligibleRepository.findByCode("GFC")).thenReturn(Optional.of(fonction));
-        when(beneficiaireRepository.countByFonctionAndActifTrue("GFC")).thenReturn(2L);
+        when(beneficiaireApi.compterActifsParFonction("GFC")).thenReturn(2L);
 
         FonctionEligibleAdminResponseDto resultat = fonctionEligibleService.modifier("GFC", requete, 5L);
 
         assertThat(resultat.getLibelle()).isEqualTo("Gestionnaire de Fonds de Commerce (corrige)");
         assertThat(resultat.getCode()).isEqualTo("GFC");
-        verify(beneficiaireRepository, never()).findByFonction(any());
+        verify(beneficiaireApi, never()).renommerFonction(any(), any());
     }
 
+    // Couplage C3 (Sprint MM.3) : la cascade elle-meme (renommer les Beneficiaire
+    // rattaches, y compris inactifs) est desormais testee cote beneficiaires
+    // (BeneficiaireApiImpl). Ce test verifie uniquement que FonctionEligibleService
+    // delegue au bon appel, avec les bons codes, sans injecter BeneficiaireRepository.
     @Test
-    void modifierFonction_codeSansBeneficiaireActif_renommeEtCascadeLesInactifs() {
+    void modifierFonction_codeSansBeneficiaireActif_delegueLaCascadeAuModuleBeneficiaires() {
         FonctionEligible fonction = creerFonctionEligible(1L, "GFC", true);
-        Beneficiaire inactif = Beneficiaire.builder().id(10L).matricule("1847").fonction("GFC").actif(false).build();
         ModifierFonctionEligibleRequestDto requete = ModifierFonctionEligibleRequestDto.builder()
                 .nouveauCode("GESTIONNAIRE_FDC").build();
 
         when(fonctionEligibleRepository.findByCode("GFC")).thenReturn(Optional.of(fonction));
-        when(beneficiaireRepository.countByFonctionAndActifTrue("GFC")).thenReturn(0L);
+        when(beneficiaireApi.compterActifsParFonction("GFC")).thenReturn(0L);
         when(fonctionEligibleRepository.findByCode("GESTIONNAIRE_FDC")).thenReturn(Optional.empty());
-        when(beneficiaireRepository.findByFonction("GFC")).thenReturn(List.of(inactif));
 
         FonctionEligibleAdminResponseDto resultat = fonctionEligibleService.modifier("GFC", requete, 5L);
 
         assertThat(resultat.getCode()).isEqualTo("GESTIONNAIRE_FDC");
-        assertThat(inactif.getFonction()).isEqualTo("GESTIONNAIRE_FDC");
-        verify(beneficiaireRepository).saveAll(List.of(inactif));
+        verify(beneficiaireApi).renommerFonction("GFC", "GESTIONNAIRE_FDC");
 
         ArgumentCaptor<Map<String, Object>> avantCaptor = ArgumentCaptor.forClass(Map.class);
         ArgumentCaptor<Map<String, Object>> apresCaptor = ArgumentCaptor.forClass(Map.class);
@@ -244,12 +265,12 @@ class FonctionEligibleServiceTest {
                 .nouveauCode("GESTIONNAIRE_FDC").build();
 
         when(fonctionEligibleRepository.findByCode("GFC")).thenReturn(Optional.of(fonction));
-        when(beneficiaireRepository.countByFonctionAndActifTrue("GFC")).thenReturn(2L);
+        when(beneficiaireApi.compterActifsParFonction("GFC")).thenReturn(2L);
 
         assertThatThrownBy(() -> fonctionEligibleService.modifier("GFC", requete, 5L))
                 .isInstanceOf(FonctionEligibleBeneficiairesActifsException.class);
 
-        verify(beneficiaireRepository, never()).findByFonction(any());
+        verify(beneficiaireApi, never()).renommerFonction(any(), any());
         verify(fonctionEligibleRepository, never()).save(any());
     }
 
@@ -260,14 +281,14 @@ class FonctionEligibleServiceTest {
                 .nouveauCode("DA").build();
 
         when(fonctionEligibleRepository.findByCode("GFC")).thenReturn(Optional.of(fonction));
-        when(beneficiaireRepository.countByFonctionAndActifTrue("GFC")).thenReturn(0L);
+        when(beneficiaireApi.compterActifsParFonction("GFC")).thenReturn(0L);
         when(fonctionEligibleRepository.findByCode("DA"))
                 .thenReturn(Optional.of(creerFonctionEligible(2L, "DA", true)));
 
         assertThatThrownBy(() -> fonctionEligibleService.modifier("GFC", requete, 5L))
                 .isInstanceOf(FonctionEligibleCodeDejaUtiliseException.class);
 
-        verify(beneficiaireRepository, never()).findByFonction(any());
+        verify(beneficiaireApi, never()).renommerFonction(any(), any());
     }
 
     @Test

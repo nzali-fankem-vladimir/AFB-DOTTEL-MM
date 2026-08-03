@@ -7,14 +7,11 @@ import com.afriland.dottel.beneficiaires.exception.NonEligibleException;
 import com.afriland.dottel.beneficiaires.model.dto.beneficiaire.BeneficiaireResponseDto;
 import com.afriland.dottel.beneficiaires.model.dto.beneficiaire.ModifierBeneficiaireRequestDto;
 import com.afriland.dottel.beneficiaires.model.entity.Beneficiaire;
-import com.afriland.dottel.referentiel.model.entity.FonctionEligible;
-import com.afriland.dottel.referentiel.model.entity.GrilleTarifaire;
+import com.afriland.dottel.referentiel.api.GrilleTarifaireApi;
+import com.afriland.dottel.referentiel.api.ResolutionGrilleDto;
 import com.afriland.dottel.utilisateurs.model.entity.Utilisateur;
-import com.afriland.dottel.referentiel.model.enums.StatutGrilleEnum;
 import com.afriland.dottel.beneficiaires.repository.BeneficiaireRepository;
 import com.afriland.dottel.beneficiaires.repository.BeneficiaireSpecifications;
-import com.afriland.dottel.referentiel.repository.FonctionEligibleRepository;
-import com.afriland.dottel.referentiel.repository.GrilleTarifaireRepository;
 import com.afriland.dottel.referentiel.service.EligibiliteService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -24,15 +21,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class BeneficiaireService {
 
     private final BeneficiaireRepository beneficiaireRepository;
-    private final FonctionEligibleRepository fonctionEligibleRepository;
-    private final GrilleTarifaireRepository grilleTarifaireRepository;
+    private final GrilleTarifaireApi grilleTarifaireApi;
     private final EligibiliteService eligibiliteService;
     private final AuditService auditService;
     private final AuthenticatedUserService authenticatedUserService;
@@ -148,18 +143,20 @@ public class BeneficiaireService {
     }
 
     // RG-04 : montant toujours derive de grille_tarifaire ACTIVE, jamais stocke.
-    // Absence de fonction eligible ou de grille active -> montant manquant (null),
-    // n'empeche pas l'affichage du beneficiaire dans la liste.
+    // Delegue au referentiel (couplage C2, Sprint MM.3) : c'est desormais l'UNIQUE
+    // point de resolution du projet (RG-01 + RG-04). Reste une methode publique de
+    // BeneficiaireService (plutot qu'un appel direct au referentiel par chaque
+    // appelant) pour garder un seul point d'entree du module beneficiaires vers le
+    // referentiel -- decision actee avec l'utilisateur au Sprint MM.3.
+    //
+    // Correctif RG-01 revele par l'unification : l'ancienne implementation ignorait
+    // FonctionEligible.actif et ne regardait que l'existence d'une grille ACTIVE.
+    // Une fonction desactivee entre-temps, dont la grille serait restee ACTIVE,
+    // remontait alors un montant -- en contradiction avec RG-01. Le referentiel
+    // verifie desormais actif avant meme d'interroger la grille (voir
+    // GrilleTarifaireApiImplTest), donc ce cas retourne correctement null.
     public Integer resoudreMontantCourant(String codeFonction) {
-        Optional<FonctionEligible> fonctionEligible = fonctionEligibleRepository.findByCode(codeFonction);
-        if (fonctionEligible.isEmpty()) {
-            return null;
-        }
-
-        Optional<GrilleTarifaire> grilleActive = grilleTarifaireRepository
-                .findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(
-                        fonctionEligible.get().getId(), StatutGrilleEnum.ACTIVE);
-
-        return grilleActive.map(GrilleTarifaire::getMontantFcfa).orElse(null);
+        ResolutionGrilleDto resolution = grilleTarifaireApi.resoudrePourFonction(codeFonction);
+        return resolution.estResolue() ? resolution.montantFcfa() : null;
     }
 }

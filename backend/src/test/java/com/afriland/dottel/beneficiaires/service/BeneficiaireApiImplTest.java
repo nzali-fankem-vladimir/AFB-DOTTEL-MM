@@ -96,4 +96,30 @@ class BeneficiaireApiImplTest {
 
         assertThat(beneficiaireApi.gradeDe(9999L)).isEmpty();
     }
+
+    // Sprint MM.3, couplage C3 : comptage utilise avant desactivation d'une
+    // fonction et comme garde-fou avant un renommage de code.
+    @Test
+    void compterActifsParFonction_delegueAuRepository() {
+        when(beneficiaireRepository.countByFonctionAndActifTrue("GFC")).thenReturn(3L);
+
+        assertThat(beneficiaireApi.compterActifsParFonction("GFC")).isEqualTo(3L);
+    }
+
+    // Sprint MM.3, couplage C3 : la cascade de renommage (deplacee depuis
+    // FonctionEligibleService) doit toucher TOUS les beneficiaires portant
+    // l'ancien code, y compris les inactifs -- pas seulement les actifs.
+    @Test
+    void renommerFonction_toucheLesBeneficiairesActifsEtInactifs() {
+        Beneficiaire actif = Beneficiaire.builder().id(10L).matricule("1847").fonction("GFC").actif(true).build();
+        Beneficiaire inactif = Beneficiaire.builder().id(11L).matricule("2093").fonction("GFC").actif(false).build();
+
+        when(beneficiaireRepository.findByFonction("GFC")).thenReturn(List.of(actif, inactif));
+
+        beneficiaireApi.renommerFonction("GFC", "GESTIONNAIRE_FDC");
+
+        assertThat(actif.getFonction()).isEqualTo("GESTIONNAIRE_FDC");
+        assertThat(inactif.getFonction()).isEqualTo("GESTIONNAIRE_FDC");
+        org.mockito.Mockito.verify(beneficiaireRepository).saveAll(List.of(actif, inactif));
+    }
 }

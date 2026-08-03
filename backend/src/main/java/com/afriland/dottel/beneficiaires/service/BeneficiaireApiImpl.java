@@ -1,6 +1,7 @@
 package com.afriland.dottel.beneficiaires.service;
 
 import com.afriland.dottel.beneficiaires.api.BeneficiaireApi;
+import com.afriland.dottel.beneficiaires.api.BeneficiaireDocumentDto;
 import com.afriland.dottel.beneficiaires.api.BeneficiaireDotationDto;
 import com.afriland.dottel.beneficiaires.api.BeneficiaireIdentiteDto;
 import com.afriland.dottel.beneficiaires.model.entity.Beneficiaire;
@@ -46,5 +47,34 @@ public class BeneficiaireApiImpl implements BeneficiaireApi {
     @Override
     public Optional<String> gradeDe(Long idBeneficiaire) {
         return beneficiaireRepository.findById(idBeneficiaire).map(Beneficiaire::getGrade);
+    }
+
+    @Override
+    public long compterActifsParFonction(String codeFonction) {
+        return beneficiaireRepository.countByFonctionAndActifTrue(codeFonction);
+    }
+
+    // Cascade volontairement limitee a beneficiaires.fonction (y compris les
+    // beneficiaires inactifs) : ligne_etat_mensuel.fonction_retenue n'est
+    // jamais touchee, instantane historique volontairement fige (CLAUDE.md
+    // section 4). Reste dans la transaction @Transactional appelante
+    // (FonctionEligibleService.modifier()) : pas d'annotation ici, l'appel
+    // synchrone en herite deja.
+    @Override
+    public void renommerFonction(String ancienCode, String nouveauCode) {
+        List<Beneficiaire> beneficiairesRattaches = beneficiaireRepository.findByFonction(ancienCode);
+        beneficiairesRattaches.forEach(beneficiaire -> beneficiaire.setFonction(nouveauCode));
+        beneficiaireRepository.saveAll(beneficiairesRattaches);
+    }
+
+    @Override
+    public Map<Long, BeneficiaireDocumentDto> donneesDocumentParId(Collection<Long> idsBeneficiaires) {
+        return beneficiaireRepository.findAllById(idsBeneficiaires).stream()
+                .collect(Collectors.toMap(Beneficiaire::getId, beneficiaire -> new BeneficiaireDocumentDto(
+                        beneficiaire.getId(),
+                        beneficiaire.getNomPrenoms(),
+                        beneficiaire.getCodeUnite(),
+                        beneficiaire.getNumCompteCourant(),
+                        beneficiaire.getChapitre())));
     }
 }

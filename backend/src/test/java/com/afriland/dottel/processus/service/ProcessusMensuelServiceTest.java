@@ -42,6 +42,7 @@ import com.afriland.dottel.processus.repository.LigneEtatMensuelRepository;
 import com.afriland.dottel.processus.repository.PieceJointeRepository;
 import com.afriland.dottel.processus.repository.ProcessusMensuelRepository;
 import com.afriland.dottel.referentiel.service.EligibiliteService;
+import com.afriland.dottel.referentiel.service.FonctionEligibleService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -97,6 +98,13 @@ class ProcessusMensuelServiceTest {
     // explicitement verifierEligibilite(...) -> true, sinon la ligne est rejetee.
     @Mock
     private EligibiliteService eligibiliteService;
+
+    // Couplage C4 (Sprint MM.3) : assemblerDonneesDocument() resout le libelle
+    // de fonction pour le PDF. Non stubbe explicitement dans la plupart des
+    // tests : Mockito renvoie Optional.empty() par defaut, ce qui declenche le
+    // meme repli sur le code brut qu'avant (voir DocumentServiceTest).
+    @Mock
+    private FonctionEligibleService fonctionEligibleService;
 
     @Mock
     private AuthenticatedUserService authenticatedUserService;
@@ -1154,7 +1162,8 @@ class ProcessusMensuelServiceTest {
         when(processusMensuelRepository.findById(900L)).thenReturn(Optional.of(processus));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndInclusDansEtatTrue(900L)).thenReturn(List.of(ligneIncluse));
-        when(documentService.genererInitiale(processus, List.of(ligneIncluse), arhConnecte)).thenReturn(pieceJointeGeneree);
+        when(documentService.genererInitiale(eq(processus), eq(List.of(ligneIncluse)), any(), eq(arhConnecte)))
+                .thenReturn(pieceJointeGeneree);
         when(signatureService.signer(arhConnecte)).thenReturn("Jean-Paul MBARGA (matricule 2201) - 22/07/2026 10:00:00");
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(utilisateurApi.destinatairesParRole(RoleEnum.CRH)).thenReturn(List.of());
@@ -1189,7 +1198,7 @@ class ProcessusMensuelServiceTest {
         assertThatThrownBy(() -> processusMensuelService.valider(900L, "commentaire"))
                 .isInstanceOf(ProcessusMensuelNonModifiableException.class);
 
-        verify(documentService, never()).genererInitiale(any(), any(), any());
+        verify(documentService, never()).genererInitiale(any(), any(), any(), any());
         verify(etapeWorkflowRepository, never()).save(any());
         verify(ligneEtatMensuelRepository, never()).findByIdProcessusAndInclusDansEtatTrue(any());
     }
@@ -1201,7 +1210,7 @@ class ProcessusMensuelServiceTest {
         assertThatThrownBy(() -> processusMensuelService.valider(999L, null))
                 .isInstanceOf(ProcessusMensuelIntrouvableException.class);
 
-        verify(documentService, never()).genererInitiale(any(), any(), any());
+        verify(documentService, never()).genererInitiale(any(), any(), any(), any());
     }
 
     @Test
@@ -1219,7 +1228,7 @@ class ProcessusMensuelServiceTest {
         when(processusMensuelRepository.findById(910L)).thenReturn(Optional.of(processus));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndInclusDansEtatTrue(910L)).thenReturn(List.of());
-        when(documentService.genererInitiale(eq(processus), any(), eq(arhConnecte))).thenReturn(pieceJointeGeneree);
+        when(documentService.genererInitiale(eq(processus), any(), any(), eq(arhConnecte))).thenReturn(pieceJointeGeneree);
         when(signatureService.signer(arhConnecte)).thenReturn("signature");
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(utilisateurApi.destinatairesParRole(RoleEnum.CRH)).thenReturn(List.of(crh1, crh2));
@@ -1244,7 +1253,7 @@ class ProcessusMensuelServiceTest {
         assertThatThrownBy(() -> processusMensuelService.valider(920L, "seconde tentative"))
                 .isInstanceOf(ProcessusMensuelNonModifiableException.class);
 
-        verify(documentService, never()).genererInitiale(any(), any(), any());
+        verify(documentService, never()).genererInitiale(any(), any(), any(), any());
         verify(ligneEtatMensuelRepository, never()).findByIdProcessusAndInclusDansEtatTrue(any());
     }
 
@@ -1313,7 +1322,7 @@ class ProcessusMensuelServiceTest {
 
         // La branche ARH ne doit avoir produit aucun effet : ni PDF, ni etape,
         // ni changement de statut, ni notification, ni trace d'audit.
-        verify(documentService, never()).genererInitiale(any(), any(), any());
+        verify(documentService, never()).genererInitiale(any(), any(), any(), any());
         verify(etapeWorkflowRepository, never()).save(any());
         verify(processusMensuelRepository, never()).save(any(ProcessusMensuel.class));
         verify(notificationService, never()).notifier(any(), any(), any());
@@ -1417,7 +1426,8 @@ class ProcessusMensuelServiceTest {
         when(processusMensuelRepository.findById(940L)).thenReturn(Optional.of(processus));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndInclusDansEtatTrue(940L)).thenReturn(List.of(ligneIncluse));
-        when(documentService.genererInitiale(processus, List.of(ligneIncluse), arhConnecte)).thenReturn(pieceJointeGeneree);
+        when(documentService.genererInitiale(eq(processus), eq(List.of(ligneIncluse)), any(), eq(arhConnecte)))
+                .thenReturn(pieceJointeGeneree);
         when(signatureService.signer(arhConnecte)).thenReturn("Christian EYENGA (matricule 2203) - 24/07/2026 09:00:00");
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(utilisateurApi.destinatairesParRole(RoleEnum.CRH)).thenReturn(List.of());
@@ -1429,7 +1439,7 @@ class ProcessusMensuelServiceTest {
         assertThat(reponse.getEtapeValidee()).isEqualTo("VALIDATION_ARH");
         assertThat(reponse.getIdPieceJointe()).isEqualTo(710L);
 
-        verify(documentService).genererInitiale(processus, List.of(ligneIncluse), arhConnecte);
+        verify(documentService).genererInitiale(eq(processus), eq(List.of(ligneIncluse)), any(), eq(arhConnecte));
         verify(documentService, never()).ajouterSignature(any(), any(), any());
         verify(pieceJointeRepository, never()).findByIdProcessus(any());
         verify(separationTachesService, never()).verifier(any(), any(), any());
@@ -1584,7 +1594,8 @@ class ProcessusMensuelServiceTest {
         when(processusMensuelRepository.findById(960L)).thenReturn(Optional.of(processus));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte, crhConnecte, drhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndInclusDansEtatTrue(960L)).thenReturn(List.of(ligneIncluse));
-        when(documentService.genererInitiale(processus, List.of(ligneIncluse), arhConnecte)).thenReturn(pieceJointe);
+        when(documentService.genererInitiale(eq(processus), eq(List.of(ligneIncluse)), any(), eq(arhConnecte)))
+                .thenReturn(pieceJointe);
         when(signatureService.signer(arhConnecte)).thenReturn("Paul ATANGANA (matricule 2210) - 24/07/2026 08:00:00");
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(utilisateurApi.destinatairesParRole(RoleEnum.CRH)).thenReturn(List.of());
@@ -1792,7 +1803,8 @@ class ProcessusMensuelServiceTest {
                 .nomFichier("dotations-telephoniques-7-2026.pdf").nombreSignatures(1).build();
 
         when(ligneEtatMensuelRepository.findByIdProcessusAndInclusDansEtatTrue(980L)).thenReturn(List.of(ligneIncluse));
-        when(documentService.genererInitiale(processus, List.of(ligneIncluse), arhConnecte)).thenReturn(pieceJointeRegeneree);
+        when(documentService.genererInitiale(eq(processus), eq(List.of(ligneIncluse)), any(), eq(arhConnecte)))
+                .thenReturn(pieceJointeRegeneree);
         when(signatureService.signer(arhConnecte)).thenReturn("Jean-Paul MBARGA (matricule 2201) - 24/07/2026 12:00:00");
         when(utilisateurApi.destinatairesParRole(RoleEnum.CRH)).thenReturn(List.of());
 
@@ -1802,7 +1814,7 @@ class ProcessusMensuelServiceTest {
         assertThat(reponseRevalidation.getIdPieceJointe()).isEqualTo(60L);
         assertThat(pieceJointeRegeneree.getNombreSignatures()).isEqualTo(1);
 
-        verify(documentService, times(1)).genererInitiale(any(), any(), any());
+        verify(documentService, times(1)).genererInitiale(any(), any(), any(), any());
         verify(documentService, never()).ajouterSignature(any(), any(), any());
         verify(pieceJointeRepository, never()).findByIdProcessus(any());
     }

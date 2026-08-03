@@ -2,6 +2,8 @@ package com.afriland.dottel.beneficiaires.service;
 import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
 import com.afriland.dottel.audit.service.AuditService;
 
+import com.afriland.dottel.referentiel.api.GrilleTarifaireApi;
+import com.afriland.dottel.referentiel.api.ResolutionGrilleDto;
 import com.afriland.dottel.referentiel.exception.GrilleTarifaireIntrouvableException;
 import com.afriland.dottel.beneficiaires.exception.MatriculeDejaEnroleException;
 import com.afriland.dottel.beneficiaires.exception.MatriculeInconnuException;
@@ -11,14 +13,10 @@ import com.afriland.dottel.beneficiaires.model.dto.enrolement.ConfirmerEnrolemen
 import com.afriland.dottel.beneficiaires.model.dto.enrolement.ConfirmerEnrolementResponseDto;
 import com.afriland.dottel.beneficiaires.model.dto.enrolement.EnrolementVerificationResponseDto;
 import com.afriland.dottel.beneficiaires.model.entity.Beneficiaire;
-import com.afriland.dottel.referentiel.model.entity.FonctionEligible;
-import com.afriland.dottel.referentiel.model.entity.GrilleTarifaire;
 import com.afriland.dottel.utilisateurs.model.entity.Utilisateur;
-import com.afriland.dottel.referentiel.model.enums.StatutGrilleEnum;
 import com.afriland.dottel.beneficiaires.repository.BeneficiaireRepository;
-import com.afriland.dottel.referentiel.repository.FonctionEligibleRepository;
-import com.afriland.dottel.referentiel.repository.GrilleTarifaireRepository;
 import com.afriland.dottel.referentiel.service.EligibiliteService;
+import com.afriland.dottel.referentiel.service.FonctionEligibleService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -53,10 +51,10 @@ class EnrolementServiceTest {
     private EligibiliteService eligibiliteService;
 
     @Mock
-    private FonctionEligibleRepository fonctionEligibleRepository;
+    private FonctionEligibleService fonctionEligibleService;
 
     @Mock
-    private GrilleTarifaireRepository grilleTarifaireRepository;
+    private GrilleTarifaireApi grilleTarifaireApi;
 
     @Mock
     private AuditService auditService;
@@ -79,16 +77,10 @@ class EnrolementServiceTest {
                 .codeUnite("BFS-CTR")
                 .numCompteCourant("10013164008")
                 .build();
-        FonctionEligible directeurAgence = FonctionEligible.builder()
-                .code("DA")
-                .libelle("Directeur d'Agence")
-                .actif(true)
-                .build();
-
         when(beneficiaireRepository.existsByMatricule("3164")).thenReturn(false);
         when(ehrIntegrationService.rechercherEmploye("3164")).thenReturn(Optional.of(employeEhr));
         when(eligibiliteService.verifierEligibilite("DA", null)).thenReturn(true);
-        when(fonctionEligibleRepository.findByCode("DA")).thenReturn(Optional.of(directeurAgence));
+        when(fonctionEligibleService.libelle("DA")).thenReturn(Optional.of("Directeur d'Agence"));
 
         EnrolementVerificationResponseDto reponse = enrolementService.verifier("3164");
 
@@ -131,7 +123,7 @@ class EnrolementServiceTest {
         when(beneficiaireRepository.existsByMatricule("6497")).thenReturn(false);
         when(ehrIntegrationService.rechercherEmploye("6497")).thenReturn(Optional.of(employeEhr));
         when(eligibiliteService.verifierEligibilite("AGENT_GUICHET", null)).thenReturn(false);
-        when(fonctionEligibleRepository.findByCode("AGENT_GUICHET")).thenReturn(Optional.empty());
+        when(fonctionEligibleService.libelle("AGENT_GUICHET")).thenReturn(Optional.empty());
 
         EnrolementVerificationResponseDto reponse = enrolementService.verifier("6497");
 
@@ -151,16 +143,10 @@ class EnrolementServiceTest {
                 .codeUnite("DLA-CTL")
                 .numCompteCourant("10017508004")
                 .build();
-        FonctionEligible controleurComptable = FonctionEligible.builder()
-                .code("CONTROLEUR_COMPTABLE")
-                .libelle("Contrôleur Comptable")
-                .actif(true)
-                .build();
-
         when(beneficiaireRepository.existsByMatricule("7508")).thenReturn(false);
         when(ehrIntegrationService.rechercherEmploye("7508")).thenReturn(Optional.of(employeEhr));
         when(eligibiliteService.verifierEligibilite("CONTROLEUR_COMPTABLE", "NON GRADE")).thenReturn(false);
-        when(fonctionEligibleRepository.findByCode("CONTROLEUR_COMPTABLE")).thenReturn(Optional.of(controleurComptable));
+        when(fonctionEligibleService.libelle("CONTROLEUR_COMPTABLE")).thenReturn(Optional.of("Contrôleur Comptable"));
 
         EnrolementVerificationResponseDto reponse = enrolementService.verifier("7508");
 
@@ -184,26 +170,12 @@ class EnrolementServiceTest {
                 .codeUnite("BFS-CTR")
                 .numCompteCourant("10013164008")
                 .build();
-        FonctionEligible directeurAgence = FonctionEligible.builder()
-                .id(5L)
-                .code("DA")
-                .libelle("Directeur d'Agence")
-                .actif(true)
-                .build();
-        GrilleTarifaire grilleActive = GrilleTarifaire.builder()
-                .id(1L)
-                .idFonctionEligible(5L)
-                .montantFcfa(50000)
-                .statutValidation(StatutGrilleEnum.ACTIVE)
-                .build();
         Utilisateur utilisateurConnecte = Utilisateur.builder().id(42L).matricule("3164").build();
 
         when(beneficiaireRepository.existsByMatricule("3164")).thenReturn(false);
         when(ehrIntegrationService.rechercherEmploye("3164")).thenReturn(Optional.of(employeEhr));
         when(eligibiliteService.verifierEligibilite("DA", null)).thenReturn(true);
-        when(fonctionEligibleRepository.findByCode("DA")).thenReturn(Optional.of(directeurAgence));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(5L, StatutGrilleEnum.ACTIVE))
-                .thenReturn(Optional.of(grilleActive));
+        when(grilleTarifaireApi.resoudrePourFonction("DA")).thenReturn(ResolutionGrilleDto.resolue(50000));
         when(beneficiaireRepository.save(any(Beneficiaire.class))).thenAnswer(invocation -> {
             Beneficiaire beneficiaire = invocation.getArgument(0);
             beneficiaire.setId(100L);
@@ -287,19 +259,11 @@ class EnrolementServiceTest {
                 .codeUnite("BFS-CTR")
                 .numCompteCourant("10013164008")
                 .build();
-        FonctionEligible directeurAgence = FonctionEligible.builder()
-                .id(5L)
-                .code("DA")
-                .libelle("Directeur d'Agence")
-                .actif(true)
-                .build();
-
         when(beneficiaireRepository.existsByMatricule("3164")).thenReturn(false);
         when(ehrIntegrationService.rechercherEmploye("3164")).thenReturn(Optional.of(employeEhr));
         when(eligibiliteService.verifierEligibilite("DA", null)).thenReturn(true);
-        when(fonctionEligibleRepository.findByCode("DA")).thenReturn(Optional.of(directeurAgence));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(5L, StatutGrilleEnum.ACTIVE))
-                .thenReturn(Optional.empty());
+        when(grilleTarifaireApi.resoudrePourFonction("DA"))
+                .thenReturn(ResolutionGrilleDto.exclue(ResolutionGrilleDto.MOTIF_GRILLE_INTROUVABLE));
 
         assertThatThrownBy(() -> enrolementService.confirmer(requete))
                 .isInstanceOf(GrilleTarifaireIntrouvableException.class);

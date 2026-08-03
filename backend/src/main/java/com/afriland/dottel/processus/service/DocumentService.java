@@ -1,15 +1,12 @@
 package com.afriland.dottel.processus.service;
 import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
 
-import com.afriland.dottel.beneficiaires.model.entity.Beneficiaire;
-import com.afriland.dottel.referentiel.model.entity.FonctionEligible;
+import com.afriland.dottel.processus.model.dto.processus.LigneDocumentDto;
 import com.afriland.dottel.processus.model.entity.LigneEtatMensuel;
 import com.afriland.dottel.processus.model.entity.PieceJointe;
 import com.afriland.dottel.processus.model.entity.ProcessusMensuel;
 import com.afriland.dottel.utilisateurs.model.entity.Utilisateur;
 import com.afriland.dottel.processus.model.enums.NomEtapeEnum;
-import com.afriland.dottel.beneficiaires.repository.BeneficiaireRepository;
-import com.afriland.dottel.referentiel.repository.FonctionEligibleRepository;
 import com.afriland.dottel.processus.repository.PieceJointeRepository;
 import com.itextpdf.forms.PdfAcroForm;
 import com.itextpdf.forms.fields.PdfFormCreator;
@@ -49,6 +46,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -72,8 +70,6 @@ public class DocumentService {
     private static final float LARGEUR_ZONE_SIGNATURE = 230f;
     private static final float HAUTEUR_ZONE_SIGNATURE = 60f;
 
-    private final BeneficiaireRepository beneficiaireRepository;
-    private final FonctionEligibleRepository fonctionEligibleRepository;
     private final PieceJointeRepository pieceJointeRepository;
     private final EcartMensuelService ecartMensuelService;
     private final SignatureService signatureService;
@@ -92,7 +88,8 @@ public class DocumentService {
     // facilement testable, l'appelant (ProcessusMensuelService.valider())
     // possede deja l'entite Utilisateur de l'acteur connecte.
     @Transactional
-    public PieceJointe genererInitiale(ProcessusMensuel processus, List<LigneEtatMensuel> lignes, Utilisateur acteurValidation) {
+    public PieceJointe genererInitiale(ProcessusMensuel processus, List<LigneEtatMensuel> lignes,
+                                        Map<Long, LigneDocumentDto> donneesParBeneficiaire, Utilisateur acteurValidation) {
         String nomFichier = "dotations-telephoniques-" + processus.getMoisPaiement() + "-" + processus.getAnneePaiement() + ".pdf";
         String cheminComplet = cheminStockage + nomFichier;
 
@@ -113,7 +110,7 @@ public class DocumentService {
                 document.setFont(police);
 
                 ajouterEnTete(document, processus);
-                ajouterTableau(document, processus, lignes);
+                ajouterTableau(document, processus, lignes, donneesParBeneficiaire);
                 ajouterBlocsSignature(document, acteurValidation, police);
 
                 // Lecture seule des la generation : Chrome/Edge/Adobe surlignent
@@ -229,7 +226,8 @@ public class DocumentService {
         document.add(periode);
     }
 
-    private void ajouterTableau(Document document, ProcessusMensuel processus, List<LigneEtatMensuel> lignes) {
+    private void ajouterTableau(Document document, ProcessusMensuel processus, List<LigneEtatMensuel> lignes,
+                                 Map<Long, LigneDocumentDto> donneesParBeneficiaire) {
         Table table = new Table(UnitValue.createPercentArray(new float[]{10, 10, 12, 20, 15, 10, 10, 10}))
                 .useAllAvailableWidth();
 
@@ -243,24 +241,23 @@ public class DocumentService {
                 continue;
             }
 
-            Beneficiaire beneficiaire = beneficiaireRepository.findById(ligne.getIdBeneficiaire())
-                    .orElseThrow(() -> new IllegalStateException("Beneficiaire introuvable : " + ligne.getIdBeneficiaire()));
+            LigneDocumentDto donnees = donneesParBeneficiaire.get(ligne.getIdBeneficiaire());
+            if (donnees == null) {
+                throw new IllegalStateException("Beneficiaire introuvable : " + ligne.getIdBeneficiaire());
+            }
 
-            String chapitre = beneficiaire.getChapitre() != null ? beneficiaire.getChapitre() : chapitreDefaut;
-            String libelleFonction = fonctionEligibleRepository.findByCode(ligne.getFonctionRetenue())
-                    .map(FonctionEligible::getLibelle)
-                    .orElse(ligne.getFonctionRetenue());
+            String chapitre = donnees.getChapitre() != null ? donnees.getChapitre() : chapitreDefaut;
 
             EcartMensuelService.ResultatEcartMensuel resultatMensuel = ecartMensuelService.rechercherResultatMensuel(processus, ligne);
             String montantMoisPrecedent = resultatMensuel.montantMoisPrecedent() != null
                     ? String.valueOf(resultatMensuel.montantMoisPrecedent()) : "";
             String ecartAffiche = resultatMensuel.ecart() != null ? String.valueOf(resultatMensuel.ecart()) : "";
 
-            table.addCell(new Cell().add(new Paragraph(beneficiaire.getCodeUnite())));
+            table.addCell(new Cell().add(new Paragraph(donnees.getCodeUnite())));
             table.addCell(new Cell().add(new Paragraph(chapitre)));
-            table.addCell(new Cell().add(new Paragraph(beneficiaire.getNumCompteCourant())));
-            table.addCell(new Cell().add(new Paragraph(beneficiaire.getNomPrenoms())));
-            table.addCell(new Cell().add(new Paragraph(libelleFonction)));
+            table.addCell(new Cell().add(new Paragraph(donnees.getNumCompteCourant())));
+            table.addCell(new Cell().add(new Paragraph(donnees.getNomPrenoms())));
+            table.addCell(new Cell().add(new Paragraph(donnees.getLibelleFonction())));
             table.addCell(new Cell().add(new Paragraph(montantMoisPrecedent)));
             table.addCell(new Cell().add(new Paragraph(String.valueOf(ligne.getMontantApplique()))));
             table.addCell(new Cell().add(new Paragraph(ecartAffiche)));

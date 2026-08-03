@@ -7,13 +7,10 @@ import com.afriland.dottel.beneficiaires.exception.NonEligibleException;
 import com.afriland.dottel.beneficiaires.model.dto.beneficiaire.BeneficiaireResponseDto;
 import com.afriland.dottel.beneficiaires.model.dto.beneficiaire.ModifierBeneficiaireRequestDto;
 import com.afriland.dottel.beneficiaires.model.entity.Beneficiaire;
-import com.afriland.dottel.referentiel.model.entity.FonctionEligible;
-import com.afriland.dottel.referentiel.model.entity.GrilleTarifaire;
+import com.afriland.dottel.referentiel.api.GrilleTarifaireApi;
+import com.afriland.dottel.referentiel.api.ResolutionGrilleDto;
 import com.afriland.dottel.utilisateurs.model.entity.Utilisateur;
-import com.afriland.dottel.referentiel.model.enums.StatutGrilleEnum;
 import com.afriland.dottel.beneficiaires.repository.BeneficiaireRepository;
-import com.afriland.dottel.referentiel.repository.FonctionEligibleRepository;
-import com.afriland.dottel.referentiel.repository.GrilleTarifaireRepository;
 import com.afriland.dottel.referentiel.service.EligibiliteService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -47,10 +44,7 @@ class BeneficiaireServiceTest {
     private BeneficiaireRepository beneficiaireRepository;
 
     @Mock
-    private FonctionEligibleRepository fonctionEligibleRepository;
-
-    @Mock
-    private GrilleTarifaireRepository grilleTarifaireRepository;
+    private GrilleTarifaireApi grilleTarifaireApi;
 
     @Mock
     private EligibiliteService eligibiliteService;
@@ -66,7 +60,7 @@ class BeneficiaireServiceTest {
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
         beneficiaireService = new BeneficiaireService(
-                beneficiaireRepository, fonctionEligibleRepository, grilleTarifaireRepository,
+                beneficiaireRepository, grilleTarifaireApi,
                 eligibiliteService, auditService, authenticatedUserService);
     }
 
@@ -84,20 +78,6 @@ class BeneficiaireServiceTest {
                 .build();
     }
 
-    private FonctionEligible creerFonctionEligible(Long id, String code) {
-        return FonctionEligible.builder().id(id).code(code).libelle(code).actif(true).build();
-    }
-
-    private GrilleTarifaire creerGrilleActive(Long idFonction, Integer montant) {
-        return GrilleTarifaire.builder()
-                .idFonctionEligible(idFonction)
-                .montantFcfa(montant)
-                .dateDebut(LocalDate.of(2026, 1, 1))
-                .statutValidation(StatutGrilleEnum.ACTIVE)
-                .dateCreation(java.time.LocalDateTime.of(2026, 1, 1, 8, 0))
-                .build();
-    }
-
     private Utilisateur creerUtilisateurArh() {
         return Utilisateur.builder().id(9L).matricule("1042").nom("ONANA").prenom("Serge").build();
     }
@@ -109,9 +89,7 @@ class BeneficiaireServiceTest {
 
         when(beneficiaireRepository.findById(1L)).thenReturn(Optional.of(pierre));
         when(eligibiliteService.verifierEligibilite("DA", null)).thenReturn(true);
-        when(fonctionEligibleRepository.findByCode("DA")).thenReturn(Optional.of(creerFonctionEligible(5L, "DA")));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(
-                5L, StatutGrilleEnum.ACTIVE)).thenReturn(Optional.of(creerGrilleActive(5L, 50000)));
+        when(grilleTarifaireApi.resoudrePourFonction("DA")).thenReturn(ResolutionGrilleDto.resolue(50000));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(creerUtilisateurArh());
 
         BeneficiaireResponseDto resultat = beneficiaireService.modifier(1L, requete);
@@ -139,9 +117,7 @@ class BeneficiaireServiceTest {
                 .uniteRattachement("Agence Akwa").build();
 
         when(beneficiaireRepository.findById(1L)).thenReturn(Optional.of(marie));
-        when(fonctionEligibleRepository.findByCode("GFC")).thenReturn(Optional.of(creerFonctionEligible(1L, "GFC")));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(
-                1L, StatutGrilleEnum.ACTIVE)).thenReturn(Optional.of(creerGrilleActive(1L, 40000)));
+        when(grilleTarifaireApi.resoudrePourFonction("GFC")).thenReturn(ResolutionGrilleDto.resolue(40000));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(creerUtilisateurArh());
 
         BeneficiaireResponseDto resultat = beneficiaireService.modifier(1L, requete);
@@ -160,10 +136,7 @@ class BeneficiaireServiceTest {
                 .uniteRattachement("Agence Douala Bali").build();
 
         when(beneficiaireRepository.findById(1L)).thenReturn(Optional.of(jean));
-        when(fonctionEligibleRepository.findByCode("CONSEILLER"))
-                .thenReturn(Optional.of(creerFonctionEligible(3L, "CONSEILLER")));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(
-                3L, StatutGrilleEnum.ACTIVE)).thenReturn(Optional.of(creerGrilleActive(3L, 50000)));
+        when(grilleTarifaireApi.resoudrePourFonction("CONSEILLER")).thenReturn(ResolutionGrilleDto.resolue(50000));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(creerUtilisateurArh());
 
         beneficiaireService.modifier(1L, requete);
@@ -202,6 +175,7 @@ class BeneficiaireServiceTest {
                 .grade("DIRECTEUR").build();
 
         when(beneficiaireRepository.findById(1L)).thenReturn(Optional.of(marie));
+        when(grilleTarifaireApi.resoudrePourFonction("GFC")).thenReturn(ResolutionGrilleDto.resolue(40000));
 
         beneficiaireService.modifier(1L, requete);
 
@@ -218,14 +192,8 @@ class BeneficiaireServiceTest {
 
         when(beneficiaireRepository.findAll(any(Specification.class), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(sylvie, jean), pageable, 2));
-        when(fonctionEligibleRepository.findByCode("GFC"))
-                .thenReturn(Optional.of(creerFonctionEligible(1L, "GFC")));
-        when(fonctionEligibleRepository.findByCode("COMPTABLE"))
-                .thenReturn(Optional.of(creerFonctionEligible(2L, "COMPTABLE")));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(
-                1L, StatutGrilleEnum.ACTIVE)).thenReturn(Optional.of(creerGrilleActive(1L, 40000)));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(
-                2L, StatutGrilleEnum.ACTIVE)).thenReturn(Optional.of(creerGrilleActive(2L, 35000)));
+        when(grilleTarifaireApi.resoudrePourFonction("GFC")).thenReturn(ResolutionGrilleDto.resolue(40000));
+        when(grilleTarifaireApi.resoudrePourFonction("COMPTABLE")).thenReturn(ResolutionGrilleDto.resolue(35000));
 
         Page<BeneficiaireResponseDto> resultat = beneficiaireService.rechercher(null, null, null, pageable);
 
@@ -241,10 +209,7 @@ class BeneficiaireServiceTest {
 
         when(beneficiaireRepository.findAll(any(Specification.class), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(sylvie), pageable, 1));
-        when(fonctionEligibleRepository.findByCode("GFC"))
-                .thenReturn(Optional.of(creerFonctionEligible(1L, "GFC")));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(
-                1L, StatutGrilleEnum.ACTIVE)).thenReturn(Optional.of(creerGrilleActive(1L, 40000)));
+        when(grilleTarifaireApi.resoudrePourFonction("GFC")).thenReturn(ResolutionGrilleDto.resolue(40000));
 
         Page<BeneficiaireResponseDto> resultat = beneficiaireService.rechercher("GFC", null, null, pageable);
 
@@ -259,14 +224,30 @@ class BeneficiaireServiceTest {
 
         when(beneficiaireRepository.findAll(any(Specification.class), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(pierre), pageable, 1));
-        when(fonctionEligibleRepository.findByCode("CONSEILLER"))
-                .thenReturn(Optional.of(creerFonctionEligible(3L, "CONSEILLER")));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(
-                3L, StatutGrilleEnum.ACTIVE)).thenReturn(Optional.empty());
+        when(grilleTarifaireApi.resoudrePourFonction("CONSEILLER"))
+                .thenReturn(ResolutionGrilleDto.exclue(ResolutionGrilleDto.MOTIF_GRILLE_INTROUVABLE));
 
         Page<BeneficiaireResponseDto> resultat = beneficiaireService.rechercher(null, null, null, pageable);
 
         assertThat(resultat.getContent().get(0).getMontantCourant()).isNull();
+    }
+
+    // Regression RG-01 (decouverte lors de l'unification C2, sprint MM.3) :
+    // l'ancienne implementation de BeneficiaireService.resoudreMontantCourant()
+    // ignorait FonctionEligible.actif et ne regardait que l'existence d'une grille
+    // ACTIVE. Une fonction desactivee dont la grille serait restee ACTIVE (aucune
+    // dateFin renseignee) remontait alors un montant, en contradiction avec RG-01.
+    // L'unification vers GrilleTarifaireApi corrige ce point : le referentiel
+    // verifie actif avant d'interroger la grille (voir GrilleTarifaireApiImplTest),
+    // et BeneficiaireService doit desormais se contenter de propager sa decision.
+    @Test
+    void resoudreMontantCourant_fonctionDesactiveeMemeAvecGrilleRestéeActive_montantCourantNull() {
+        when(grilleTarifaireApi.resoudrePourFonction("COMPTABLE"))
+                .thenReturn(ResolutionGrilleDto.exclue(ResolutionGrilleDto.MOTIF_FONCTION_DESACTIVEE));
+
+        Integer montant = beneficiaireService.resoudreMontantCourant("COMPTABLE");
+
+        assertThat(montant).isNull();
     }
 
     @Test
@@ -316,6 +297,7 @@ class BeneficiaireServiceTest {
 
         when(beneficiaireRepository.findById(1L)).thenReturn(Optional.of(sylvie));
         when(eligibiliteService.verifierEligibilite("GFC", sylvie.getGrade())).thenReturn(true);
+        when(grilleTarifaireApi.resoudrePourFonction("GFC")).thenReturn(ResolutionGrilleDto.resolue(40000));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(creerUtilisateurArh());
 
         beneficiaireService.reactiver(1L);
@@ -356,10 +338,8 @@ class BeneficiaireServiceTest {
 
         when(beneficiaireRepository.findAll(any(Specification.class), eq(pageable)))
                 .thenReturn(new PageImpl<>(List.of(marie), pageable, 6));
-        when(fonctionEligibleRepository.findByCode("ATTACHE_COMMERCIAL"))
-                .thenReturn(Optional.of(creerFonctionEligible(4L, "ATTACHE_COMMERCIAL")));
-        when(grilleTarifaireRepository.findByIdFonctionEligibleAndStatutValidationAndDateFinIsNull(
-                4L, StatutGrilleEnum.ACTIVE)).thenReturn(Optional.of(creerGrilleActive(4L, 30000)));
+        when(grilleTarifaireApi.resoudrePourFonction("ATTACHE_COMMERCIAL"))
+                .thenReturn(ResolutionGrilleDto.resolue(30000));
 
         Page<BeneficiaireResponseDto> resultat = beneficiaireService.rechercher(null, null, null, pageable);
 

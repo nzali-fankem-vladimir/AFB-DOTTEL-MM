@@ -4,10 +4,9 @@ import com.afriland.dottel.audit.service.AuditService;
 
 import com.afriland.dottel.beneficiaires.model.dto.importexcel.ImportRapportDto;
 import com.afriland.dottel.beneficiaires.model.entity.Beneficiaire;
-import com.afriland.dottel.referentiel.model.entity.FonctionEligible;
 import com.afriland.dottel.utilisateurs.model.entity.Utilisateur;
 import com.afriland.dottel.beneficiaires.repository.BeneficiaireRepository;
-import com.afriland.dottel.referentiel.repository.FonctionEligibleRepository;
+import com.afriland.dottel.referentiel.service.FonctionEligibleService;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -36,7 +35,7 @@ class BeneficiaireImportServiceTest {
     private BeneficiaireRepository beneficiaireRepository;
 
     @Mock
-    private FonctionEligibleRepository fonctionEligibleRepository;
+    private FonctionEligibleService fonctionEligibleService;
 
     @Mock
     private AuditService auditService;
@@ -51,8 +50,7 @@ class BeneficiaireImportServiceTest {
     @Test
     void importer_toutesLignesValides_insereChaqueLigneEtNeRejeteRien() throws IOException {
         when(authenticatedUserService.utilisateurCourant()).thenReturn(utilisateurConnecte());
-        FonctionEligible directeurAgence = fonctionEligible("DA", "Directeur d'Agence");
-        when(fonctionEligibleRepository.findByCode("DA")).thenReturn(Optional.of(directeurAgence));
+        when(fonctionEligibleService.estActive("DA")).thenReturn(Optional.of(true));
         when(beneficiaireRepository.existsByMatricule("8210")).thenReturn(false);
         when(beneficiaireRepository.existsByMatricule("8211")).thenReturn(false);
         when(beneficiaireRepository.save(any(Beneficiaire.class))).thenAnswer(this::simulerSauvegarde);
@@ -91,7 +89,7 @@ class BeneficiaireImportServiceTest {
     void importer_fonctionInconnue_rejeteAvecMotifFonctionInconnue() throws IOException {
         when(authenticatedUserService.utilisateurCourant()).thenReturn(utilisateurConnecte());
         when(beneficiaireRepository.existsByMatricule("8420")).thenReturn(false);
-        when(fonctionEligibleRepository.findByCode("STAGIAIRE")).thenReturn(Optional.empty());
+        when(fonctionEligibleService.estActive("STAGIAIRE")).thenReturn(Optional.empty());
 
         MockMultipartFile fichier = fichierExcel(
                 new String[]{"1", "8420", "ESSAMA Bertrand", "STAGIAIRE", "Agence Buea", "BUE-AG01", "10018420005"});
@@ -109,9 +107,8 @@ class BeneficiaireImportServiceTest {
     void importer_melangeValideEtInvalide_insereLesLignesValidesEtRejetteLesAutresSansInterrompreLaBoucle()
             throws IOException {
         when(authenticatedUserService.utilisateurCourant()).thenReturn(utilisateurConnecte());
-        FonctionEligible directeurAgence = fonctionEligible("DA", "Directeur d'Agence");
-        when(fonctionEligibleRepository.findByCode("DA")).thenReturn(Optional.of(directeurAgence));
-        when(fonctionEligibleRepository.findByCode("STAGIAIRE")).thenReturn(Optional.empty());
+        when(fonctionEligibleService.estActive("DA")).thenReturn(Optional.of(true));
+        when(fonctionEligibleService.estActive("STAGIAIRE")).thenReturn(Optional.empty());
         when(beneficiaireRepository.existsByMatricule("8210")).thenReturn(false);
         when(beneficiaireRepository.existsByMatricule("8211")).thenReturn(false);
         when(beneficiaireRepository.existsByMatricule("8420")).thenReturn(false);
@@ -154,8 +151,7 @@ class BeneficiaireImportServiceTest {
     @Test
     void importer_ligneCorpsControleEtAssimiles_estRejeteeAvecMotifGradeNonVerifiable() throws IOException {
         when(authenticatedUserService.utilisateurCourant()).thenReturn(utilisateurConnecte());
-        FonctionEligible directeurAgence = fonctionEligible("DA", "Directeur d'Agence");
-        when(fonctionEligibleRepository.findByCode("DA")).thenReturn(Optional.of(directeurAgence));
+        when(fonctionEligibleService.estActive("DA")).thenReturn(Optional.of(true));
         when(beneficiaireRepository.existsByMatricule("8210")).thenReturn(false);
         when(beneficiaireRepository.save(any(Beneficiaire.class))).thenAnswer(this::simulerSauvegarde);
 
@@ -181,9 +177,7 @@ class BeneficiaireImportServiceTest {
     @Test
     void importer_fonctionDesactivee_rejeteeAvecMotifFonctionDesactivee() throws IOException {
         when(authenticatedUserService.utilisateurCourant()).thenReturn(utilisateurConnecte());
-        FonctionEligible juristeDesactivee = FonctionEligible.builder()
-                .code("JURISTE").libelle("Agent de Recouvrement").actif(false).build();
-        when(fonctionEligibleRepository.findByCode("JURISTE")).thenReturn(Optional.of(juristeDesactivee));
+        when(fonctionEligibleService.estActive("JURISTE")).thenReturn(Optional.of(false));
 
         MockMultipartFile fichier = fichierExcel(
                 new String[]{"1", "8500", "FOUDA Christian", "JURISTE", "Agence Ngaoundéré", "NGA-AG01", "10018500009"});
@@ -198,10 +192,6 @@ class BeneficiaireImportServiceTest {
 
     private Utilisateur utilisateurConnecte() {
         return Utilisateur.builder().id(7L).matricule("2001").build();
-    }
-
-    private FonctionEligible fonctionEligible(String code, String libelle) {
-        return FonctionEligible.builder().code(code).libelle(libelle).actif(true).build();
     }
 
     private Beneficiaire simulerSauvegarde(org.mockito.invocation.InvocationOnMock invocation) {
