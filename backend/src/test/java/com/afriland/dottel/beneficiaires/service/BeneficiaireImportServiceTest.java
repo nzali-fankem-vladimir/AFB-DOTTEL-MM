@@ -1,11 +1,11 @@
 package com.afriland.dottel.beneficiaires.service;
-import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
+import com.afriland.dottel.utilisateurs.api.AuthenticatedUserService;
 
 import com.afriland.dottel.beneficiaires.model.dto.importexcel.ImportRapportDto;
 import com.afriland.dottel.beneficiaires.model.entity.Beneficiaire;
 import com.afriland.dottel.utilisateurs.model.entity.Utilisateur;
 import com.afriland.dottel.beneficiaires.repository.BeneficiaireRepository;
-import com.afriland.dottel.referentiel.service.FonctionEligibleService;
+import com.afriland.dottel.referentiel.api.FonctionEligibleApi;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -35,7 +35,7 @@ class BeneficiaireImportServiceTest {
     private BeneficiaireRepository beneficiaireRepository;
 
     @Mock
-    private FonctionEligibleService fonctionEligibleService;
+    private FonctionEligibleApi fonctionEligibleService;
 
     @Mock
     private ApplicationEventPublisher eventPublisher;

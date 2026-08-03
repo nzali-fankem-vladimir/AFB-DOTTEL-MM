@@ -9,7 +9,7 @@ import com.afriland.dottel.referentiel.exception.GrilleIntrouvableException;
 import com.afriland.dottel.referentiel.exception.GrilleNonActiveException;
 import com.afriland.dottel.referentiel.exception.GrilleNonEnAttenteDrhException;
 import com.afriland.dottel.referentiel.exception.GrilleNonModifiableException;
-import com.afriland.dottel.processus.exception.MotifRejetObligatoireException;
+import com.afriland.dottel.referentiel.exception.GrilleTarifaireMotifRejetObligatoireException;
 import com.afriland.dottel.referentiel.model.dto.grille.CreerGrilleTarifaireRequestDto;
 import com.afriland.dottel.referentiel.model.dto.grille.DecisionGrilleTarifaireRequestDto;
 import com.afriland.dottel.referentiel.model.dto.grille.GrilleTarifaireListeLigneDto;
@@ -326,7 +326,7 @@ class GrilleTarifaireServiceTest {
         when(grilleTarifaireRepository.findById(2L)).thenReturn(Optional.of(grille));
 
         assertThatThrownBy(() -> grilleTarifaireService.validerOuRejeter(2L, requete, 12L))
-                .isInstanceOf(MotifRejetObligatoireException.class);
+                .isInstanceOf(GrilleTarifaireMotifRejetObligatoireException.class);
 
         verify(grilleTarifaireRepository, never()).save(any());
     }

@@ -1,5 +1,5 @@
 package com.afriland.dottel.beneficiaires.service;
-import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
+import com.afriland.dottel.utilisateurs.api.AuthenticatedUserService;
 import com.afriland.dottel.audit.api.EvenementAudit;
 
 import com.afriland.dottel.beneficiaires.exception.BeneficiaireIntrouvableException;
@@ -12,7 +12,7 @@ import com.afriland.dottel.referentiel.api.ResolutionGrilleDto;
 import com.afriland.dottel.utilisateurs.model.entity.Utilisateur;
 import com.afriland.dottel.beneficiaires.repository.BeneficiaireRepository;
 import com.afriland.dottel.beneficiaires.repository.BeneficiaireSpecifications;
-import com.afriland.dottel.referentiel.service.EligibiliteService;
+import com.afriland.dottel.referentiel.api.EligibiliteService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;

@@ -2,7 +2,7 @@ package com.afriland.dottel.referentiel.service;
 
 import com.afriland.dottel.referentiel.model.entity.FonctionEligible;
 import com.afriland.dottel.referentiel.repository.FonctionEligibleRepository;
-import com.afriland.dottel.referentiel.service.EligibiliteService;
+import com.afriland.dottel.referentiel.api.EligibiliteService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

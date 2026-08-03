@@ -1,6 +1,6 @@
 package com.afriland.dottel.processus.service;
 
-import com.afriland.dottel.processus.model.dto.processus.EvenementClotureDto;
+import com.afriland.dottel.processus.api.EvenementClotureDto;
 import com.afriland.dottel.processus.model.entity.ProcessusMensuel;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;

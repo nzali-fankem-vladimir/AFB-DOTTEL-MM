@@ -3,7 +3,7 @@ import com.afriland.dottel.utilisateurs.controller.UtilisateurAdminController;
 
 import com.afriland.dottel.utilisateurs.model.dto.utilisateur.UtilisateurResponseDto;
 import com.afriland.dottel.utilisateurs.model.enums.RoleEnum;
-import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
+import com.afriland.dottel.utilisateurs.api.AuthenticatedUserService;
 import com.afriland.dottel.utilisateurs.service.UtilisateurAdminService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

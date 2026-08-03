@@ -1,5 +1,4 @@
 package com.afriland.dottel.processus.service;
-import com.afriland.dottel.beneficiaires.service.EhrIntegrationServiceStub;
 
 import com.afriland.dottel.utilisateurs.model.entity.Utilisateur;
 import org.springframework.stereotype.Service;
@@ -8,7 +7,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 @Service
-public class SignatureServiceAutonome implements SignatureService {
+class SignatureServiceAutonome implements SignatureService {
 
     private static final DateTimeFormatter FORMAT_HORODATAGE = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
 

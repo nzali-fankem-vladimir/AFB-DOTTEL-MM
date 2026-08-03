@@ -1,4 +1,4 @@
-package com.afriland.dottel.processus.model.dto.processus;
+package com.afriland.dottel.processus.api;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

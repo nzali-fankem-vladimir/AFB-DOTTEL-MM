@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class BeneficiaireApiImpl implements BeneficiaireApi {
+class BeneficiaireApiImpl implements BeneficiaireApi {
 
     private final BeneficiaireRepository beneficiaireRepository;
 

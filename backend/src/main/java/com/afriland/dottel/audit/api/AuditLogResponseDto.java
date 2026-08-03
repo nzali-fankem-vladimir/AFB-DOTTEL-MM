@@ -1,4 +1,4 @@
-package com.afriland.dottel.reporting.model.dto.reporting;
+package com.afriland.dottel.audit.api;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

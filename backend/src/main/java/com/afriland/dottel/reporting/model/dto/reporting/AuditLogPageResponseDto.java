@@ -1,5 +1,6 @@
 package com.afriland.dottel.reporting.model.dto.reporting;
 
+import com.afriland.dottel.audit.api.AuditLogResponseDto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;

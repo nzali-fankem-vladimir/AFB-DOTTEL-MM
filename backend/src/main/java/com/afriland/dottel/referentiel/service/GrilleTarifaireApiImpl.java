@@ -14,7 +14,7 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-public class GrilleTarifaireApiImpl implements GrilleTarifaireApi {
+class GrilleTarifaireApiImpl implements GrilleTarifaireApi {
 
     private final FonctionEligibleRepository fonctionEligibleRepository;
     private final GrilleTarifaireRepository grilleTarifaireRepository;

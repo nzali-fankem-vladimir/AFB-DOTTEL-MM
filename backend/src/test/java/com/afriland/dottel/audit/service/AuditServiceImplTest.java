@@ -1,6 +1,6 @@
 package com.afriland.dottel.audit.service;
 
-import com.afriland.dottel.reporting.model.dto.reporting.AuditLogResponseDto;
+import com.afriland.dottel.audit.api.AuditLogResponseDto;
 import com.afriland.dottel.audit.model.entity.AuditLog;
 import com.afriland.dottel.audit.repository.AuditLogRepository;
 import org.junit.jupiter.api.BeforeEach;

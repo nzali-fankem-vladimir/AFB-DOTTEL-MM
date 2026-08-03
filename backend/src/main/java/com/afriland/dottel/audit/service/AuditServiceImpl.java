@@ -1,6 +1,7 @@
 package com.afriland.dottel.audit.service;
 
-import com.afriland.dottel.reporting.model.dto.reporting.AuditLogResponseDto;
+import com.afriland.dottel.audit.api.AuditLogResponseDto;
+import com.afriland.dottel.audit.api.AuditService;
 import com.afriland.dottel.audit.model.entity.AuditLog;
 import com.afriland.dottel.audit.repository.AuditLogRepository;
 import com.afriland.dottel.audit.repository.AuditLogSpecifications;
@@ -16,7 +17,7 @@ import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
-public class AuditServiceImpl implements AuditService {
+class AuditServiceImpl implements AuditService {
 
     private final AuditLogRepository auditLogRepository;
 

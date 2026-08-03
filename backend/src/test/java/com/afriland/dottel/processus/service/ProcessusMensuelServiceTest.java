@@ -6,7 +6,7 @@ import com.afriland.dottel.referentiel.api.GrilleTarifaireApi;
 import com.afriland.dottel.referentiel.api.ResolutionGrilleDto;
 import com.afriland.dottel.utilisateurs.api.DestinataireNotificationDto;
 import com.afriland.dottel.utilisateurs.api.UtilisateurApi;
-import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
+import com.afriland.dottel.utilisateurs.api.AuthenticatedUserService;
 import com.afriland.dottel.audit.api.EvenementAudit;
 
 import com.afriland.dottel.processus.exception.MotifRejetObligatoireException;
@@ -41,8 +41,8 @@ import com.afriland.dottel.processus.repository.EtapeWorkflowRepository;
 import com.afriland.dottel.processus.repository.LigneEtatMensuelRepository;
 import com.afriland.dottel.processus.repository.PieceJointeRepository;
 import com.afriland.dottel.processus.repository.ProcessusMensuelRepository;
-import com.afriland.dottel.referentiel.service.EligibiliteService;
-import com.afriland.dottel.referentiel.service.FonctionEligibleService;
+import com.afriland.dottel.referentiel.api.EligibiliteService;
+import com.afriland.dottel.referentiel.api.FonctionEligibleApi;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -105,7 +105,7 @@ class ProcessusMensuelServiceTest {
     // tests : Mockito renvoie Optional.empty() par defaut, ce qui declenche le
     // meme repli sur le code brut qu'avant (voir DocumentServiceTest).
     @Mock
-    private FonctionEligibleService fonctionEligibleService;
+    private FonctionEligibleApi fonctionEligibleService;
 
     @Mock
     private AuthenticatedUserService authenticatedUserService;

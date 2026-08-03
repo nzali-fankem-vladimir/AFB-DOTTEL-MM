@@ -6,7 +6,7 @@ import com.afriland.dottel.utilisateurs.model.dto.utilisateur.CreerUtilisateurRe
 import com.afriland.dottel.utilisateurs.model.dto.utilisateur.UtilisateurListeResponseDto;
 import com.afriland.dottel.utilisateurs.model.dto.utilisateur.UtilisateurResponseDto;
 import com.afriland.dottel.utilisateurs.model.enums.RoleEnum;
-import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
+import com.afriland.dottel.utilisateurs.api.AuthenticatedUserService;
 import com.afriland.dottel.utilisateurs.service.UtilisateurAdminService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

@@ -9,6 +9,7 @@ import com.afriland.dottel.referentiel.model.dto.fonctioneligible.FonctionEligib
 import com.afriland.dottel.referentiel.model.dto.fonctioneligible.FonctionEligibleResponseDto;
 import com.afriland.dottel.referentiel.model.dto.fonctioneligible.ModifierFonctionEligibleRequestDto;
 import com.afriland.dottel.beneficiaires.api.BeneficiaireApi;
+import com.afriland.dottel.referentiel.api.FonctionEligibleApi;
 import com.afriland.dottel.referentiel.model.entity.FonctionEligible;
 import com.afriland.dottel.referentiel.model.entity.GrilleTarifaire;
 import com.afriland.dottel.referentiel.model.enums.StatutGrilleEnum;
@@ -27,7 +28,7 @@ import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
-public class FonctionEligibleService {
+public class FonctionEligibleService implements FonctionEligibleApi {
 
     private final FonctionEligibleRepository fonctionEligibleRepository;
     private final GrilleTarifaireRepository grilleTarifaireRepository;
@@ -36,7 +37,9 @@ public class FonctionEligibleService {
 
     // Sprint MM.3, couplage C2 : lecture seule du libelle d'affichage, pour
     // EnrolementService.verifier() qui n'a plus le droit d'injecter
-    // FonctionEligibleRepository directement.
+    // FonctionEligibleRepository directement. Passe par FonctionEligibleApi
+    // depuis MM.5.
+    @Override
     @Transactional(readOnly = true)
     public Optional<String> libelle(String codeFonction) {
         return fonctionEligibleRepository.findByCode(codeFonction).map(FonctionEligible::getLibelle);
@@ -45,7 +48,9 @@ public class FonctionEligibleService {
     // Sprint MM.3, couplage C2 : pour BeneficiaireImportService (RG-11), qui doit
     // distinguer "fonction inconnue" (Optional vide) de "fonction desactivee"
     // (present, false) dans le rapport d'import -- EligibiliteService.verifierEligibilite()
-    // ne renvoie qu'un booleen global et perdrait cette distinction.
+    // ne renvoie qu'un booleen global et perdrait cette distinction. Passe par
+    // FonctionEligibleApi depuis MM.5.
+    @Override
     @Transactional(readOnly = true)
     public Optional<Boolean> estActive(String codeFonction) {
         return fonctionEligibleRepository.findByCode(codeFonction).map(FonctionEligible::isActif);

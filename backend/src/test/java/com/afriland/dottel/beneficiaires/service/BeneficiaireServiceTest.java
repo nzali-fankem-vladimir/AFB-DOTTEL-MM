@@ -1,5 +1,5 @@
 package com.afriland.dottel.beneficiaires.service;
-import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
+import com.afriland.dottel.utilisateurs.api.AuthenticatedUserService;
 import com.afriland.dottel.audit.api.EvenementAudit;
 
 import com.afriland.dottel.beneficiaires.exception.BeneficiaireIntrouvableException;
@@ -11,7 +11,7 @@ import com.afriland.dottel.referentiel.api.GrilleTarifaireApi;
 import com.afriland.dottel.referentiel.api.ResolutionGrilleDto;
 import com.afriland.dottel.utilisateurs.model.entity.Utilisateur;
 import com.afriland.dottel.beneficiaires.repository.BeneficiaireRepository;
-import com.afriland.dottel.referentiel.service.EligibiliteService;
+import com.afriland.dottel.referentiel.api.EligibiliteService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;

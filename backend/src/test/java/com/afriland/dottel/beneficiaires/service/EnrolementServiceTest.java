@@ -1,5 +1,5 @@
 package com.afriland.dottel.beneficiaires.service;
-import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
+import com.afriland.dottel.utilisateurs.api.AuthenticatedUserService;
 import com.afriland.dottel.audit.api.EvenementAudit;
 
 import com.afriland.dottel.referentiel.api.GrilleTarifaireApi;
@@ -15,8 +15,8 @@ import com.afriland.dottel.beneficiaires.model.dto.enrolement.EnrolementVerifica
 import com.afriland.dottel.beneficiaires.model.entity.Beneficiaire;
 import com.afriland.dottel.utilisateurs.model.entity.Utilisateur;
 import com.afriland.dottel.beneficiaires.repository.BeneficiaireRepository;
-import com.afriland.dottel.referentiel.service.EligibiliteService;
-import com.afriland.dottel.referentiel.service.FonctionEligibleService;
+import com.afriland.dottel.referentiel.api.EligibiliteService;
+import com.afriland.dottel.referentiel.api.FonctionEligibleApi;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -48,7 +48,7 @@ class EnrolementServiceTest {
     private EligibiliteService eligibiliteService;
 
     @Mock
-    private FonctionEligibleService fonctionEligibleService;
+    private FonctionEligibleApi fonctionEligibleService;
 
     @Mock
     private GrilleTarifaireApi grilleTarifaireApi;

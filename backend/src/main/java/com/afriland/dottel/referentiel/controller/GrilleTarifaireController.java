@@ -7,7 +7,7 @@ import com.afriland.dottel.referentiel.model.dto.grille.GrilleTarifaireResponseD
 import com.afriland.dottel.referentiel.model.dto.grille.HistoriqueGrilleTarifaireResponseDto;
 import com.afriland.dottel.referentiel.model.dto.grille.ModifierGrilleTarifaireRequestDto;
 import com.afriland.dottel.referentiel.model.enums.StatutGrilleEnum;
-import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
+import com.afriland.dottel.utilisateurs.api.AuthenticatedUserService;
 import com.afriland.dottel.referentiel.service.GrilleTarifaireService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

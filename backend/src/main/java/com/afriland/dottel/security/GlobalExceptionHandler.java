@@ -15,6 +15,7 @@ import com.afriland.dottel.referentiel.exception.GrilleNonActiveException;
 import com.afriland.dottel.referentiel.exception.GrilleNonEnAttenteDrhException;
 import com.afriland.dottel.referentiel.exception.GrilleNonModifiableException;
 import com.afriland.dottel.referentiel.exception.GrilleTarifaireIntrouvableException;
+import com.afriland.dottel.referentiel.exception.GrilleTarifaireMotifRejetObligatoireException;
 import com.afriland.dottel.utilisateurs.exception.IdentifiantsInvalidesException;
 import com.afriland.dottel.beneficiaires.exception.MatriculeDejaEnroleException;
 import com.afriland.dottel.beneficiaires.exception.MatriculeInconnuException;
@@ -241,6 +242,22 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MotifRejetObligatoireException.class)
     public ResponseEntity<Map<String, Object>> gererMotifRejetObligatoire(MotifRejetObligatoireException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.BAD_REQUEST.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(corps);
+    }
+
+    // Sprint MM.5 : exception propre a referentiel, distincte de
+    // MotifRejetObligatoireException (processus) -- reutiliser cette derniere
+    // depuis GrilleTarifaireService.validerOuRejeter() creait un cycle de
+    // modules (processus <-> referentiel) detecte par ModularityTests. Meme
+    // contrat HTTP (400, meme forme de corps) : aucun changement pour l'appelant.
+    @ExceptionHandler(GrilleTarifaireMotifRejetObligatoireException.class)
+    public ResponseEntity<Map<String, Object>> gererGrilleTarifaireMotifRejetObligatoire(
+            GrilleTarifaireMotifRejetObligatoireException exception) {
         Map<String, Object> corps = new LinkedHashMap<>();
         corps.put("horodatage", LocalDateTime.now());
         corps.put("statut", HttpStatus.BAD_REQUEST.value());

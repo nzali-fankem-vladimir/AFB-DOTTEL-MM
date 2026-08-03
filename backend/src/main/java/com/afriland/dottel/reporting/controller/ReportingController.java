@@ -1,10 +1,10 @@
 package com.afriland.dottel.reporting.controller;
 
 import com.afriland.dottel.reporting.model.dto.reporting.AuditLogPageResponseDto;
-import com.afriland.dottel.reporting.model.dto.reporting.AuditLogResponseDto;
+import com.afriland.dottel.audit.api.AuditLogResponseDto;
 import com.afriland.dottel.reporting.model.dto.reporting.DashboardResponseDto;
 import com.afriland.dottel.reporting.model.dto.reporting.HistoriqueResponseDto;
-import com.afriland.dottel.audit.service.AuditService;
+import com.afriland.dottel.audit.api.AuditService;
 import com.afriland.dottel.reporting.service.HistoriqueExportService;
 import com.afriland.dottel.reporting.service.ReportingService;
 import lombok.RequiredArgsConstructor;

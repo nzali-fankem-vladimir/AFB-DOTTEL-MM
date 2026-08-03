@@ -7,7 +7,7 @@ import com.afriland.dottel.referentiel.api.GrilleTarifaireApi;
 import com.afriland.dottel.referentiel.api.ResolutionGrilleDto;
 import com.afriland.dottel.utilisateurs.api.DestinataireNotificationDto;
 import com.afriland.dottel.utilisateurs.api.UtilisateurApi;
-import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
+import com.afriland.dottel.utilisateurs.api.AuthenticatedUserService;
 import com.afriland.dottel.audit.api.EvenementAudit;
 
 import com.afriland.dottel.processus.exception.MotifRejetObligatoireException;
@@ -43,8 +43,8 @@ import com.afriland.dottel.processus.repository.EtapeWorkflowRepository;
 import com.afriland.dottel.processus.repository.LigneEtatMensuelRepository;
 import com.afriland.dottel.processus.repository.PieceJointeRepository;
 import com.afriland.dottel.processus.repository.ProcessusMensuelRepository;
-import com.afriland.dottel.referentiel.service.EligibiliteService;
-import com.afriland.dottel.referentiel.service.FonctionEligibleService;
+import com.afriland.dottel.referentiel.api.EligibiliteService;
+import com.afriland.dottel.referentiel.api.FonctionEligibleApi;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -79,7 +79,7 @@ public class ProcessusMensuelService {
     private final UtilisateurApi utilisateurApi;
     private final ApplicationEventPublisher eventPublisher;
     private final EligibiliteService eligibiliteService;
-    private final FonctionEligibleService fonctionEligibleService;
+    private final FonctionEligibleApi fonctionEligibleService;
     private final AuthenticatedUserService authenticatedUserService;
     private final DocumentService documentService;
     private final SignatureService signatureService;

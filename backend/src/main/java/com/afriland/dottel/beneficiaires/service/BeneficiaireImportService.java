@@ -1,5 +1,5 @@
 package com.afriland.dottel.beneficiaires.service;
-import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
+import com.afriland.dottel.utilisateurs.api.AuthenticatedUserService;
 import com.afriland.dottel.audit.api.EvenementAudit;
 
 import com.afriland.dottel.beneficiaires.exception.FichierImportInvalideException;
@@ -8,7 +8,7 @@ import com.afriland.dottel.beneficiaires.model.dto.importexcel.ImportRapportDto;
 import com.afriland.dottel.beneficiaires.model.entity.Beneficiaire;
 import com.afriland.dottel.utilisateurs.model.entity.Utilisateur;
 import com.afriland.dottel.beneficiaires.repository.BeneficiaireRepository;
-import com.afriland.dottel.referentiel.service.FonctionEligibleService;
+import com.afriland.dottel.referentiel.api.FonctionEligibleApi;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
@@ -48,7 +48,7 @@ public class BeneficiaireImportService {
             "CONTROLEUR_COMPTABLE", "COMPTABLE");
 
     private final BeneficiaireRepository beneficiaireRepository;
-    private final FonctionEligibleService fonctionEligibleService;
+    private final FonctionEligibleApi fonctionEligibleService;
     private final ApplicationEventPublisher eventPublisher;
     private final AuthenticatedUserService authenticatedUserService;
 

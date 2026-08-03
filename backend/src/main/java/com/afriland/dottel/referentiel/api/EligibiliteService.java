@@ -1,4 +1,4 @@
-package com.afriland.dottel.referentiel.service;
+package com.afriland.dottel.referentiel.api;
 
 import com.afriland.dottel.referentiel.model.entity.FonctionEligible;
 import com.afriland.dottel.referentiel.repository.FonctionEligibleRepository;

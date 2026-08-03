@@ -1,5 +1,10 @@
 /**
- * Module reporting (chantier MM, Sprint MM.3, couplage C5).
+ * Module reporting (chantier MM, Sprint MM.3, couplage C5 -- description
+ * ajoutee en MM.5).
+ *
+ * Tableaux de bord et rapports agreges en lecture seule sur les processus
+ * mensuels et le journal d'audit -- aucune entite ni repository en propre,
+ * par nature (voir C.2 de MM.0).
  *
  * EXCEPTION ARCHITECTURALE ASSUMEE (decision R-2, actee avec l'utilisateur) :
  * ReportingService lit directement 3 repositories d'autres modules
@@ -32,7 +37,7 @@
                 "processus :: repository",
                 "processus :: entity",
                 "processus :: enums",
-                "audit"
+                "audit :: api"
         }
 )
 package com.afriland.dottel.reporting;

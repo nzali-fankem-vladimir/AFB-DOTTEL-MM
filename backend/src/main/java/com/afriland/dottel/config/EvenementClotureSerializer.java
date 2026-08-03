@@ -1,6 +1,6 @@
 package com.afriland.dottel.config;
 
-import com.afriland.dottel.processus.model.dto.processus.EvenementClotureDto;
+import com.afriland.dottel.processus.api.EvenementClotureDto;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Serializer;
 import tools.jackson.core.JacksonException;

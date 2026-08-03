@@ -4,7 +4,7 @@ import com.afriland.dottel.referentiel.model.dto.fonctioneligible.CreerFonctionE
 import com.afriland.dottel.referentiel.model.dto.fonctioneligible.FonctionEligibleAdminResponseDto;
 import com.afriland.dottel.referentiel.model.dto.fonctioneligible.FonctionEligibleResponseDto;
 import com.afriland.dottel.referentiel.model.dto.fonctioneligible.ModifierFonctionEligibleRequestDto;
-import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
+import com.afriland.dottel.utilisateurs.api.AuthenticatedUserService;
 import com.afriland.dottel.referentiel.service.FonctionEligibleService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

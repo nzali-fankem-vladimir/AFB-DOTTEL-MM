@@ -1,4 +1,4 @@
-package com.afriland.dottel.utilisateurs.service;
+package com.afriland.dottel.utilisateurs.api;
 
 import com.afriland.dottel.utilisateurs.exception.UtilisateurConnecteIntrouvableException;
 import com.afriland.dottel.utilisateurs.model.entity.Utilisateur;

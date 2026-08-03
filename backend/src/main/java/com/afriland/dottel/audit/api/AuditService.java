@@ -1,6 +1,5 @@
-package com.afriland.dottel.audit.service;
+package com.afriland.dottel.audit.api;
 
-import com.afriland.dottel.reporting.model.dto.reporting.AuditLogResponseDto;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 

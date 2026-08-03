@@ -1,5 +1,5 @@
 package com.afriland.dottel.processus.service;
-import com.afriland.dottel.utilisateurs.service.AuthenticatedUserService;
+import com.afriland.dottel.utilisateurs.api.AuthenticatedUserService;
 
 import com.afriland.dottel.processus.model.dto.processus.LigneDocumentDto;
 import com.afriland.dottel.processus.model.entity.LigneEtatMensuel;

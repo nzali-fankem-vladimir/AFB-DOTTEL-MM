@@ -13,7 +13,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class UtilisateurApiImpl implements UtilisateurApi {
+class UtilisateurApiImpl implements UtilisateurApi {
 
     private final UtilisateurRepository utilisateurRepository;
 

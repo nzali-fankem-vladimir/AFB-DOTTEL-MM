@@ -9,7 +9,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @Service
-public class EhrIntegrationServiceStub implements EhrIntegrationService {
+class EhrIntegrationServiceStub implements EhrIntegrationService {
 
     private final Map<String, EmployeEhrDto> employesEhr = new HashMap<>();
 
