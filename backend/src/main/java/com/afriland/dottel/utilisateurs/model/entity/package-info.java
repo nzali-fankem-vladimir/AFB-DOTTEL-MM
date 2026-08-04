@@ -4,10 +4,12 @@
  * DETTE ARCHITECTURALE ASSUMEE ET TRACEE (decidee avec l'utilisateur le
  * 2026-08-03, PAS un choix d'architecture definitif) : Utilisateur est
  * importee directement par beneficiaires (EnrolementService,
- * BeneficiaireService, BeneficiaireImportService), processus
+ * BeneficiaireService, BeneficiaireImportService) et processus
  * (SignatureServiceAutonome, SignatureService, SeparationTachesService,
- * ProcessusMensuelService, DocumentService) et security.JwtUtil, au lieu de
- * passer par un DTO expose depuis utilisateurs.api.
+ * ProcessusMensuelService, DocumentService), au lieu de passer par un DTO
+ * expose depuis utilisateurs.api. (security.JwtUtil, seul importeur hors de
+ * ces deux modules, a ete supprime en MM.7 -- Keycloak emet desormais le
+ * jeton, plus besoin d'encoder l'entite Utilisateur dedans.)
  *
  * Cause racine : utilisateurs.api.AuthenticatedUserService.utilisateurCourant()
  * retourne directement l'entite JPA. La fermer correctement exigerait de

@@ -1,7 +1,5 @@
 package com.afriland.dottel.security;
 
-import com.afriland.dottel.utilisateurs.exception.IdentifiantsInvalidesException;
-import com.afriland.dottel.utilisateurs.exception.UtilisateurInactifException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -29,31 +27,6 @@ class GlobalExceptionHandlerTest {
 
     @Mock
     private BindingResult bindingResult;
-
-    @Test
-    void gererIdentifiantsInvalides_retourne401() {
-        IdentifiantsInvalidesException exception =
-                new IdentifiantsInvalidesException("Matricule ou mot de passe incorrect");
-
-        ResponseEntity<Map<String, Object>> reponse = handler.gererIdentifiantsInvalides(exception);
-
-        assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-        assertThat(reponse.getBody()).containsEntry("statut", 401);
-    }
-
-    @Test
-    void gererUtilisateurInactif_retourne403() {
-        // Confirme par le responsable metier : un compte desactive renvoie 403
-        // FORBIDDEN (l'identite est correcte mais l'acces est explicitement
-        // interdit), et non 401 UNAUTHORIZED.
-        UtilisateurInactifException exception =
-                new UtilisateurInactifException("Ce compte utilisateur est désactivé");
-
-        ResponseEntity<Map<String, Object>> reponse = handler.gererUtilisateurInactif(exception);
-
-        assertThat(reponse.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-        assertThat(reponse.getBody()).containsEntry("statut", 403);
-    }
 
     @Test
     void gererValidationInvalide_retourne400AvecChampsInvalides() {

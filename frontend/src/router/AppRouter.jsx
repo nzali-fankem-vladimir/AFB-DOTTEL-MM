@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute';
 import { AppLayout } from '../components/layout/AppLayout';
 import Login from '../pages/auth/Login';
+import CallbackKeycloak from '../pages/auth/CallbackKeycloak';
 import AccesInterdit from '../pages/auth/AccesInterdit';
 import VerifierMatriculePage from '../pages/enrolement/VerifierMatriculePage';
 import ConfirmerEnrolementPage from '../pages/enrolement/ConfirmerEnrolementPage';
@@ -31,6 +32,7 @@ export default function AppRouter() {
       <Routes>
         {/* Public */}
         <Route path="/login" element={<Login />} />
+        <Route path="/auth/callback" element={<CallbackKeycloak />} />
 
         {/* Toute page ci-dessous exige une authentification et affiche le layout (sidebar) */}
         <Route element={<ProtectedRoute roles={TOUS_ROLES} />}>

@@ -16,7 +16,6 @@ import com.afriland.dottel.referentiel.exception.GrilleNonEnAttenteDrhException;
 import com.afriland.dottel.referentiel.exception.GrilleNonModifiableException;
 import com.afriland.dottel.referentiel.exception.GrilleTarifaireIntrouvableException;
 import com.afriland.dottel.referentiel.exception.GrilleTarifaireMotifRejetObligatoireException;
-import com.afriland.dottel.utilisateurs.exception.IdentifiantsInvalidesException;
 import com.afriland.dottel.beneficiaires.exception.MatriculeDejaEnroleException;
 import com.afriland.dottel.beneficiaires.exception.MatriculeInconnuException;
 import com.afriland.dottel.utilisateurs.exception.MatriculeUtilisateurDejaUtiliseException;
@@ -30,7 +29,6 @@ import com.afriland.dottel.processus.exception.PieceJointeIntrouvableException;
 import com.afriland.dottel.processus.exception.RoleEtapeNonAutoriseException;
 import com.afriland.dottel.utilisateurs.exception.RoleInvalideException;
 import com.afriland.dottel.processus.exception.SeparationTachesViolationException;
-import com.afriland.dottel.utilisateurs.exception.UtilisateurInactifException;
 import com.afriland.dottel.utilisateurs.exception.UtilisateurIntrouvableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,26 +63,6 @@ public class GlobalExceptionHandler {
         corps.put("champs", erreursParChamp);
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(corps);
-    }
-
-    @ExceptionHandler(IdentifiantsInvalidesException.class)
-    public ResponseEntity<Map<String, Object>> gererIdentifiantsInvalides(IdentifiantsInvalidesException exception) {
-        Map<String, Object> corps = new LinkedHashMap<>();
-        corps.put("horodatage", LocalDateTime.now());
-        corps.put("statut", HttpStatus.UNAUTHORIZED.value());
-        corps.put("erreur", exception.getMessage());
-
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(corps);
-    }
-
-    @ExceptionHandler(UtilisateurInactifException.class)
-    public ResponseEntity<Map<String, Object>> gererUtilisateurInactif(UtilisateurInactifException exception) {
-        Map<String, Object> corps = new LinkedHashMap<>();
-        corps.put("horodatage", LocalDateTime.now());
-        corps.put("statut", HttpStatus.FORBIDDEN.value());
-        corps.put("erreur", exception.getMessage());
-
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(corps);
     }
 
     @ExceptionHandler(MatriculeDejaEnroleException.class)

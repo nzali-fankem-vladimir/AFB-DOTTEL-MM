@@ -190,9 +190,9 @@
     "semantic_hash": "c698309979460d0f02ba616417844399"
   },
   "CLAUDE.md": {
-    "mtime": 1785766926.4240167,
-    "ast_hash": "34321e6afa931cafe824f71aa03f53fa",
-    "semantic_hash": ""
+    "mtime": 1785432148.58278,
+    "ast_hash": "ef1539546f36e518ef94582a79903e03",
+    "semantic_hash": "ef1539546f36e518ef94582a79903e03"
   },
   "README.md": {
     "mtime": 1782978342.4759133,
@@ -594,6 +594,91 @@
     "ast_hash": "77f35aa97f87b91e0afe3bf5aff558cc",
     "semantic_hash": "77f35aa97f87b91e0afe3bf5aff558cc"
   },
+  "backend/HELP.md": {
+    "mtime": 1783003317.4533951,
+    "ast_hash": "bf19b5db01321e8703d0dd5ef0c90785",
+    "semantic_hash": "bf19b5db01321e8703d0dd5ef0c90785"
+  },
+  "backend/documents/dotations-telephoniques-1-2026.pdf": {
+    "mtime": 1784889080.8083282,
+    "ast_hash": "304f981b09fe06676aef77628ba25d58",
+    "semantic_hash": "304f981b09fe06676aef77628ba25d58"
+  },
+  "backend/documents/dotations-telephoniques-10-2025.pdf": {
+    "mtime": 1785178787.51557,
+    "ast_hash": "039a805861c9487ed4f22673a23fe68b",
+    "semantic_hash": "039a805861c9487ed4f22673a23fe68b"
+  },
+  "backend/documents/dotations-telephoniques-10-2027.pdf": {
+    "mtime": 1785503301.9191954,
+    "ast_hash": "3740a03282ab7ffda8250f253ce3dde8",
+    "semantic_hash": "3740a03282ab7ffda8250f253ce3dde8"
+  },
+  "backend/documents/dotations-telephoniques-11-2025.pdf": {
+    "mtime": 1784906823.9877942,
+    "ast_hash": "5d5189776186b7d6102f105daa3a5084",
+    "semantic_hash": "5d5189776186b7d6102f105daa3a5084"
+  },
+  "backend/documents/dotations-telephoniques-11-2026.pdf": {
+    "mtime": 1785178210.7917423,
+    "ast_hash": "4f3a12bdc4c8bdbce5a8e61ac8fd6182",
+    "semantic_hash": "4f3a12bdc4c8bdbce5a8e61ac8fd6182"
+  },
+  "backend/documents/dotations-telephoniques-12-2025.pdf": {
+    "mtime": 1785503584.6527033,
+    "ast_hash": "ad06438a434cfcdb68cf39d8af464788",
+    "semantic_hash": "ad06438a434cfcdb68cf39d8af464788"
+  },
+  "backend/documents/dotations-telephoniques-12-2026.pdf": {
+    "mtime": 1785083547.459052,
+    "ast_hash": "ce6137d13cda3722ba796ccd89fece16",
+    "semantic_hash": "ce6137d13cda3722ba796ccd89fece16"
+  },
+  "backend/documents/dotations-telephoniques-2-2026.pdf": {
+    "mtime": 1784888998.6983185,
+    "ast_hash": "e8523ca31ab1fcfd2310373bf6cb86eb",
+    "semantic_hash": "e8523ca31ab1fcfd2310373bf6cb86eb"
+  },
+  "backend/documents/dotations-telephoniques-3-2026.pdf": {
+    "mtime": 1784887596.0900235,
+    "ast_hash": "ecf3d04e02cd220eb6b7ed290b0ceeb0",
+    "semantic_hash": "ecf3d04e02cd220eb6b7ed290b0ceeb0"
+  },
+  "backend/documents/dotations-telephoniques-3-2027.pdf": {
+    "mtime": 1784734125.0553586,
+    "ast_hash": "48d29e4295478051b1e21337a5490d43",
+    "semantic_hash": "48d29e4295478051b1e21337a5490d43"
+  },
+  "backend/documents/dotations-telephoniques-4-2026.pdf": {
+    "mtime": 1784886710.9049573,
+    "ast_hash": "c2a6b5e1240e74fe8d5597b582b24ac9",
+    "semantic_hash": "c2a6b5e1240e74fe8d5597b582b24ac9"
+  },
+  "backend/documents/dotations-telephoniques-4-2027.pdf": {
+    "mtime": 1784735804.6517901,
+    "ast_hash": "aebd583cd52745b6aac7ee05257c279f",
+    "semantic_hash": "aebd583cd52745b6aac7ee05257c279f"
+  },
+  "backend/documents/dotations-telephoniques-5-2026.pdf": {
+    "mtime": 1784885547.6461687,
+    "ast_hash": "ac4a3190cdd0153c00496c3c1854e318",
+    "semantic_hash": "ac4a3190cdd0153c00496c3c1854e318"
+  },
+  "backend/documents/dotations-telephoniques-6-2026.pdf": {
+    "mtime": 1785503542.9380276,
+    "ast_hash": "3994adb38906a28bb896d6d8add2f99b",
+    "semantic_hash": "3994adb38906a28bb896d6d8add2f99b"
+  },
+  "backend/documents/dotations-telephoniques-8-2026.pdf": {
+    "mtime": 1784754786.5497775,
+    "ast_hash": "e9cac31345def38eebf19fed36a6e725",
+    "semantic_hash": "e9cac31345def38eebf19fed36a6e725"
+  },
+  "backend/documents/dotations-telephoniques-9-2027.pdf": {
+    "mtime": 1785082652.0750132,
+    "ast_hash": "475acabd48e2c13839a7847ac5f2a2db",
+    "semantic_hash": "475acabd48e2c13839a7847ac5f2a2db"
+  },
   "docs/audit_securite_owasp_v1.md": {
     "mtime": 1785495715.2011194,
     "ast_hash": "470f4426320f4d1cf5190f1316ecba81",
@@ -613,6 +698,21 @@
     "mtime": 1785514772.0,
     "ast_hash": "7dc58cf6e4da7a48dc3deb570c62199b",
     "semantic_hash": "7dc58cf6e4da7a48dc3deb570c62199b"
+  },
+  "backend/documents/dotations-telephoniques-1-2027.pdf": {
+    "mtime": 1785503835.7058902,
+    "ast_hash": "d1a7b000018e0896271123bc7df7f63d",
+    "semantic_hash": "d1a7b000018e0896271123bc7df7f63d"
+  },
+  "backend/documents/dotations-telephoniques-11-2027.pdf": {
+    "mtime": 1785497120.16953,
+    "ast_hash": "66348e6459f7b28d8d472d91bd301389",
+    "semantic_hash": "66348e6459f7b28d8d472d91bd301389"
+  },
+  "backend/documents/dotations-telephoniques-12-2027.pdf": {
+    "mtime": 1785497922.353151,
+    "ast_hash": "abd805603be53bc3e539b881da8eb15e",
+    "semantic_hash": "abd805603be53bc3e539b881da8eb15e"
   },
   "docs/monolithe-modulaire/MM.0_cadrage.md": {
     "mtime": 1785522299.4277515,
@@ -1668,15 +1768,5 @@
     "mtime": 1785767684.373567,
     "ast_hash": "59527a6dc7fff1c873e95439aa0a25b3",
     "semantic_hash": "59527a6dc7fff1c873e95439aa0a25b3"
-  },
-  "backend/src/test/java/com/afriland/dottel/DocumentationTests.java": {
-    "mtime": 1785766242.3764186,
-    "ast_hash": "7a23f07db30442111a4c7ee4d053e8b8",
-    "semantic_hash": ""
-  },
-  "docs/monolithe-modulaire/RECAPITULATIF_CHANTIER.md": {
-    "mtime": 1785766818.131158,
-    "ast_hash": "5fb74aea4af8403d11184f8d300ad1bc",
-    "semantic_hash": ""
   }
 }

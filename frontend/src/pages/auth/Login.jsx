@@ -1,58 +1,26 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { useAuth } from '../../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
-import { FormField } from '../../components/ui/FormField';
 import { Button } from '../../components/ui/Button';
 import { Alert, AlertDescription } from '../../components/ui/Alert';
 import { Logo } from '../../components/ui/Logo';
 
-const schema = z.object({
-  matricule: z.string().min(1, 'Le matricule est requis'),
-  motDePasse: z.string().min(1, 'Le mot de passe est requis'),
-});
-
-// Route de destination apres connexion selon le role de l'utilisateur.
-// Chaque valeur doit rester accessible au role concerne dans AppRouter,
-// sinon la connexion aboutit sur /acces-interdit (constat de l'audit
-// Sprint 6F.9 : le CRH pointait encore vers /dashboard, devenu ARH/DRH
-// seulement le 2026-07-30).
-const ROUTE_PAR_ROLE = {
-  EMPLOYE: '/enrolement',
-  ARH: '/dashboard',
-  CRH: '/processus',
-  DRH: '/dashboard',
-  ADMIN: '/grilles-tarifaires',
-};
-
+// Sprint MM.7 (decision F-2, Authorization Code + PKCE) : plus de formulaire
+// matricule/mot de passe -- l'application ne voit jamais le mot de passe.
+// Un clic redirige vers la page de connexion Keycloak, comme sur BAOBAB.
 export default function Login() {
   const { login } = useAuth();
-  const navigate = useNavigate();
+  const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState(null);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm({ resolver: zodResolver(schema) });
-
-  const onSubmit = async ({ matricule, motDePasse }) => {
+  const onConnexion = async () => {
     setErreur(null);
+    setEnCours(true);
     try {
-      const user = await login(matricule, motDePasse);
-      navigate(ROUTE_PAR_ROLE[user.role] || '/dashboard', { replace: true });
-    } catch (err) {
-      const statut = err.response?.status;
-      if (statut === 401) {
-        setErreur('Matricule ou mot de passe incorrect.');
-      } else if (statut === 403) {
-        setErreur('Ce compte est désactivé. Contactez votre administrateur.');
-      } else {
-        setErreur('Une erreur est survenue. Veuillez réessayer.');
-      }
+      await login();
+    } catch {
+      setErreur('Impossible de contacter le service de connexion. Veuillez réessayer.');
+      setEnCours(false);
     }
   };
 
@@ -64,31 +32,16 @@ export default function Login() {
           <CardTitle>Dotations Téléphoniques Mensuelles</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
+          <div className="flex flex-col gap-4">
             {erreur && (
               <Alert variant="destructive">
                 <AlertDescription>{erreur}</AlertDescription>
               </Alert>
             )}
-            <FormField
-              id="matricule"
-              label="Matricule"
-              autoComplete="username"
-              error={errors.matricule}
-              {...register('matricule')}
-            />
-            <FormField
-              id="motDePasse"
-              label="Mot de passe"
-              type="password"
-              autoComplete="current-password"
-              error={errors.motDePasse}
-              {...register('motDePasse')}
-            />
-            <Button type="submit" disabled={isSubmitting} className="mt-2">
-              {isSubmitting ? 'Connexion…' : 'Se connecter'}
+            <Button type="button" onClick={onConnexion} disabled={enCours} className="mt-2">
+              {enCours ? 'Redirection…' : 'Se connecter'}
             </Button>
-          </form>
+          </div>
         </CardContent>
       </Card>
     </div>

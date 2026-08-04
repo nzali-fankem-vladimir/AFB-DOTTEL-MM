@@ -15,3 +15,26 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       CLUSTER_ID: dottel-dev-kafka-cluster
+
+  # Keycloak LOCAL et PROVISOIRE (Sprint MM.7).
+  # Ce service simule, sur le poste de developpement, un realm Keycloak.
+  # Il ne represente en aucun cas le realm reel d'Afriland First Bank, dont
+  # l'URL, le client et le mapping des roles restent a confirmer par la DSI.
+  # Meme logique que le service kafka ci-dessus depuis le Sprint 5.3 : une
+  # dependance d'infrastructure simulee localement, jamais un service distant.
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: dottel-keycloak
+    command: start-dev --import-realm
+    ports:
+      - "8180:8080"
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      # Realm de developpement versionne (5 roles RoleEnum, client PKCE,
+      # 5 utilisateurs de test alignes sur V3__insertion_utilisateurs_test.sql).
+      # Approche "fichier JSON monte" retenue plutot que la console manuelle :
+      # reproductible par toute personne clonant le depot.
+      - ./keycloak/realm-dottel-dev.json:/opt/keycloak/data/import/realm-dottel-dev.json:ro

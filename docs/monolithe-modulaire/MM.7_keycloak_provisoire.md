@@ -591,6 +591,36 @@ montre le contraire.
 - **Aucune modification du frontend au-delà** de `AuthProviderKeycloak`, du câblage minimal dans `AuthContext.jsx`, et de `Login.jsx` si la décision F-2 est retenue.
 - **Aucune migration Flyway**, sauf si la décision I-1 ou le traitement de `motDePasseHash` l'impose — auquel cas c'est une **exception explicitement assumée** au périmètre posé en `PLAN_MONOLITHE_MODULAIRE.md` §5.
 
+## 6.5 Constat additionnel, découvert pendant la réalisation — lacune actée, non corrigée ce sprint
+
+> ## ⚠️ `audit_log` ne trace plus les connexions (`CONNEXION` / `CONNEXION_ECHOUEE`)
+>
+> **Constat vérifié en base pendant l'étape 9** (parcours réel des 5 rôles) :
+> `audit_log` reste alimenté correctement pour toute action métier existante
+> (61 lignes, 0 `id_utilisateur` nul, 0 `adresse_ip` nulle) — mais aucune
+> nouvelle ligne `CONNEXION` n'apparaît après une connexion Keycloak réussie.
+>
+> **Cause structurelle, pas un oubli corrigible par un simple ajout de code.**
+> Avant MM.7, `AuthService.authentifier()` publiait cet événement à chaque
+> connexion réussie ou échouée. Depuis MM.7 (décision de portée P-2), la
+> connexion se déroule entièrement entre le navigateur et Keycloak
+> (redirection Authorization Code + PKCE) : **le backend DOTTEL ne voit
+> jamais l'instant de connexion**, il ne reçoit que des requêtes déjà
+> authentifiées. Il n'existe donc plus, côté backend, de point d'accroche
+> pour tracer qui s'est connecté quand — y compris les tentatives échouées
+> (un mot de passe incorrect saisi sur l'écran Keycloak n'atteint jamais
+> DOTTEL).
+>
+> **Décision actée avec le responsable projet (2026-08-03) : E-4-like —
+> documenté comme lacune connue, hors périmètre de MM.7.** Aucune
+> modification de code n'est apportée pour ce sprint. Keycloak dispose de
+> son propre système d'événements (onglet *Events* de la console
+> d'administration du realm), qui pourrait combler ce rôle plus tard, mais
+> ce n'est pas le même système que `audit_log` DOTTEL (pas dans la même
+> base, pas exposé par `GET /reporting/audit`). Sujet à reprendre dans un
+> sprint dédié si le besoin de traçabilité des connexions est confirmé par
+> le métier.
+
 ## Commit
 
 ```bash

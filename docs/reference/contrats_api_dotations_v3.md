@@ -147,6 +147,15 @@ Corps de la requête :
 
 Note importante : le champ `grade` reste dans le corps de la requête pour compatibilité de format, mais **il n'est jamais exploité en logique métier**. `EnrolementService.confirmer()` utilise exclusivement le grade retourné par l'EHR pour revérifier RG-01/RG-02 — accepter le grade soumis par le client permettrait à un employé de mentir sur son grade pour contourner RG-02. Ne jamais réactiver ce champ sans revoir cette décision de sécurité.
 
+Note de comportement (décision E-3, actée le 2026-07-31, chantier MM.7) :
+`POST /enrolement/confirmer` **accepte volontairement** un matricule différent
+de celui de l'utilisateur EMPLOYE authentifié porteur du jeton. Ce n'est pas
+une faille : un collègue connecté doit pouvoir aider un autre collègue à
+s'enrôler via cette page. L'utilisateur authentifié est tracé dans
+`audit_log` pour cette action, ce qui permet de savoir *qui* a enrôlé *qui*.
+Ce comportement suppose toujours un utilisateur EMPLOYE authentifié — un
+appel non authentifié reste refusé.
+
 Réponse succès :
 
 ```json

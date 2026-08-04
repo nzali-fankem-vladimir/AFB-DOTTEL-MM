@@ -7,6 +7,8 @@ import com.afriland.dottel.utilisateurs.api.AuthenticatedUserService;
 import com.afriland.dottel.utilisateurs.service.UtilisateurAdminService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.security.oauth2.server.resource.autoconfigure.OAuth2ResourceServerAutoConfiguration;
+import org.springframework.boot.security.oauth2.server.resource.autoconfigure.web.OAuth2ResourceServerWebSecurityAutoConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -20,7 +22,20 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(UtilisateurAdminController.class)
+// Sprint MM.7 : spring.security.oauth2.resourceserver.jwt.issuer-uri est
+// desormais une propriete Spring Boot standard (avant : dottel.security.jwt-secret,
+// propriete custom invisible de l'autoconfiguration). Une tranche @WebMvcTest
+// charge l'environnement complet meme si SecurityConfig n'est pas importe :
+// sans cette exclusion, OAuth2ResourceServerAutoConfiguration s'auto-active et
+// tente de construire sa propre SecurityFilterChain de repli, qui echoue faute
+// de bean HttpSecurity (@EnableWebSecurity absent de ce contexte reduit). Ce
+// test verifie @PreAuthorize via @WithMockUser, pas la chaine OAuth2 reelle.
+@WebMvcTest(
+        controllers = UtilisateurAdminController.class,
+        excludeAutoConfiguration = {
+                OAuth2ResourceServerAutoConfiguration.class,
+                OAuth2ResourceServerWebSecurityAutoConfiguration.class
+        })
 @Import(UtilisateurAdminControllerTest.MethodSecurityConfig.class)
 class UtilisateurAdminControllerTest {
 

@@ -1,27 +1,17 @@
 package com.afriland.dottel.utilisateurs.controller;
 
-import com.afriland.dottel.utilisateurs.model.dto.auth.LoginRequestDto;
-import com.afriland.dottel.utilisateurs.model.dto.auth.LoginResponseDto;
-import com.afriland.dottel.utilisateurs.service.AuthService;
-import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+// Sprint MM.7 : POST /auth/login disparait (decision de portee P-2). La
+// connexion est desormais une redirection directe du frontend vers Keycloak
+// (Authorization Code + PKCE, decision F-2) -- ce controleur n'intervient
+// plus dans l'emission du jeton, Keycloak est l'unique emetteur.
 @RestController
 @RequestMapping("/auth")
-@RequiredArgsConstructor
 public class AuthController {
-
-    private final AuthService authService;
-
-    @PostMapping("/login")
-    public ResponseEntity<LoginResponseDto> login(@Valid @RequestBody LoginRequestDto requeteLogin) {
-        return ResponseEntity.ok(authService.authentifier(requeteLogin));
-    }
 
     // Le jeton JWT est stateless (aucune session HTTP, cf. CLAUDE.md section 17 point 5) :
     // il n'existe pas de liste noire de jetons à ce stade. La déconnexion consiste

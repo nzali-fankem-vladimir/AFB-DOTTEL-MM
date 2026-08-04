@@ -1,6 +1,5 @@
 package com.afriland.dottel.security;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
@@ -9,20 +8,12 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
-
-import javax.crypto.spec.SecretKeySpec;
 
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
-
-    @Value("${dottel.security.jwt-secret}")
-    private String jwtSecret;
 
     private final RoleJwtAuthenticationConverter roleJwtAuthenticationConverter;
     private final Environment environment;
@@ -60,13 +51,9 @@ public class SecurityConfig {
         return http.build();
     }
 
-    @Bean
-    public JwtDecoder jwtDecoder() {
-        SecretKeySpec key = new SecretKeySpec(jwtSecret.getBytes(), "HmacSHA384");
-        return NimbusJwtDecoder.withSecretKey(key)
-                .macAlgorithm(MacAlgorithm.HS384)
-                .build();
-    }
+    // JwtDecoder n'est plus declare manuellement : Spring Boot le construit
+    // automatiquement (JWKS + validation issuer) a partir de la propriete
+    // spring.security.oauth2.resourceserver.jwt.issuer-uri (application.yml).
 
     @Bean
     public PasswordEncoder passwordEncoder() {

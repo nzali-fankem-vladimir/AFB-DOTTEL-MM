@@ -22,8 +22,8 @@ import java.util.Map;
  * Ecouteur synchrone (T-1) : s'execute dans la meme transaction que
  * l'appelant, juste avant le commit. Un rollback metier annule donc
  * toujours l'entree d'audit, comme avant le decouplage par evenements.
- * fallbackExecution=true : certains appelants (ex. AuthService.authentifier)
- * n'ouvrent aucune transaction ; sans ce drapeau l'evenement serait
+ * fallbackExecution=true : si un futur appelant publie un EvenementAudit
+ * hors de toute transaction, sans ce drapeau l'evenement serait
  * silencieusement ignore au lieu de s'executer immediatement comme avant.
  */
 @Component

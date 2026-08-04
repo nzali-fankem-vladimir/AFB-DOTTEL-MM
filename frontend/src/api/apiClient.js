@@ -20,7 +20,7 @@ const apiClient = axios.create({
 });
 
 // Token garde en memoire ici (jamais localStorage/sessionStorage), pousse par
-// AuthProviderLocal a chaque login/logout. Voir decision de securite Sprint 6F.1.
+// AuthProviderKeycloak a chaque login/logout. Voir decision de securite Sprint 6F.1.
 let currentToken = null;
 
 export function setAuthToken(token) {
@@ -40,10 +40,11 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Le 401 sur /auth/login signifie "identifiants incorrects" : c'est au
-    // formulaire de connexion de l'afficher, pas a l'intercepteur de rediriger.
-    const estAppelLogin = error.config?.url?.includes('/auth/login');
-    if (error.response && error.response.status === 401 && !estAppelLogin) {
+    // Sprint MM.7 : POST /auth/login a disparu (Keycloak emet le jeton par
+    // redirection, hors de apiClient) -- l'exception qui existait pour cet
+    // appel n'a plus lieu d'etre, un 401 sur n'importe quel endpoint signifie
+    // desormais toujours un jeton absent, expire ou invalide.
+    if (error.response && error.response.status === 401) {
       setAuthToken(null);
       window.location.href = '/login';
     }

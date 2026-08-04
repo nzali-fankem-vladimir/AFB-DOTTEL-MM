@@ -15,6 +15,20 @@ spring:
     locations: classpath:db/migration
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Sprint MM.7 : Keycloak devient l'unique emetteur de jetons (decision
+          # de portee P-2). Aucune valeur de repli -- l'URL du realm vient
+          # exclusivement de l'environnement (ConfigMap/Secret Kubernetes en
+          # production, variable de shell en developpement), meme regle que
+          # DOTTEL_JWT_SECRET auparavant (CLAUDE.md sections 17.6 et 18.10).
+          # Local et provisoire : http://localhost:8180/realms/dottel-dev
+          # (voir docker-compose.yml, service keycloak). Le realm reel de la
+          # DSI reste hors perimetre -- seule cette variable changera le jour
+          # de la bascule (voir docs/monolithe-modulaire/MM.7_bascule_realm_dsi.md).
+          issuer-uri: ${DOTTEL_KEYCLOAK_ISSUER_URI}
 
 server:
   port: 8080
@@ -49,13 +63,6 @@ app:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000}
 
 dottel:
-  security:
-    # Aucune valeur de repli : le secret vient exclusivement de
-    # l'environnement (Secret Kubernetes en production, variable de shell
-    # en developpement), conformement a CLAUDE.md sections 17.6 et 18.10.
-    # Un demarrage sans DOTTEL_JWT_SECRET echoue volontairement plutot que
-    # de retomber sur une valeur connue et committee.
-    jwt-secret: ${DOTTEL_JWT_SECRET}
   kafka:
     # Topic de publication de l'evenement de cloture (Sprint 5.3). DOTTEL est
     # producer uniquement, la comptabilite (hors perimetre DOTTEL) l'ecoute.

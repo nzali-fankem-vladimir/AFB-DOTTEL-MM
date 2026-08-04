@@ -1,0 +1,109 @@
+{
+  "realm": "dottel-dev",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginTheme": "keycloak",
+  "accessTokenLifespan": 28800,
+  "roles": {
+    "realm": [
+      { "name": "EMPLOYE", "description": "Employe Afriland effectuant son enrolement" },
+      { "name": "ARH", "description": "Analyste Ressources Humaines" },
+      { "name": "CRH", "description": "Controleur Ressources Humaines" },
+      { "name": "DRH", "description": "Directeur des Ressources Humaines" },
+      { "name": "ADMIN", "description": "Administrateur du module DOTTEL" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "dottel-frontend",
+      "name": "DOTTEL Frontend (local, provisoire)",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:3000/*"],
+      "webOrigins": ["http://localhost:3000"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3000/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "matricule",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "userinfo.token.claim": "true",
+            "user.attribute": "matricule",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "matricule",
+            "jsonType.label": "String"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "jeanpaul_mbarga",
+      "email": "jeanpaul_mbarga@afrilandfirstbank.com",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Jean Paul",
+      "lastName": "MBARGA",
+      "attributes": { "matricule": ["1847"] },
+      "credentials": [{ "type": "password", "value": "Test1234", "temporary": false }],
+      "realmRoles": ["ARH"]
+    },
+    {
+      "username": "marieclaire_essama",
+      "email": "marieclaire_essama@afrilandfirstbank.com",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Marie Claire",
+      "lastName": "ESSAMA",
+      "attributes": { "matricule": ["2093"] },
+      "credentials": [{ "type": "password", "value": "Test1234", "temporary": false }],
+      "realmRoles": ["CRH"]
+    },
+    {
+      "username": "paul_atangana",
+      "email": "paul_atangana@afrilandfirstbank.com",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Paul",
+      "lastName": "ATANGANA",
+      "attributes": { "matricule": ["1562"] },
+      "credentials": [{ "type": "password", "value": "Test1234", "temporary": false }],
+      "realmRoles": ["DRH"]
+    },
+    {
+      "username": "sylvie_nkolo",
+      "email": "sylvie_nkolo@afrilandfirstbank.com",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Sylvie",
+      "lastName": "NKOLO",
+      "attributes": { "matricule": ["2201"] },
+      "credentials": [{ "type": "password", "value": "Test1234", "temporary": false }],
+      "realmRoles": ["EMPLOYE"]
+    },
+    {
+      "username": "marc_tchinda",
+      "email": "marc_tchinda@afrilandfirstbank.com",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Marc",
+      "lastName": "TCHINDA",
+      "attributes": { "matricule": ["1734"] },
+      "credentials": [{ "type": "password", "value": "Test1234", "temporary": false }],
+      "realmRoles": ["ADMIN"]
+    }
+  ]
+}
