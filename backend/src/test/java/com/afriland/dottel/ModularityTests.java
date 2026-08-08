@@ -13,14 +13,35 @@ import static org.assertj.core.api.Assertions.assertThat;
  * verifieLesFrontieresDeModules ci-dessous) : le cycle beneficiaires <->
  * referentiel, cause par deux dependances legitimes mais opposees
  * (beneficiaires -> referentiel::api pour l'eligibilite/la grille ;
- * referentiel -> beneficiaires::api pour la cascade de renommage de code de
- * fonction, couplage C3 acte en MM.3). Spring Modulith n'offre aucun
- * mecanisme pour DECLARER un cycle comme legitime (contrairement a
- * allowedDependencies pour une simple dependance) : le casser reellement
- * exige un refactor evenementiel (sur le modele de MM.4) qui depasse le
- * perimetre "visibilite + annotations" de MM.5. Decide avec l'utilisateur le
- * 2026-08-03 : PREREQUIS REEL avant la cloture du chantier (MM.8), pas une
- * intention vague -- voir beneficiaires/package-info.java.
+ * referentiel -> beneficiaires::api pour 6 appels de
+ * FonctionEligibleService vers BeneficiaireApi : desactiver(),
+ * listerToutes() et reactiver() qui lisent compterActifsParFonction() pour
+ * l'affichage/le garde-fou, modifier() qui l'appelle deux fois pour le
+ * garde-fou "au plus 1 beneficiaire actif", et modifier() qui ecrit via
+ * renommerFonction() pour la cascade de renommage de code de fonction,
+ * couplage C3 acte en MM.3).
+ *
+ * Decision G-2 du 2026-08-03 (voir
+ * docs/chantier-ajout-metier-mm/MM.8_anomalies_et_cloture_cycle.md) : ce
+ * cycle est ASSUME DEFINITIVEMENT, il ne s'agit plus d'une dette en attente
+ * de correction. L'analyse a montre que le plan initial (evenementer la
+ * seule ecriture renommerFonction()) NE CASSERAIT PAS le cycle : Spring
+ * Modulith detecte un cycle au niveau du module entier, et il suffit d'UN
+ * SEUL des 6 appels pour que le cycle persiste. Or 5 des 6 sont des
+ * lectures synchrones (compterActifsParFonction()) qui conditionnent une
+ * decision immediate -- typiquement un refus HTTP 409 si plus d'un
+ * beneficiaire actif reste rattache a la fonction. Un evenement
+ * fire-and-forget ne peut pas repondre avant que la methode appelante ne
+ * continue : ces lectures ne peuvent structurellement pas devenir des
+ * evenements asynchrones. `referentiel` a une raison metier reelle de
+ * consulter `beneficiaires` (compter avant de bloquer une action
+ * destructrice), symetrique a la raison pour laquelle `beneficiaires`
+ * consulte `referentiel` (eligibilite, grille) -- ce n'est pas un accident
+ * de conception. Denormaliser le compteur cote `referentiel` (alternative
+ * G-3) ajouterait un etat duplique avec risque de desynchronisation, pour
+ * un gain disproportionne (25 fonctions, quelques dizaines de beneficiaires
+ * chacune) -- voir beneficiaires/package-info.java et
+ * referentiel/package-info.java.
  *
  * Le filtre ci-dessous ne masque PAS la dette : il isole ce cycle precis par
  * son message exact, et le test echoue si une AUTRE violation apparait
@@ -42,9 +63,10 @@ class ModularityTests {
                         && v.getMessage().contains("Slice referentiel"));
 
         assertThat(cycleConnuBeneficiairesReferentiel.hasViolations())
-                .as("le cycle beneficiaires <-> referentiel documente en MM.5 doit toujours exister -- "
-                        + "s'il a disparu, le prerequis MM.8 est rempli : retirer ce filtre et repasser "
-                        + "sur MODULES.verify() simple")
+                .as("le cycle beneficiaires <-> referentiel documente en MM.5 est ASSUME "
+                        + "definitivement (decision G-2 du 2026-08-03, MM.8) -- s'il a disparu, "
+                        + "quelqu'un a supprime un des 6 appels legitimes de FonctionEligibleService "
+                        + "vers BeneficiaireApi ; verifier avant de retirer ce filtre")
                 .isTrue();
 
         Violations autresViolations = violations.filter(

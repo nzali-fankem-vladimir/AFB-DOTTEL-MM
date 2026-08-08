@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -251,5 +252,91 @@ class DocumentServiceTest {
         assertThat(pieceJointeMiseAJour.getCheminStockage()).isEqualTo(cheminAvant);
         assertThat(Path.of(cheminAvant)).exists();
         assertThat(Path.of(cheminAvant + ".tmp")).doesNotExist();
+    }
+
+    @Test
+    void invaliderSignatureCrh_casNominal_ajoutePageAnnexeSansAltererLaSignatureCrh() throws IOException {
+        DocumentService documentService = new DocumentService(pieceJointeRepository, ecartMensuelService, signatureService);
+        ReflectionTestUtils.setField(documentService, "cheminStockage", dossierTemporaire.toString() + "/");
+        ReflectionTestUtils.setField(documentService, "chapitreDefaut", "37210199");
+
+        Utilisateur arh = Utilisateur.builder().id(10L).nom("MBARGA").prenom("Jean-Paul").matricule("2201").build();
+        Utilisateur crh = Utilisateur.builder().id(20L).nom("NKOLO").prenom("Alphonse").matricule("3305").build();
+        Utilisateur drh = Utilisateur.builder().id(30L).nom("ATANGANA").prenom("Marie").matricule("4102").build();
+
+        PieceJointe pieceJointe = genererPieceJointeInitiale(documentService, arh);
+        pieceJointe.setId(5L);
+
+        when(signatureService.signer(crh)).thenReturn("Alphonse NKOLO (matricule 3305) - 23/07/2026 09:00:00");
+        PieceJointe pieceJointeSignee = documentService.ajouterSignature(pieceJointe, crh, NomEtapeEnum.VALIDATION_CRH);
+
+        int nombrePagesAvant;
+        String textePageCrhAvant;
+        try (PdfDocument pdfDocument = new PdfDocument(new PdfReader(pieceJointeSignee.getCheminStockage()))) {
+            nombrePagesAvant = pdfDocument.getNumberOfPages();
+            textePageCrhAvant = PdfTextExtractor.getTextFromPage(pdfDocument.getFirstPage());
+        }
+
+        when(signatureService.signer(drh)).thenReturn("Marie ATANGANA (matricule 4102) - 24/07/2026 08:00:00");
+        when(pieceJointeRepository.save(any(PieceJointe.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PieceJointe pieceJointeInvalidee = documentService.invaliderSignatureCrh(
+                pieceJointeSignee, drh, "Bénéficiaire ONANA Serge exclu à tort");
+
+        assertThat(pieceJointeInvalidee.getNombreSignatures()).isEqualTo(0);
+
+        try (PdfDocument pdfDocument = new PdfDocument(new PdfReader(pieceJointeInvalidee.getCheminStockage()))) {
+            assertThat(pdfDocument.getNumberOfPages()).isEqualTo(nombrePagesAvant + 1);
+
+            // La page portant la signature CRH (page 1) doit rester strictement
+            // identique -- RG-09 interdit d'effacer une signature deja apposee,
+            // seule une nouvelle page annexe doit apparaitre.
+            String textePageCrhApres = PdfTextExtractor.getTextFromPage(pdfDocument.getFirstPage());
+            assertThat(textePageCrhApres).isEqualTo(textePageCrhAvant);
+
+            String textePageAnnexe = PdfTextExtractor.getTextFromPage(pdfDocument.getLastPage());
+            assertThat(textePageAnnexe).contains("RETOURNE PAR LA DRH");
+            assertThat(textePageAnnexe).contains("Bénéficiaire ONANA Serge exclu à tort");
+            assertThat(textePageAnnexe).contains("ATANGANA");
+        }
+    }
+
+    @Test
+    void invaliderSignatureCrh_neLaissePasDeFichierTmpResiduel() throws IOException {
+        DocumentService documentService = new DocumentService(pieceJointeRepository, ecartMensuelService, signatureService);
+        ReflectionTestUtils.setField(documentService, "cheminStockage", dossierTemporaire.toString() + "/");
+        ReflectionTestUtils.setField(documentService, "chapitreDefaut", "37210199");
+
+        Utilisateur arh = Utilisateur.builder().id(10L).nom("MBARGA").prenom("Jean-Paul").matricule("2201").build();
+        Utilisateur crh = Utilisateur.builder().id(20L).nom("NKOLO").prenom("Alphonse").matricule("3305").build();
+        Utilisateur drh = Utilisateur.builder().id(30L).nom("ATANGANA").prenom("Marie").matricule("4102").build();
+
+        PieceJointe pieceJointe = genererPieceJointeInitiale(documentService, arh);
+        pieceJointe.setId(6L);
+
+        when(signatureService.signer(crh)).thenReturn("Alphonse NKOLO (matricule 3305) - 23/07/2026 09:00:00");
+        PieceJointe pieceJointeSignee = documentService.ajouterSignature(pieceJointe, crh, NomEtapeEnum.VALIDATION_CRH);
+        String cheminAvant = pieceJointeSignee.getCheminStockage();
+
+        when(signatureService.signer(drh)).thenReturn("Marie ATANGANA (matricule 4102) - 24/07/2026 08:00:00");
+        when(pieceJointeRepository.save(any(PieceJointe.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PieceJointe pieceJointeInvalidee = documentService.invaliderSignatureCrh(pieceJointeSignee, drh, "Motif de test");
+
+        assertThat(pieceJointeInvalidee.getCheminStockage()).isEqualTo(cheminAvant);
+        assertThat(Path.of(cheminAvant)).exists();
+        assertThat(Path.of(cheminAvant + ".tmp")).doesNotExist();
+    }
+
+    @Test
+    void invaliderSignatureCrh_fichierIntrouvable_leveIllegalStateException() {
+        DocumentService documentService = new DocumentService(pieceJointeRepository, ecartMensuelService, signatureService);
+        Utilisateur drh = Utilisateur.builder().id(30L).nom("ATANGANA").prenom("Marie").matricule("4102").build();
+
+        PieceJointe pieceJointe = PieceJointe.builder().id(7L).idProcessus(999L)
+                .cheminStockage(dossierTemporaire.resolve("inexistant.pdf").toString()).build();
+
+        assertThatThrownBy(() -> documentService.invaliderSignatureCrh(pieceJointe, drh, "Motif de test"))
+                .isInstanceOf(IllegalStateException.class);
     }
 }

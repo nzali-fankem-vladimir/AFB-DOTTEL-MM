@@ -19,10 +19,17 @@
  *
  * NB : cette dependance vers referentiel, combinee a la dependance inverse
  * de referentiel vers beneficiaires::api (cascade de renommage, couplage
- * C3 de MM.3), forme un cycle de modules detecte par ModularityTests.
- * Cycle assume et piné explicitement dans ModularityTests (pas cache) --
- * le vrai correctif (evenement applicatif remplacant l'appel direct) est
- * un prerequis reel avant la cloture du chantier, prevu en MM.8.
+ * C3 de MM.3, plus 5 lectures synchrones via compterActifsParFonction()),
+ * forme un cycle de modules detecte par ModularityTests. Decision G-2 du
+ * 2026-08-03 (MM.8) : ce cycle est ASSUME DEFINITIVEMENT -- il ne s'agit
+ * plus d'une dette en attente de correction. Convertir la seule ecriture
+ * (renommerFonction()) en evenement ne casserait pas le cycle : Spring
+ * Modulith le detecte au niveau du module entier, et il suffit d'un seul
+ * des 6 appels pour qu'il persiste. Or compterActifsParFonction() ne peut
+ * pas devenir un evenement asynchrone : c'est une lecture synchrone qui
+ * conditionne un refus HTTP 409 immediat. Cycle piné explicitement dans
+ * ModularityTests, pas cache. Voir
+ * docs/chantier-ajout-metier-mm/MM.8_anomalies_et_cloture_cycle.md.
  */
 @org.springframework.modulith.ApplicationModule(
         allowedDependencies = {

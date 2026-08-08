@@ -21,9 +21,10 @@
  *
  * NB : la dependance vers beneficiaires::api, combinee a la dependance
  * inverse de beneficiaires vers referentiel::api (eligibilite/grille), forme
- * un cycle de modules detecte par ModularityTests. Cycle assume et pine
- * explicitement dans ModularityTests -- voir
- * beneficiaires/package-info.java pour le detail et le prerequis MM.8.
+ * un cycle de modules detecte par ModularityTests. Decision G-2 du
+ * 2026-08-03 (MM.8) : ce cycle est ASSUME DEFINITIVEMENT, pas en attente de
+ * correction -- voir beneficiaires/package-info.java pour le detail complet
+ * des 6 appels et le motif.
  */
 @org.springframework.modulith.ApplicationModule(
         allowedDependencies = {

@@ -6,11 +6,13 @@ import com.afriland.dottel.processus.exception.SeparationTachesViolationExceptio
 import com.afriland.dottel.processus.model.entity.EtapeWorkflow;
 import com.afriland.dottel.utilisateurs.model.entity.Utilisateur;
 import com.afriland.dottel.processus.model.enums.NomEtapeEnum;
+import com.afriland.dottel.processus.model.enums.StatutEtapeEnum;
 import com.afriland.dottel.utilisateurs.model.enums.RoleEnum;
 import com.afriland.dottel.processus.repository.EtapeWorkflowRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -51,18 +53,28 @@ public class SeparationTachesService {
         }
     }
 
+    // Anomalie MM.8 (RG-08) : EtapeWorkflow est une table append-only, jamais
+    // nettoyee. Apres un cycle retour + resoumission, plusieurs lignes peuvent
+    // porter le meme nomEtape : deux VALIDATION_ARH en VALIDEE (une par
+    // soumission), ou une VALIDATION_CRH en RETOURNEE suivie d'une autre en
+    // VALIDEE au cycle suivant. Filtrer sur statutEtape == VALIDEE et prendre
+    // la plus recente par dateAction evite de comparer l'acteur courant contre
+    // une validation obsolete d'un cycle anterieur, ou pire contre une ligne
+    // RETOURNEE dont l'acteur est celui qui a retourne, pas valide.
     public void verifier(Long idProcessus, Long idActeurCourant, NomEtapeEnum etapePrecedente) {
         List<EtapeWorkflow> etapes = etapeWorkflowRepository.findByIdProcessusOrderByOrdreEtapeAsc(idProcessus);
 
         EtapeWorkflow etapeAnterieure = etapes.stream()
                 .filter(etape -> etape.getNomEtape() == etapePrecedente)
-                .findFirst()
+                .filter(etape -> etape.getStatutEtape() == StatutEtapeEnum.VALIDEE)
+                .max(Comparator.comparing(EtapeWorkflow::getDateAction))
                 .orElseThrow(() -> new EtapeWorkflowIntrouvableException(
-                        "Aucune étape " + etapePrecedente + " trouvée pour le processus " + idProcessus));
+                        "Aucune étape " + etapePrecedente + " validée trouvée pour le processus " + idProcessus));
 
         if (etapeAnterieure.getIdActeur().equals(idActeurCourant)) {
             throw new SeparationTachesViolationException(
-                    "L'acteur de l'étape " + etapePrecedente + " ne peut pas valider l'étape suivante du même processus");
+                    "L'acteur de l'étape " + etapePrecedente
+                            + " ne peut pas valider l'étape suivante du même processus");
         }
     }
 }

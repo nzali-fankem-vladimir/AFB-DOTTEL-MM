@@ -1679,6 +1679,7 @@ class ProcessusMensuelServiceTest {
                 .role(RoleEnum.CRH).actif(true).build();
         DestinataireNotificationDto arhCreateur =
                 new DestinataireNotificationDto("jp.mbarga@afrilandfirstbank.cm", RoleEnum.ARH);
+        PieceJointe pieceJointe = PieceJointe.builder().id(80L).idProcessus(970L).nombreSignatures(1).build();
 
         RetournerProcessusRequestDto requete = new RetournerProcessusRequestDto();
         requete.setMotif("Montant incorrect pour le matricule 1562");
@@ -1687,6 +1688,7 @@ class ProcessusMensuelServiceTest {
         when(authenticatedUserService.utilisateurCourant()).thenReturn(crhConnecte);
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(utilisateurApi.destinataireParId(10L)).thenReturn(arhCreateur);
+        when(pieceJointeRepository.findByIdProcessus(970L)).thenReturn(Optional.of(pieceJointe));
 
         RetournerProcessusResponseDto reponse = processusMensuelService.retourner(970L, requete);
 
@@ -1694,6 +1696,13 @@ class ProcessusMensuelServiceTest {
         assertThat(reponse.getStatut()).isEqualTo(StatutEnum.RETOURNE);
         assertThat(reponse.getMotif()).isEqualTo("Montant incorrect pour le matricule 1562");
         assertThat(processus.getStatut()).isEqualTo(StatutEnum.RETOURNE);
+
+        // Retour CRH : aucune signature CRH n'existe encore -> aucune page
+        // annexe n'a de sens, invaliderSignatureCrh() n'est jamais appelee.
+        // Seul le compteur est remis a 0, decision S-1 (2026-08-03).
+        verify(documentService, never()).invaliderSignatureCrh(any(), any(), any());
+        assertThat(pieceJointe.getNombreSignatures()).isEqualTo(0);
+        verify(pieceJointeRepository).save(pieceJointe);
 
         ArgumentCaptor<EtapeWorkflow> etapeCaptor = ArgumentCaptor.forClass(EtapeWorkflow.class);
         verify(etapeWorkflowRepository).save(etapeCaptor.capture());
@@ -1722,6 +1731,8 @@ class ProcessusMensuelServiceTest {
                 .role(RoleEnum.DRH).actif(true).build();
         DestinataireNotificationDto arhCreateur =
                 new DestinataireNotificationDto("mc.essama@afrilandfirstbank.cm", RoleEnum.ARH);
+        PieceJointe pieceJointe = PieceJointe.builder().id(81L).idProcessus(971L).nombreSignatures(2).build();
+        PieceJointe pieceJointeInvalidee = PieceJointe.builder().id(81L).idProcessus(971L).nombreSignatures(0).build();
 
         RetournerProcessusRequestDto requete = new RetournerProcessusRequestDto();
         requete.setMotif("Beneficiaire ONANA Serge exclu a tort");
@@ -1730,11 +1741,18 @@ class ProcessusMensuelServiceTest {
         when(authenticatedUserService.utilisateurCourant()).thenReturn(drhConnecte);
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(utilisateurApi.destinataireParId(11L)).thenReturn(arhCreateur);
+        when(pieceJointeRepository.findByIdProcessus(971L)).thenReturn(Optional.of(pieceJointe));
+        when(documentService.invaliderSignatureCrh(pieceJointe, drhConnecte, "Beneficiaire ONANA Serge exclu a tort"))
+                .thenReturn(pieceJointeInvalidee);
 
         RetournerProcessusResponseDto reponse = processusMensuelService.retourner(971L, requete);
 
         assertThat(reponse.getStatut()).isEqualTo(StatutEnum.RETOURNE);
         assertThat(processus.getStatut()).isEqualTo(StatutEnum.RETOURNE);
+
+        // Retour DRH : la signature CRH deja apposee est invalidee (page
+        // annexe + compteur a 0, RG-09) via DocumentService, pas directement.
+        verify(documentService).invaliderSignatureCrh(pieceJointe, drhConnecte, "Beneficiaire ONANA Serge exclu a tort");
 
         ArgumentCaptor<EtapeWorkflow> etapeCaptor = ArgumentCaptor.forClass(EtapeWorkflow.class);
         verify(etapeWorkflowRepository).save(etapeCaptor.capture());
@@ -1751,6 +1769,30 @@ class ProcessusMensuelServiceTest {
         assertThat(evenement.action()).isEqualTo("RETOUR_PROCESSUS");
         assertThat(evenement.entiteCible()).isEqualTo("processus_mensuel");
         assertThat(evenement.idEntite()).isEqualTo(971L);
+    }
+
+    @Test
+    void retourner_depuisEnAttenteDrh_pieceJointeIntrouvable_leveExceptionSansAucuneMutation() {
+        ProcessusMensuel processus = ProcessusMensuel.builder().id(975L).moisPaiement(10).anneePaiement(2026)
+                .statut(StatutEnum.EN_ATTENTE_DRH).idCreateur(13L).build();
+        Utilisateur drhConnecte = Utilisateur.builder().id(42L).matricule("4003").nom("EYENGA").prenom("Christelle")
+                .role(RoleEnum.DRH).actif(true).build();
+
+        RetournerProcessusRequestDto requete = new RetournerProcessusRequestDto();
+        requete.setMotif("Test d'anomalie piece jointe manquante");
+
+        when(processusMensuelRepository.findById(975L)).thenReturn(Optional.of(processus));
+        when(authenticatedUserService.utilisateurCourant()).thenReturn(drhConnecte);
+        when(pieceJointeRepository.findByIdProcessus(975L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> processusMensuelService.retourner(975L, requete))
+                .isInstanceOf(PieceJointeIntrouvableException.class);
+
+        verify(documentService, never()).invaliderSignatureCrh(any(), any(), any());
+        verify(etapeWorkflowRepository, never()).save(any());
+        verify(processusMensuelRepository, never()).save(any(ProcessusMensuel.class));
+        verify(notificationService, never()).notifier(any(), any(), any());
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
@@ -1798,10 +1840,13 @@ class ProcessusMensuelServiceTest {
         RetournerProcessusRequestDto requete = new RetournerProcessusRequestDto();
         requete.setMotif("Beneficiaire TCHINDA Paul exclu a tort");
 
+        PieceJointe pieceJointe = PieceJointe.builder().id(82L).idProcessus(974L).nombreSignatures(2).build();
+
         when(processusMensuelRepository.findById(974L)).thenReturn(Optional.of(processus));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(drhConnecte);
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(utilisateurApi.destinataireParId(12L)).thenReturn(arhCreateur);
+        when(pieceJointeRepository.findByIdProcessus(974L)).thenReturn(Optional.of(pieceJointe));
 
         processusMensuelService.retourner(974L, requete);
 
@@ -1827,15 +1872,19 @@ class ProcessusMensuelServiceTest {
         RetournerProcessusRequestDto requeteRetour = new RetournerProcessusRequestDto();
         requeteRetour.setMotif("Montant incorrect pour le matricule 1562");
 
+        PieceJointe pieceJointeAvantRetour = PieceJointe.builder().id(60L).idProcessus(980L).nombreSignatures(1).build();
+
         when(processusMensuelRepository.findById(980L)).thenReturn(Optional.of(processus));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(crhConnecte, arhConnecte, arhConnecte);
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(utilisateurApi.destinataireParId(10L))
                 .thenReturn(new DestinataireNotificationDto("jp.mbarga@afrilandfirstbank.cm", RoleEnum.ARH));
+        when(pieceJointeRepository.findByIdProcessus(980L)).thenReturn(Optional.of(pieceJointeAvantRetour));
 
         // 1. Retour CRH -> ARH
         processusMensuelService.retourner(980L, requeteRetour);
         assertThat(processus.getStatut()).isEqualTo(StatutEnum.RETOURNE);
+        assertThat(pieceJointeAvantRetour.getNombreSignatures()).isEqualTo(0);
 
         // 2. Correction ARH via PATCH, deja accepte pour le statut RETOURNE
         LigneEtatMensuel ligneExclue = LigneEtatMensuel.builder().id(3001L).idProcessus(980L).idBeneficiaire(601L)
@@ -1872,7 +1921,11 @@ class ProcessusMensuelServiceTest {
 
         verify(documentService, times(1)).genererInitiale(any(), any(), any(), any());
         verify(documentService, never()).ajouterSignature(any(), any(), any());
-        verify(pieceJointeRepository, never()).findByIdProcessus(any());
+        // Le seul appel a findByIdProcessus() de tout ce scenario vient du
+        // retour CRH (etape 1, remise a 0 du compteur -- anomalie MM.8) : la
+        // revalidation ARH elle-meme ne fait pas de lookup separe, genererInitiale()
+        // gere la reutilisation de la PieceJointe existante en interne (RG-06).
+        verify(pieceJointeRepository, times(1)).findByIdProcessus(980L);
     }
 
     @Test

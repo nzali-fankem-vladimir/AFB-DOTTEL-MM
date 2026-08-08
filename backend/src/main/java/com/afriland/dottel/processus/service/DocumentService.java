@@ -27,6 +27,7 @@ import com.itextpdf.kernel.pdf.annot.PdfWidgetAnnotation;
 import com.itextpdf.layout.Canvas;
 import com.itextpdf.layout.Document;
 import com.itextpdf.layout.borders.Border;
+import com.itextpdf.layout.element.AreaBreak;
 import com.itextpdf.layout.element.Cell;
 import com.itextpdf.layout.element.Image;
 import com.itextpdf.layout.element.Paragraph;
@@ -200,6 +201,70 @@ public class DocumentService {
         pieceJointe.setNombreSignatures(pieceJointe.getNombreSignatures() + 1);
         pieceJointe.setDateDerniereMiseAJour(LocalDateTime.now());
 
+        return pieceJointeRepository.save(pieceJointe);
+    }
+
+    // Anomalie MM.8 : un retour DRH invalide la signature CRH deja apposee,
+    // sans l'effacer (RG-09 impose la trace d'audit). Choix d'une PAGE ANNEXE
+    // plutot qu'un tampon superpose a la signature existante -- ne PAS
+    // "ameliorer" cela vers un tampon sans relire ce qui suit :
+    // ajouterSignature() dessine le texte via Canvas sur le rectangle du champ
+    // AcroForm CRH puis SUPPRIME ce champ (formulaire.removeField) : il n'y a
+    // donc plus aucun moyen de le retrouver par nom pour superposer quoi que ce
+    // soit dessus. Sa position n'est de toute facon pas un rectangle fixe --
+    // elle depend du nombre de lignes du tableau de beneficiaires genere
+    // au-dessus. Persister ces coordonnees exigerait une migration de schema
+    // (interdite sans accord explicite, CLAUDE.md section 4) pour un gain
+    // purement visuel. La page annexe, elle, ne depend d'aucune coordonnee, ne
+    // modifie ni ajouterSignature() ni genererInitiale() (code eprouve, zero
+    // risque de regression), et disparait automatiquement a la revalidation
+    // ARH puisque genererInitiale() reecrit tout le fichier -- aucune
+    // accumulation possible, un seul retour DRH par cycle avant regeneration.
+    @Transactional
+    public PieceJointe invaliderSignatureCrh(PieceJointe pieceJointe, Utilisateur acteurDrh, String motifRetour) {
+        String cheminOriginal = pieceJointe.getCheminStockage();
+        Path cheminTemporaire = Path.of(cheminOriginal + ".tmp");
+
+        try (PdfReader reader = new PdfReader(cheminOriginal);
+             PdfWriter writer = new PdfWriter(cheminTemporaire.toString());
+             PdfDocument pdfDocument = new PdfDocument(reader, writer);
+             Document document = new Document(pdfDocument)) {
+
+            PdfFont police = PdfFontFactory.createFont(StandardFonts.HELVETICA, PdfEncodings.CP1252);
+            document.setFont(police);
+
+            document.add(new AreaBreak(PageSize.A4.rotate()));
+            document.add(new Paragraph("PROCESSUS RETOURNE PAR LA DRH")
+                    .setBold().setFontSize(14).setTextAlignment(TextAlignment.CENTER));
+            document.add(new Paragraph(
+                    "La validation CRH figurant dans ce document est annulee par ce retour. "
+                            + "Le document sera integralement regenere lors de la revalidation par l'ARH."));
+            document.add(new Paragraph("Retour effectue par : " + signatureService.signer(acteurDrh)));
+            document.add(new Paragraph("Motif du retour : " + motifRetour));
+        } catch (IOException e) {
+            throw new IllegalStateException(
+                    "Echec de l'invalidation de la signature CRH pour la piece jointe " + pieceJointe.getId(), e);
+        }
+
+        try {
+            Files.move(cheminTemporaire, Path.of(cheminOriginal), StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException e) {
+            throw new IllegalStateException(
+                    "Echec du remplacement du PDF pour la piece jointe " + pieceJointe.getId(), e);
+        }
+
+        // Decision S-1 (2026-08-03) : le compteur redescend a 0 pour TOUT
+        // retour (CRH ou DRH), pas seulement le retour DRH -- il decrit l'etat
+        // du cycle de validation ("aucune signature valide dans le cycle en
+        // cours"), pas le contenu physique du fichier. Dans les deux cas,
+        // seule la revalidation ARH le fait remonter (genererInitiale() le
+        // fixe a 1 sans jamais l'incrementer). Cette methode ne gere que la
+        // branche DRH (page annexe incluse) ; la branche retour CRH remet le
+        // compteur a 0 directement dans ProcessusMensuelService.retourner(),
+        // sans appeler cette methode -- aucune signature CRH n'existe encore a
+        // cet instant, donc aucune page annexe n'a de sens.
+        pieceJointe.setNombreSignatures(0);
+        pieceJointe.setDateDerniereMiseAJour(LocalDateTime.now());
         return pieceJointeRepository.save(pieceJointe);
     }
 

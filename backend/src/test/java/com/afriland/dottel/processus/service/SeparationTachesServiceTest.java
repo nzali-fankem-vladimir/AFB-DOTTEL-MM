@@ -122,4 +122,82 @@ class SeparationTachesServiceTest {
         assertThatThrownBy(() -> separationTachesService.verifier(10L, 2L, NomEtapeEnum.VALIDATION_ARH))
                 .isInstanceOf(EtapeWorkflowIntrouvableException.class);
     }
+
+    // --- Anomalie MM.8 : EtapeWorkflow append-only, plusieurs lignes du meme nomEtape ---
+
+    // Cycle retour + resoumission : deux VALIDATION_ARH VALIDEE, une par
+    // soumission. MBARGA (id 1) a valide la premiere soumission (ancienne),
+    // ESSAMA (id 2) a valide la resoumission (recente). La comparaison doit
+    // porter sur la ligne la plus recente par dateAction (ESSAMA), pas sur la
+    // premiere trouvee dans la liste.
+    @Test
+    void verifier_plusieursLignesValideesDuMemeNomEtape_compareContreLaPlusRecenteParDate() {
+        separationTachesService = new SeparationTachesService(etapeWorkflowRepository);
+
+        EtapeWorkflow ancienneValidationMbarga = EtapeWorkflow.builder()
+                .id(1L).idProcessus(10L).idActeur(1L).ordreEtape(1)
+                .nomEtape(NomEtapeEnum.VALIDATION_ARH).statutEtape(StatutEtapeEnum.VALIDEE)
+                .dateAction(LocalDateTime.of(2026, 7, 1, 9, 0)).build();
+
+        EtapeWorkflow recenteValidationEssama = EtapeWorkflow.builder()
+                .id(2L).idProcessus(10L).idActeur(2L).ordreEtape(1)
+                .nomEtape(NomEtapeEnum.VALIDATION_ARH).statutEtape(StatutEtapeEnum.VALIDEE)
+                .dateAction(LocalDateTime.of(2026, 7, 5, 14, 0)).build();
+
+        when(etapeWorkflowRepository.findByIdProcessusOrderByOrdreEtapeAsc(10L))
+                .thenReturn(List.of(ancienneValidationMbarga, recenteValidationEssama));
+
+        // ESSAMA (acteur de la ligne recente) ne peut pas valider l'etape suivante.
+        assertThatThrownBy(() -> separationTachesService.verifier(10L, 2L, NomEtapeEnum.VALIDATION_ARH))
+                .isInstanceOf(SeparationTachesViolationException.class);
+
+        // MBARGA (acteur de la ligne ancienne, desormais obsolete) le peut.
+        assertThatCode(() -> separationTachesService.verifier(10L, 1L, NomEtapeEnum.VALIDATION_ARH))
+                .doesNotThrowAnyException();
+    }
+
+    // Retour CRH suivi d'une resoumission validee : la ligne RETOURNEE (acteur
+    // = celui qui a retourne, pas valide) doit etre ignoree au profit de la
+    // ligne VALIDEE du cycle suivant.
+    @Test
+    void verifier_ligneRetourneePuisValideeDuMemeNomEtape_ignoreLaLigneRetournee() {
+        separationTachesService = new SeparationTachesService(etapeWorkflowRepository);
+
+        EtapeWorkflow retourEssama = EtapeWorkflow.builder()
+                .id(1L).idProcessus(10L).idActeur(2L).ordreEtape(2)
+                .nomEtape(NomEtapeEnum.VALIDATION_CRH).statutEtape(StatutEtapeEnum.RETOURNEE)
+                .dateAction(LocalDateTime.of(2026, 7, 3, 10, 0)).build();
+
+        EtapeWorkflow validationEssama = EtapeWorkflow.builder()
+                .id(2L).idProcessus(10L).idActeur(2L).ordreEtape(2)
+                .nomEtape(NomEtapeEnum.VALIDATION_CRH).statutEtape(StatutEtapeEnum.VALIDEE)
+                .dateAction(LocalDateTime.of(2026, 7, 6, 11, 0)).build();
+
+        when(etapeWorkflowRepository.findByIdProcessusOrderByOrdreEtapeAsc(10L))
+                .thenReturn(List.of(retourEssama, validationEssama));
+
+        // ESSAMA a bien VALIDE (ligne recente), pas seulement retourne -> ne peut
+        // pas valider l'etape suivante.
+        assertThatThrownBy(() -> separationTachesService.verifier(10L, 2L, NomEtapeEnum.VALIDATION_CRH))
+                .isInstanceOf(SeparationTachesViolationException.class);
+    }
+
+    // Seule une ligne RETOURNEE existe (CRH a retourne sans jamais valider) :
+    // aucune ligne VALIDEE a comparer -> exception explicite, comme en
+    // l'absence totale de ligne.
+    @Test
+    void verifier_seulementLigneRetournee_leveToujoursExceptionExplicite() {
+        separationTachesService = new SeparationTachesService(etapeWorkflowRepository);
+
+        EtapeWorkflow retourEssama = EtapeWorkflow.builder()
+                .id(1L).idProcessus(10L).idActeur(2L).ordreEtape(2)
+                .nomEtape(NomEtapeEnum.VALIDATION_CRH).statutEtape(StatutEtapeEnum.RETOURNEE)
+                .dateAction(LocalDateTime.of(2026, 7, 3, 10, 0)).build();
+
+        when(etapeWorkflowRepository.findByIdProcessusOrderByOrdreEtapeAsc(10L))
+                .thenReturn(List.of(retourEssama));
+
+        assertThatThrownBy(() -> separationTachesService.verifier(10L, 3L, NomEtapeEnum.VALIDATION_CRH))
+                .isInstanceOf(EtapeWorkflowIntrouvableException.class);
+    }
 }

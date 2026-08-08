@@ -570,6 +570,26 @@ public class ProcessusMensuelService {
         NomEtapeEnum nomEtapeRetournee = etapeCrh ? NomEtapeEnum.VALIDATION_CRH : NomEtapeEnum.VALIDATION_DRH;
         int ordreEtape = etapeCrh ? 2 : 3;
 
+        // Anomalie MM.8 : un retour DRH invalide la signature CRH deja apposee
+        // dans le PDF (page annexe + compteur a 0, RG-09) ; un retour CRH n'a
+        // rien a invalider visuellement (seule la signature ARH existe, aucune
+        // page d'annulation n'a de sens) mais remet quand meme le compteur a 0
+        // -- decision S-1 (2026-08-03) : le compteur decrit l'etat du cycle de
+        // validation ("aucune signature valide dans le cycle en cours"),
+        // identique dans les deux cas de retour, pas le contenu physique du
+        // fichier. Verification avant toute mutation d'etat (CLAUDE.md section
+        // 10) : si la piece jointe est introuvable, rien n'est encore ecrit.
+        PieceJointe pieceJointe = pieceJointeRepository.findByIdProcessus(processus.getId())
+                .orElseThrow(() -> new PieceJointeIntrouvableException(
+                        "Aucune piece jointe trouvee pour le processus " + processus.getId()));
+        if (etapeCrh) {
+            pieceJointe.setNombreSignatures(0);
+            pieceJointe.setDateDerniereMiseAJour(LocalDateTime.now());
+            pieceJointeRepository.save(pieceJointe);
+        } else {
+            documentService.invaliderSignatureCrh(pieceJointe, utilisateurCourant, motif);
+        }
+
         EtapeWorkflow etape = EtapeWorkflow.builder()
                 .idProcessus(processus.getId())
                 .idActeur(utilisateurCourant.getId())
