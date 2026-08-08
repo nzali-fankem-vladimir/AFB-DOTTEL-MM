@@ -399,6 +399,7 @@ public class ProcessusMensuelService {
             donneesParBeneficiaire.put(ligne.getIdBeneficiaire(), LigneDocumentDto.builder()
                     .nomPrenoms(beneficiaire != null ? beneficiaire.nomPrenoms() : null)
                     .codeUnite(beneficiaire != null ? beneficiaire.codeUnite() : null)
+                    .codeAgence(beneficiaire != null ? beneficiaire.codeAgence() : null)
                     .numCompteCourant(beneficiaire != null ? beneficiaire.numCompteCourant() : null)
                     .chapitre(beneficiaire != null ? beneficiaire.chapitre() : null)
                     .libelleFonction(libelleFonction)

@@ -45,6 +45,12 @@ public class Beneficiaire {
     @Column(name = "code_unite", nullable = false)
     private String codeUnite;
 
+    // Agence/direction de domiciliation du compte courant (5 chiffres), distinct
+    // de codeUnite (unite d'affectation professionnelle, 4 chiffres) -- ne jamais
+    // confondre les deux referentiels (CLAUDE.md section 1.1 du guide MM.10).
+    @Column(name = "code_agence", nullable = false)
+    private String codeAgence;
+
     @Column(name = "num_compte_courant", nullable = false)
     private String numCompteCourant;
 

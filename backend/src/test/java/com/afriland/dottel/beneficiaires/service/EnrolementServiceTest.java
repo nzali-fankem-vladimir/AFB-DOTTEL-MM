@@ -165,6 +165,7 @@ class EnrolementServiceTest {
                 .grade(null)
                 .uniteRattachement("Agence Bafoussam Centre")
                 .codeUnite("BFS-CTR")
+                .codeAgence("00003")
                 .numCompteCourant("10013164008")
                 .build();
         Utilisateur utilisateurConnecte = Utilisateur.builder().id(42L).matricule("3164").build();
@@ -196,6 +197,7 @@ class EnrolementServiceTest {
         assertThat(evenement.entiteCible()).isEqualTo("beneficiaires");
         assertThat(evenement.idEntite()).isEqualTo(100L);
         assertThat(evenement.avant()).isNull();
+        assertThat(evenement.apres()).containsEntry("codeAgence", "00003");
     }
 
     @Test

@@ -26,6 +26,7 @@ public class LigneDocumentDto {
 
     private String nomPrenoms;
     private String codeUnite;
+    private String codeAgence;
     private String numCompteCourant;
     private String chapitre;
     private String libelleFonction;

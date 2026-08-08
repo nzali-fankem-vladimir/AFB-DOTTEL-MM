@@ -4,14 +4,15 @@ Module : Digitalisation des Dotations Téléphoniques Mensuelles
 
 *Projet AFRILAND HORIZON 2030*
 
-| **Référence** | **AFB_API_DOTTEL_V3.3_2026** |
+| **Référence** | **AFB_API_DOTTEL_V3.4_2026** |
 | --- | --- |
-| Version | 3.3 |
-| Date | Juillet 2026 |
-| Nombre d'endpoints documentés | 35 endpoints répartis en 8 groupes (+ 1 sous-groupe) |
+| Version | 3.4 |
+| Date | Août 2026 |
+| Nombre d'endpoints documentés | 36 endpoints répartis en 8 groupes (+ 1 sous-groupe) |
 | Version 3.1 | Alignement complet sur l'implémentation réelle : correction des réponses login/PATCH bénéficiaire, ajout de PATCH /processus/{id} (absent de la V3.0), correction de l'erreur RG-04 (400, pas 500), ajout d'un statut d'implémentation par endpoint. |
 | Version 3.2 | Ajout de GET /fonctions-eligibles et de PATCH /beneficiaires/{id}/reactiver (Sprint 6F.5), absents de la V3.1 — le premier alimente en frontend les filtres et formulaires liés à la fonction sans liste en dur, le second comble une lacune : aucun endpoint ne permettait de revenir sur une désactivation. |
 | Version 3.3 | Sprint 6F.7bis : comble deux écarts face au cahier des charges (section II.1.7). Ajout de POST /grilles-tarifaires/{id}/desactiver (retrait volontaire d'une grille ACTIVE sans remplacement, absent du cycle de vie initial qui ne couvrait que le remplacement automatique). `fonction_eligible` passe d'un référentiel figé par migration Flyway à un référentiel géré par l'application : ajout de GET /fonctions-eligibles/toutes, POST /fonctions-eligibles, PATCH /fonctions-eligibles/{code}, PATCH /fonctions-eligibles/{code}/desactiver et PATCH /fonctions-eligibles/{code}/reactiver. Rôle ADMIN ajouté à GET /fonctions-eligibles (nécessaire au filtre de `GrillesListPage` côté ADMIN, oublié à la V3.2). |
+| Version 3.4 | Sprint MM.10 (référentiel unité/agence). Ajout de GET /beneficiaires/unites-rattachement : liste unité↔code_unite exposée par le stub EHR, alimente le select du modal de modification bénéficiaire (l'ARH ne saisit plus le code unité à la main, résolu côté backend à la validation du PATCH). Introduction de la colonne `code_agence` (5 chiffres, agence de domiciliation du compte courant — distincte de `code_unite`, 4 chiffres, unité d'affectation professionnelle), non exposée en lecture dans les DTO bénéficiaire mais portée par le flux d'enrôlement EHR et l'import Excel (8ᵉ colonne CODE_AGENCE). |
 
 Chaque endpoint porte désormais une étiquette de statut :
 - **Implémenté** : construit, testé, commité.
@@ -213,6 +214,28 @@ Réponse succès :
 | 401 | Non authentifié. |
 | 403 | Rôle non autorisé. |
 
+### GET /beneficiaires/unites-rattachement — Implémenté (ajouté au Sprint MM.10)
+
+Liste les unités de rattachement connues du stub EHR, avec leur `code_unite` (4 chiffres) associé. Alimente le select du modal de modification bénéficiaire côté frontend : l'ARH choisit un libellé d'unité, jamais le code — le `code_unite` est résolu côté backend à la validation du `PATCH /beneficiaires/{id}` (source unique de vérité, décision actée avec l'utilisateur au Sprint MM.10).
+
+**Rôles autorisés : ARH** (aligné sur le rôle déjà requis par `PATCH /beneficiaires/{id}`)
+
+Réponse succès :
+
+```json
+[
+  {"uniteRattachement": "DSI", "codeUnite": "4060"},
+  {"uniteRattachement": "Agence Douala Akwa", "codeUnite": "1102"}
+]
+```
+
+Seul `DSI` → `4060` est confirmé par le métier ; les autres codes sont des données de stub provisoires, à remplacer le jour de l'intégration EHR réelle (CLAUDE.md section 12).
+
+| **Code HTTP** | **Description** |
+| --- | --- |
+| 200 | Liste retournée. |
+| 403 | Rôle non autorisé. |
+
 ### PATCH /beneficiaires/{id} — Implémenté
 
 Modifie fonction/grade/unité d'un bénéficiaire. Toute modification est tracée dans `audit_log` avec delta JSON complet avant/après (RG-09).
@@ -245,7 +268,7 @@ Réponse succès (structure alignée sur `BeneficiaireResponseDto`, corrigée pa
 | **Code HTTP** | **Description** |
 | --- | --- |
 | 200 | Modification enregistrée. |
-| 400 | Données invalides. |
+| 400 | Données invalides, ou unité de rattachement inconnue de la liste EHR (`UniteInconnueException`, ajouté au Sprint MM.10). |
 | 403 | Combinaison fonction/grade non éligible après modification (RG-01/RG-02, revérifiée via `EligibiliteService` — code ajouté par rapport à la V3.0, absent à tort). |
 | 404 | Bénéficiaire introuvable. |
 
@@ -309,11 +332,13 @@ Réponse succès : fichier binaire `.xlsx` — `Content-Type: application/vnd.op
 
 ### POST /beneficiaires/import — Implémenté
 
-Importe des bénéficiaires en masse. Format à 7 colonnes (la colonne MONTANT a été retirée sur décision métier — le montant est dérivé de la grille tarifaire, jamais importé) :
+Importe des bénéficiaires en masse. Format à 8 colonnes (la colonne MONTANT a été retirée sur décision métier — le montant est dérivé de la grille tarifaire, jamais importé ; colonne CODE_AGENCE ajoutée au Sprint MM.10, `code_agence` étant NOT NULL en base depuis la migration V5) :
 
-`N°ORDRE, MATRICULE, NOMS & PRENOMS, FONCTION, UNITE, CODE_UNITE, N°COMPTE`
+`N°ORDRE, MATRICULE, NOMS & PRENOMS, FONCTION, UNITE, CODE_UNITE, N°COMPTE, CODE_AGENCE`
 
 Les corps de contrôle et assimilés (`CORPS_CONTROLE_IG`, `CORPS_CONTROLE_IGA`, `CONTROLEUR_GESTION`, `CONTROLEUR_COMPTABLE`, `COMPTABLE`) sont systématiquement rejetés à l'import — le format n'a pas de colonne GRADE, donc RG-02 ne peut jamais être vérifié via ce canal. Ces cas doivent passer par l'enrôlement individuel.
+
+Une ligne sans CODE_AGENCE est rejetée au même titre qu'un matricule manquant (motif `Champ CODE_AGENCE manquant`), au lieu de faire échouer l'insertion en base.
 
 **Rôles autorisés : ARH**
 

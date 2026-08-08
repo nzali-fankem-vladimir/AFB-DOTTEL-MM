@@ -107,6 +107,7 @@ public class EnrolementService {
                 .grade(grade)
                 .uniteRattachement(employeEhr.getUniteRattachement())
                 .codeUnite(employeEhr.getCodeUnite())
+                .codeAgence(employeEhr.getCodeAgence())
                 .numCompteCourant(employeEhr.getNumCompteCourant())
                 .chapitre(employeEhr.getChapitre())
                 .dateEnrolement(LocalDate.now())
@@ -124,6 +125,7 @@ public class EnrolementService {
         apres.put("grade", beneficiaire.getGrade());
         apres.put("uniteRattachement", beneficiaire.getUniteRattachement());
         apres.put("codeUnite", beneficiaire.getCodeUnite());
+        apres.put("codeAgence", beneficiaire.getCodeAgence());
         apres.put("numCompteCourant", beneficiaire.getNumCompteCourant());
         apres.put("chapitre", beneficiaire.getChapitre());
         apres.put("dateEnrolement", beneficiaire.getDateEnrolement().toString());

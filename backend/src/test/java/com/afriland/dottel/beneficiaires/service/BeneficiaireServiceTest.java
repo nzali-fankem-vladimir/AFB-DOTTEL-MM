@@ -4,8 +4,10 @@ import com.afriland.dottel.audit.api.EvenementAudit;
 
 import com.afriland.dottel.beneficiaires.exception.BeneficiaireIntrouvableException;
 import com.afriland.dottel.beneficiaires.exception.NonEligibleException;
+import com.afriland.dottel.beneficiaires.exception.UniteInconnueException;
 import com.afriland.dottel.beneficiaires.model.dto.beneficiaire.BeneficiaireResponseDto;
 import com.afriland.dottel.beneficiaires.model.dto.beneficiaire.ModifierBeneficiaireRequestDto;
+import com.afriland.dottel.beneficiaires.model.dto.ehr.UniteRattachementDto;
 import com.afriland.dottel.beneficiaires.model.entity.Beneficiaire;
 import com.afriland.dottel.referentiel.api.GrilleTarifaireApi;
 import com.afriland.dottel.referentiel.api.ResolutionGrilleDto;
@@ -56,13 +58,16 @@ class BeneficiaireServiceTest {
     @Mock
     private AuthenticatedUserService authenticatedUserService;
 
+    @Mock
+    private EhrIntegrationService ehrIntegrationService;
+
     private BeneficiaireService beneficiaireService;
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
         beneficiaireService = new BeneficiaireService(
                 beneficiaireRepository, grilleTarifaireApi,
-                eligibiliteService, eventPublisher, authenticatedUserService);
+                eligibiliteService, eventPublisher, authenticatedUserService, ehrIntegrationService);
     }
 
     private Beneficiaire creerBeneficiaire(String matricule, String nomPrenoms, String fonction, boolean actif) {
@@ -120,12 +125,16 @@ class BeneficiaireServiceTest {
         when(beneficiaireRepository.findById(1L)).thenReturn(Optional.of(marie));
         when(grilleTarifaireApi.resoudrePourFonction("GFC")).thenReturn(ResolutionGrilleDto.resolue(40000));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(creerUtilisateurArh());
+        when(ehrIntegrationService.listerUnitesRattachement())
+                .thenReturn(List.of(UniteRattachementDto.builder()
+                        .uniteRattachement("Agence Akwa").codeUnite("1102").build()));
 
         BeneficiaireResponseDto resultat = beneficiaireService.modifier(1L, requete);
 
         assertThat(resultat.getFonction()).isEqualTo("GFC");
         assertThat(marie.getGrade()).isEqualTo("CADRE");
         assertThat(marie.getUniteRattachement()).isEqualTo("Agence Akwa");
+        assertThat(marie.getCodeUnite()).isEqualTo("1102");
         verify(eligibiliteService, never()).verifierEligibilite(any(), any());
     }
 
@@ -139,6 +148,9 @@ class BeneficiaireServiceTest {
         when(beneficiaireRepository.findById(1L)).thenReturn(Optional.of(jean));
         when(grilleTarifaireApi.resoudrePourFonction("CONSEILLER")).thenReturn(ResolutionGrilleDto.resolue(50000));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(creerUtilisateurArh());
+        when(ehrIntegrationService.listerUnitesRattachement())
+                .thenReturn(List.of(UniteRattachementDto.builder()
+                        .uniteRattachement("Agence Douala Bali").codeUnite("1102").build()));
 
         beneficiaireService.modifier(1L, requete);
 
@@ -151,6 +163,24 @@ class BeneficiaireServiceTest {
         assertThat(evenement.idEntite()).isEqualTo(1L);
         assertThat(evenement.avant()).containsEntry("uniteRattachement", "Agence Bafoussam");
         assertThat(evenement.apres()).containsEntry("uniteRattachement", "Agence Douala Bali");
+        assertThat(evenement.apres()).containsEntry("codeUnite", "1102");
+    }
+
+    @Test
+    void modifier_uniteInconnueDeLehr_leve400() {
+        Beneficiaire jean = creerBeneficiaire("2099", "Jean ESSAMA", "CONSEILLER", true);
+        jean.setUniteRattachement("Agence Bafoussam");
+        ModifierBeneficiaireRequestDto requete = ModifierBeneficiaireRequestDto.builder()
+                .uniteRattachement("Unite Fantome").build();
+
+        when(beneficiaireRepository.findById(1L)).thenReturn(Optional.of(jean));
+        when(ehrIntegrationService.listerUnitesRattachement()).thenReturn(List.of());
+
+        assertThatThrownBy(() -> beneficiaireService.modifier(1L, requete))
+                .isInstanceOf(UniteInconnueException.class);
+
+        verify(beneficiaireRepository, never()).save(any());
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test

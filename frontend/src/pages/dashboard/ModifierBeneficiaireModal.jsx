@@ -4,7 +4,6 @@ import { z } from 'zod';
 import { useState } from 'react';
 import apiClient from '../../api/apiClient';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../../components/ui/Card';
-import { FormField } from '../../components/ui/FormField';
 import { Label } from '../../components/ui/Label';
 import { Select } from '../../components/ui/Select';
 import { Button } from '../../components/ui/Button';
@@ -23,13 +22,19 @@ function versValeurOuVide(valeur) {
   return nettoyee ? nettoyee : undefined;
 }
 
-export function ModifierBeneficiaireModal({ beneficiaire, fonctionsEligibles, onFerme, onSucces }) {
+export function ModifierBeneficiaireModal({
+  beneficiaire,
+  fonctionsEligibles,
+  unitesRattachement,
+  onFerme,
+  onSucces,
+}) {
   const [erreur, setErreur] = useState(null);
 
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { isSubmitting },
   } = useForm({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -84,12 +89,23 @@ export function ModifierBeneficiaireModal({ beneficiaire, fonctionsEligibles, on
               </Select>
             </div>
 
-            <FormField
-              id="modif-unite"
-              label="Unité de rattachement"
-              error={errors.uniteRattachement}
-              {...register('uniteRattachement')}
-            />
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="modif-unite">Unité de rattachement</Label>
+              <Select id="modif-unite" {...register('uniteRattachement')}>
+                {/* Le code_unite n'est jamais saisi a la main : il est resolu
+                    automatiquement cote backend a partir du libelle choisi ici
+                    (BeneficiaireService.modifier, source EHR). */}
+                {!unitesRattachement.some((u) => u.uniteRattachement === beneficiaire.uniteRattachement) &&
+                  beneficiaire.uniteRattachement && (
+                    <option value={beneficiaire.uniteRattachement}>{beneficiaire.uniteRattachement}</option>
+                  )}
+                {unitesRattachement.map((u) => (
+                  <option key={u.codeUnite} value={u.uniteRattachement}>
+                    {u.uniteRattachement}
+                  </option>
+                ))}
+              </Select>
+            </div>
           </CardContent>
           <CardFooter className="gap-3">
             <Button type="button" variant="outline" onClick={onFerme} disabled={isSubmitting}>

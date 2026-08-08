@@ -74,6 +74,7 @@ class BeneficiaireApiImpl implements BeneficiaireApi {
                         beneficiaire.getId(),
                         beneficiaire.getNomPrenoms(),
                         beneficiaire.getCodeUnite(),
+                        beneficiaire.getCodeAgence(),
                         beneficiaire.getNumCompteCourant(),
                         beneficiaire.getChapitre())));
     }

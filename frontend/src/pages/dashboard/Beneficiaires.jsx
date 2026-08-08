@@ -64,11 +64,16 @@ export default function Beneficiaires() {
   const [beneficiaireADesactiver, setBeneficiaireADesactiver] = useState(null);
   const [exportEnCours, setExportEnCours] = useState(false);
   const [fonctionsEligibles, setFonctionsEligibles] = useState([]);
+  const [unitesRattachement, setUnitesRattachement] = useState([]);
   const [reactivationEnCours, setReactivationEnCours] = useState(null);
   const [erreurReactivation, setErreurReactivation] = useState(null);
 
   useEffect(() => {
     apiClient.get('/fonctions-eligibles').then(({ data }) => setFonctionsEligibles(data));
+  }, []);
+
+  useEffect(() => {
+    apiClient.get('/beneficiaires/unites-rattachement').then(({ data }) => setUnitesRattachement(data));
   }, []);
 
   const libellesFonctions = useMemo(
@@ -299,6 +304,7 @@ export default function Beneficiaires() {
         <ModifierBeneficiaireModal
           beneficiaire={beneficiaireAModifier}
           fonctionsEligibles={fonctionsEligibles}
+          unitesRattachement={unitesRattachement}
           onFerme={() => setBeneficiaireAModifier(null)}
           onSucces={(beneficiaireModifie) => {
             setDonnees((precedent) =>

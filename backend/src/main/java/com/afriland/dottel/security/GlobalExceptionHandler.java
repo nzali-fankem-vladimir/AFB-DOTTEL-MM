@@ -21,6 +21,7 @@ import com.afriland.dottel.beneficiaires.exception.MatriculeInconnuException;
 import com.afriland.dottel.utilisateurs.exception.MatriculeUtilisateurDejaUtiliseException;
 import com.afriland.dottel.processus.exception.MotifRejetObligatoireException;
 import com.afriland.dottel.beneficiaires.exception.NonEligibleException;
+import com.afriland.dottel.beneficiaires.exception.UniteInconnueException;
 import com.afriland.dottel.processus.exception.ProcessusMensuelExisteDejaException;
 import com.afriland.dottel.processus.exception.ProcessusMensuelIntrouvableException;
 import com.afriland.dottel.processus.exception.ProcessusMensuelNonModifiableException;
@@ -93,6 +94,16 @@ public class GlobalExceptionHandler {
         corps.put("erreur", exception.getMessage());
 
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(corps);
+    }
+
+    @ExceptionHandler(UniteInconnueException.class)
+    public ResponseEntity<Map<String, Object>> gererUniteInconnue(UniteInconnueException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.BAD_REQUEST.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(corps);
     }
 
     @ExceptionHandler(BeneficiaireIntrouvableException.class)

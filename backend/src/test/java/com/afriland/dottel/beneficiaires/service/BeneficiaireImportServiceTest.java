@@ -56,8 +56,8 @@ class BeneficiaireImportServiceTest {
         when(beneficiaireRepository.save(any(Beneficiaire.class))).thenAnswer(this::simulerSauvegarde);
 
         MockMultipartFile fichier = fichierExcel(
-                new String[]{"1", "8210", "TCHINDA Robert", "DA", "Agence Douala Akwa", "DLA-AKW", "10018210003"},
-                new String[]{"2", "8211", "NDONGO Patricia", "DA", "Agence Douala Akwa", "DLA-AKW", "10018211004"});
+                new String[]{"1", "8210", "TCHINDA Robert", "DA", "Agence Douala Akwa", "DLA-AKW", "10018210003", "00002"},
+                new String[]{"2", "8211", "NDONGO Patricia", "DA", "Agence Douala Akwa", "DLA-AKW", "10018211004", "00002"});
 
         ImportRapportDto rapport = beneficiaireImportService.importer(fichier);
 
@@ -74,7 +74,7 @@ class BeneficiaireImportServiceTest {
         when(beneficiaireRepository.existsByMatricule("9999")).thenReturn(true);
 
         MockMultipartFile fichier = fichierExcel(
-                new String[]{"1", "9999", "MBARGA Joseph", "DA", "Agence Bertoua", "BTA-AG01", "10019999002"});
+                new String[]{"1", "9999", "MBARGA Joseph", "DA", "Agence Bertoua", "BTA-AG01", "10019999002", "00008"});
 
         ImportRapportDto rapport = beneficiaireImportService.importer(fichier);
 
@@ -92,7 +92,7 @@ class BeneficiaireImportServiceTest {
         when(fonctionEligibleService.estActive("STAGIAIRE")).thenReturn(Optional.empty());
 
         MockMultipartFile fichier = fichierExcel(
-                new String[]{"1", "8420", "ESSAMA Bertrand", "STAGIAIRE", "Agence Buea", "BUE-AG01", "10018420005"});
+                new String[]{"1", "8420", "ESSAMA Bertrand", "STAGIAIRE", "Agence Buea", "BUE-AG01", "10018420005", "00009"});
 
         ImportRapportDto rapport = beneficiaireImportService.importer(fichier);
 
@@ -115,9 +115,9 @@ class BeneficiaireImportServiceTest {
         when(beneficiaireRepository.save(any(Beneficiaire.class))).thenAnswer(this::simulerSauvegarde);
 
         MockMultipartFile fichier = fichierExcel(
-                new String[]{"1", "8210", "TCHINDA Robert", "DA", "Agence Douala Akwa", "DLA-AKW", "10018210003"},
-                new String[]{"2", "8420", "ESSAMA Bertrand", "STAGIAIRE", "Agence Buea", "BUE-AG01", "10018420005"},
-                new String[]{"3", "8211", "NDONGO Patricia", "DA", "Agence Douala Akwa", "DLA-AKW", "10018211004"});
+                new String[]{"1", "8210", "TCHINDA Robert", "DA", "Agence Douala Akwa", "DLA-AKW", "10018210003", "00002"},
+                new String[]{"2", "8420", "ESSAMA Bertrand", "STAGIAIRE", "Agence Buea", "BUE-AG01", "10018420005", "00009"},
+                new String[]{"3", "8211", "NDONGO Patricia", "DA", "Agence Douala Akwa", "DLA-AKW", "10018211004", "00002"});
 
         ImportRapportDto rapport = beneficiaireImportService.importer(fichier);
 
@@ -135,7 +135,7 @@ class BeneficiaireImportServiceTest {
         when(authenticatedUserService.utilisateurCourant()).thenReturn(utilisateurConnecte());
 
         MockMultipartFile fichier = fichierExcel(
-                new String[]{"1", "", "NKOLO Emmanuel", "DA", "Agence Bafoussam Centre", "BFS-CTR", "10013164008"});
+                new String[]{"1", "", "NKOLO Emmanuel", "DA", "Agence Bafoussam Centre", "BFS-CTR", "10013164008", "00003"});
 
         ImportRapportDto rapport = beneficiaireImportService.importer(fichier);
 
@@ -147,6 +147,22 @@ class BeneficiaireImportServiceTest {
         verify(beneficiaireRepository, never()).existsByMatricule(any());
     }
 
+    // 5bis. champCodeAgenceManquant (code_agence NOT NULL depuis le Sprint MM.10)
+    @Test
+    void importer_champCodeAgenceManquant_rejeteAvecMotifChampCodeAgenceManquant() throws IOException {
+        when(authenticatedUserService.utilisateurCourant()).thenReturn(utilisateurConnecte());
+
+        MockMultipartFile fichier = fichierExcel(
+                new String[]{"1", "8210", "TCHINDA Robert", "DA", "Agence Douala Akwa", "DLA-AKW", "10018210003", ""});
+
+        ImportRapportDto rapport = beneficiaireImportService.importer(fichier);
+
+        assertThat(rapport.getInseres()).isEqualTo(0);
+        assertThat(rapport.getRejetes()).isEqualTo(1);
+        assertThat(rapport.getErreurs().get(0).getMotif()).isEqualTo("Champ CODE_AGENCE manquant");
+        verify(beneficiaireRepository, never()).save(any());
+    }
+
     // 6. corps de contrôle et assimilés (RG-02 non vérifiable via import Excel)
     @Test
     void importer_ligneCorpsControleEtAssimiles_estRejeteeAvecMotifGradeNonVerifiable() throws IOException {
@@ -156,8 +172,8 @@ class BeneficiaireImportServiceTest {
         when(beneficiaireRepository.save(any(Beneficiaire.class))).thenAnswer(this::simulerSauvegarde);
 
         MockMultipartFile fichier = fichierExcel(
-                new String[]{"1", "9312", "ATANGANA Sylvie", "CONTROLEUR_GESTION", "Direction Controle Yaounde", "YDE-CTL", "10019312007"},
-                new String[]{"2", "8210", "TCHINDA Robert", "DA", "Agence Douala Akwa", "DLA-AKW", "10018210003"});
+                new String[]{"1", "9312", "ATANGANA Sylvie", "CONTROLEUR_GESTION", "Direction Controle Yaounde", "YDE-CTL", "10019312007", "00001"},
+                new String[]{"2", "8210", "TCHINDA Robert", "DA", "Agence Douala Akwa", "DLA-AKW", "10018210003", "00002"});
 
         ImportRapportDto rapport = beneficiaireImportService.importer(fichier);
 
@@ -180,7 +196,7 @@ class BeneficiaireImportServiceTest {
         when(fonctionEligibleService.estActive("JURISTE")).thenReturn(Optional.of(false));
 
         MockMultipartFile fichier = fichierExcel(
-                new String[]{"1", "8500", "FOUDA Christian", "JURISTE", "Agence Ngaoundéré", "NGA-AG01", "10018500009"});
+                new String[]{"1", "8500", "FOUDA Christian", "JURISTE", "Agence Ngaoundéré", "NGA-AG01", "10018500009", "00007"});
 
         ImportRapportDto rapport = beneficiaireImportService.importer(fichier);
 
@@ -212,7 +228,7 @@ class BeneficiaireImportServiceTest {
             Sheet feuille = classeur.createSheet("Beneficiaires");
 
             Row entete = feuille.createRow(0);
-            String[] colonnes = {"N°ORDRE", "MATRICULE", "NOMS & PRENOMS", "FONCTION", "UNITE", "CODE_UNITE", "N°COMPTE"};
+            String[] colonnes = {"N°ORDRE", "MATRICULE", "NOMS & PRENOMS", "FONCTION", "UNITE", "CODE_UNITE", "N°COMPTE", "CODE_AGENCE"};
             for (int i = 0; i < colonnes.length; i++) {
                 entete.createCell(i).setCellValue(colonnes[i]);
             }

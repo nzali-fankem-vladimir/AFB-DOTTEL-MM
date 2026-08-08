@@ -9,16 +9,8 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class EmployeEhrDto {
+public class UniteRattachementDto {
 
-    private String matricule;
-    private String nom;
-    private String prenom;
-    private String fonction;
-    private String grade;
     private String uniteRattachement;
     private String codeUnite;
-    private String codeAgence;
-    private String numCompteCourant;
-    private String chapitre;
 }

@@ -4,10 +4,12 @@ import com.afriland.dottel.beneficiaires.model.entity.Beneficiaire;
 import com.afriland.dottel.beneficiaires.model.dto.beneficiaire.BeneficiairePageResponseDto;
 import com.afriland.dottel.beneficiaires.model.dto.beneficiaire.BeneficiaireResponseDto;
 import com.afriland.dottel.beneficiaires.model.dto.beneficiaire.ModifierBeneficiaireRequestDto;
+import com.afriland.dottel.beneficiaires.model.dto.ehr.UniteRattachementDto;
 import com.afriland.dottel.beneficiaires.model.dto.importexcel.ImportRapportDto;
 import com.afriland.dottel.beneficiaires.service.BeneficiaireExportService;
 import com.afriland.dottel.beneficiaires.service.BeneficiaireImportService;
 import com.afriland.dottel.beneficiaires.service.BeneficiaireService;
+import com.afriland.dottel.beneficiaires.service.EhrIntegrationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -31,6 +33,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -41,6 +44,13 @@ public class BeneficiaireController {
     private final BeneficiaireImportService beneficiaireImportService;
     private final BeneficiaireService beneficiaireService;
     private final BeneficiaireExportService beneficiaireExportService;
+    private final EhrIntegrationService ehrIntegrationService;
+
+    @GetMapping("/unites-rattachement")
+    @PreAuthorize("hasRole('ARH')")
+    public ResponseEntity<List<UniteRattachementDto>> listerUnitesRattachement() {
+        return ResponseEntity.ok(ehrIntegrationService.listerUnitesRattachement());
+    }
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ARH', 'DRH')")

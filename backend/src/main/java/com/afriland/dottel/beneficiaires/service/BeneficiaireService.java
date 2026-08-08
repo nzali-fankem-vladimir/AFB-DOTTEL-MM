@@ -4,8 +4,10 @@ import com.afriland.dottel.audit.api.EvenementAudit;
 
 import com.afriland.dottel.beneficiaires.exception.BeneficiaireIntrouvableException;
 import com.afriland.dottel.beneficiaires.exception.NonEligibleException;
+import com.afriland.dottel.beneficiaires.exception.UniteInconnueException;
 import com.afriland.dottel.beneficiaires.model.dto.beneficiaire.BeneficiaireResponseDto;
 import com.afriland.dottel.beneficiaires.model.dto.beneficiaire.ModifierBeneficiaireRequestDto;
+import com.afriland.dottel.beneficiaires.model.dto.ehr.UniteRattachementDto;
 import com.afriland.dottel.beneficiaires.model.entity.Beneficiaire;
 import com.afriland.dottel.referentiel.api.GrilleTarifaireApi;
 import com.afriland.dottel.referentiel.api.ResolutionGrilleDto;
@@ -32,6 +34,7 @@ public class BeneficiaireService {
     private final EligibiliteService eligibiliteService;
     private final ApplicationEventPublisher eventPublisher;
     private final AuthenticatedUserService authenticatedUserService;
+    private final EhrIntegrationService ehrIntegrationService;
 
     @Transactional(readOnly = true)
     public Page<BeneficiaireResponseDto> rechercher(String fonction, String recherche, String uniteRattachement,
@@ -74,10 +77,18 @@ public class BeneficiaireService {
             apres.put("fonction", beneficiaire.getFonction());
         }
 
+        // Resolution du code_unite cote backend, jamais saisie par l'ARH : source
+        // unique de verite, le frontend n'envoie que le libelle de l'unite choisie
+        // dans le select alimente par GET /beneficiaires/unites-rattachement.
         if (requete.getUniteRattachement() != null && !requete.getUniteRattachement().equals(beneficiaire.getUniteRattachement())) {
+            String codeUniteResolu = resoudreCodeUnite(requete.getUniteRattachement());
+
             avant.put("uniteRattachement", beneficiaire.getUniteRattachement());
+            avant.put("codeUnite", beneficiaire.getCodeUnite());
             beneficiaire.setUniteRattachement(requete.getUniteRattachement());
+            beneficiaire.setCodeUnite(codeUniteResolu);
             apres.put("uniteRattachement", beneficiaire.getUniteRattachement());
+            apres.put("codeUnite", beneficiaire.getCodeUnite());
         }
 
         beneficiaireRepository.save(beneficiaire);
@@ -159,5 +170,18 @@ public class BeneficiaireService {
     public Integer resoudreMontantCourant(String codeFonction) {
         ResolutionGrilleDto resolution = grilleTarifaireApi.resoudrePourFonction(codeFonction);
         return resolution.estResolue() ? resolution.montantFcfa() : null;
+    }
+
+    // RG applicable au meme titre que RG-04 : le code_unite ne doit jamais etre
+    // saisi a la main par l'ARH, uniquement resolu depuis la liste EHR (etape 3-4
+    // du Sprint MM.10), pour eviter toute incoherence entre le libelle affiche et
+    // le code stocke en base.
+    private String resoudreCodeUnite(String uniteRattachement) {
+        return ehrIntegrationService.listerUnitesRattachement().stream()
+                .filter(unite -> unite.getUniteRattachement().equals(uniteRattachement))
+                .map(UniteRattachementDto::getCodeUnite)
+                .findFirst()
+                .orElseThrow(() -> new UniteInconnueException(
+                        "Unite de rattachement inconnue : " + uniteRattachement));
     }
 }

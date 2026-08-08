@@ -39,6 +39,7 @@ public class BeneficiaireImportService {
     private static final int COLONNE_UNITE = 4;
     private static final int COLONNE_CODE_UNITE = 5;
     private static final int COLONNE_NUM_COMPTE = 6;
+    private static final int COLONNE_CODE_AGENCE = 7;
 
     private static final String MOTIF_GRADE_NON_VERIFIABLE =
             "Grade non verifiable via import Excel - enrolement individuel requis pour les corps de controle";
@@ -78,8 +79,9 @@ public class BeneficiaireImportService {
                 String unite = valeurCellule(ligne, COLONNE_UNITE, formateur);
                 String codeUnite = valeurCellule(ligne, COLONNE_CODE_UNITE, formateur);
                 String numCompteCourant = valeurCellule(ligne, COLONNE_NUM_COMPTE, formateur);
+                String codeAgence = valeurCellule(ligne, COLONNE_CODE_AGENCE, formateur);
 
-                String motifRejet = validerLigne(matricule, fonction);
+                String motifRejet = validerLigne(matricule, fonction, codeAgence);
                 if (motifRejet != null) {
                     erreurs.add(ImportErreurDto.builder()
                             .ligne(numeroLigne)
@@ -95,6 +97,7 @@ public class BeneficiaireImportService {
                         .fonction(fonction)
                         .uniteRattachement(unite)
                         .codeUnite(codeUnite)
+                        .codeAgence(codeAgence)
                         .numCompteCourant(numCompteCourant)
                         .dateEnrolement(LocalDate.now())
                         .actif(true)
@@ -117,9 +120,16 @@ public class BeneficiaireImportService {
                 .build();
     }
 
-    private String validerLigne(String matricule, String fonction) {
+    private String validerLigne(String matricule, String fonction, String codeAgence) {
         if (matricule.isEmpty()) {
             return "Champ MATRICULE manquant";
+        }
+
+        // code_agence est NOT NULL en base depuis le Sprint MM.10 (V5) : une
+        // ligne sans code agence est rejetee au meme titre qu'un matricule
+        // manquant (RG-11), plutot que de laisser echouer l'insertion en base.
+        if (codeAgence.isEmpty()) {
+            return "Champ CODE_AGENCE manquant";
         }
 
         if (FONCTIONS_CORPS_CONTROLE_ET_ASSIMILES.contains(fonction)) {
@@ -152,6 +162,7 @@ public class BeneficiaireImportService {
         apres.put("fonction", beneficiaire.getFonction());
         apres.put("uniteRattachement", beneficiaire.getUniteRattachement());
         apres.put("codeUnite", beneficiaire.getCodeUnite());
+        apres.put("codeAgence", beneficiaire.getCodeAgence());
         apres.put("numCompteCourant", beneficiaire.getNumCompteCourant());
         apres.put("dateEnrolement", beneficiaire.getDateEnrolement().toString());
 

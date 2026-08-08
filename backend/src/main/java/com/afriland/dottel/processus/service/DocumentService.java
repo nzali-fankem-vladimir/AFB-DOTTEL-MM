@@ -318,7 +318,11 @@ public class DocumentService {
                     ? String.valueOf(resultatMensuel.montantMoisPrecedent()) : "";
             String ecartAffiche = resultatMensuel.ecart() != null ? String.valueOf(resultatMensuel.ecart()) : "";
 
-            table.addCell(new Cell().add(new Paragraph(donnees.getCodeUnite())));
+            // Correctif MM.10 : la colonne AGENCE affichait par erreur codeUnite
+            // (unite d'affectation professionnelle) au lieu de codeAgence (agence
+            // de domiciliation du compte courant) -- deux referentiels distincts,
+            // voir CLAUDE.md et le guide MM.10 section 1.1.
+            table.addCell(new Cell().add(new Paragraph(donnees.getCodeAgence())));
             table.addCell(new Cell().add(new Paragraph(chapitre)));
             table.addCell(new Cell().add(new Paragraph(donnees.getNumCompteCourant())));
             table.addCell(new Cell().add(new Paragraph(donnees.getNomPrenoms())));

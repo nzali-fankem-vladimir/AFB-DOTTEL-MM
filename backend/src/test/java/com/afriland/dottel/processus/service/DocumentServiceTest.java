@@ -63,7 +63,7 @@ class DocumentServiceTest {
         // Beneficiaire enrole avant le Sprint 3.4 : aucune valeur de chapitre
         // fournie par l'EHR a l'epoque -> le repli configure doit s'appliquer.
         LigneDocumentDto donnees = LigneDocumentDto.builder()
-                .nomPrenoms("NDONGO Béatrice").codeUnite("YDE-IG01").numCompteCourant("10019720002")
+                .nomPrenoms("NDONGO Béatrice").codeUnite("YDE-IG01").codeAgence("00001").numCompteCourant("10019720002")
                 .chapitre(null).libelleFonction("Inspecteur Général Adjoint").build();
 
         Utilisateur arh = Utilisateur.builder().id(10L).nom("MBARGA").prenom("Jean-Paul").matricule("2201").build();
@@ -104,7 +104,7 @@ class DocumentServiceTest {
                 .montantApplique(35000).inclusDansEtat(true).fonctionRetenue("CONTROLEUR_COMPTABLE").build();
 
         LigneDocumentDto donnees = LigneDocumentDto.builder()
-                .nomPrenoms("NDONGO Béatrice").codeUnite("YDE-IG01").numCompteCourant("10019720002")
+                .nomPrenoms("NDONGO Béatrice").codeUnite("YDE-IG01").codeAgence("00001").numCompteCourant("10019720002")
                 .chapitre("37210170").libelleFonction("Contrôleur Comptable").build();
 
         Utilisateur arh = Utilisateur.builder().id(10L).nom("MBARGA").prenom("Jean-Paul").matricule("2201").build();
@@ -151,7 +151,7 @@ class DocumentServiceTest {
                 .montantApplique(50000).inclusDansEtat(true).fonctionRetenue("DA").build();
 
         LigneDocumentDto donnees = LigneDocumentDto.builder()
-                .nomPrenoms("ONANA Serge").codeUnite("DLA-AG05").numCompteCourant("10033450009")
+                .nomPrenoms("ONANA Serge").codeUnite("DLA-AG05").codeAgence("00002").numCompteCourant("10033450009")
                 .chapitre("37210170").libelleFonction("Directeur d'Agence").build();
 
         Utilisateur arh = Utilisateur.builder().id(10L).nom("MBARGA").prenom("Jean-Paul").matricule("2201").build();
@@ -188,7 +188,7 @@ class DocumentServiceTest {
                 .montantApplique(40000).inclusDansEtat(true).fonctionRetenue("GFC").build();
 
         LigneDocumentDto donnees = LigneDocumentDto.builder()
-                .nomPrenoms("ESSAMA Paul").codeUnite("DLA-AG03").numCompteCourant("10023410005")
+                .nomPrenoms("ESSAMA Paul").codeUnite("DLA-AG03").codeAgence("00002").numCompteCourant("10023410005")
                 .chapitre("37210170").libelleFonction("Gestionnaire de Fonds de Commerce").build();
 
         when(ecartMensuelService.rechercherResultatMensuel(any(), any()))
