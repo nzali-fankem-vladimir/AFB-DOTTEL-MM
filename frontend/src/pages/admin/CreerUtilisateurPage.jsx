@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 import apiClient from '../../api/apiClient';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -15,6 +15,8 @@ const ROLES = ['EMPLOYE', 'ARH', 'CRH', 'DRH', 'ADMIN'];
 
 export default function CreerUtilisateurPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const retourListe = location.state?.retour ?? '/admin/utilisateurs';
   const [matricule, setMatricule] = useState('');
   const [nom, setNom] = useState('');
   const [prenom, setPrenom] = useState('');
@@ -30,7 +32,7 @@ export default function CreerUtilisateurPage() {
     setEnCours(true);
     try {
       await apiClient.post('/admin/utilisateurs', { matricule, nom, prenom, email, role, motDePasse });
-      navigate('/admin/utilisateurs');
+      navigate(retourListe);
     } catch (err) {
       if (err.response?.status === 409) {
         setErreur(
@@ -46,7 +48,7 @@ export default function CreerUtilisateurPage() {
 
   return (
     <>
-      <LienRetour to="/admin/utilisateurs" label="Retour aux utilisateurs" />
+      <LienRetour to={retourListe} label="Retour aux utilisateurs" />
       <PageHeader surTitre="Système" titre="Créer un utilisateur" />
       <div className="flex flex-col gap-6 p-8">
         <Card className="max-w-lg">

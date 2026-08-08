@@ -34,10 +34,10 @@ public class BeneficiaireService {
     private final AuthenticatedUserService authenticatedUserService;
 
     @Transactional(readOnly = true)
-    public Page<BeneficiaireResponseDto> rechercher(String fonction, String uniteRattachement, Boolean actif,
-                                                      Pageable pageable) {
+    public Page<BeneficiaireResponseDto> rechercher(String fonction, String recherche, String uniteRattachement,
+                                                      Boolean actif, Pageable pageable) {
         Page<Beneficiaire> page = beneficiaireRepository.findAll(
-                BeneficiaireSpecifications.avecFiltres(fonction, uniteRattachement, actif), pageable);
+                BeneficiaireSpecifications.avecFiltres(fonction, recherche, uniteRattachement, actif), pageable);
 
         return page.map(this::versDto);
     }

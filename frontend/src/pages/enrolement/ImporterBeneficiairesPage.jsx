@@ -5,6 +5,7 @@ import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Alert, AlertDescription } from '../../components/ui/Alert';
+import { LienRetour } from '../../components/ui/LienRetour';
 import { cn } from '../../utils/cn';
 
 function formaterTaille(octets) {
@@ -70,6 +71,7 @@ export default function ImporterBeneficiairesPage() {
 
   return (
     <>
+      <LienRetour to="/beneficiaires" label="Retour aux bénéficiaires" />
       <PageHeader surTitre="ARH" titre="Importer des bénéficiaires" />
       <div className="mx-auto max-w-3xl p-8">
         <Card>

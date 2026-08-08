@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import { AlertTriangle, Check, Download, MessageSquareWarning, SlidersHorizontal, Undo2, X } from 'lucide-react';
 import apiClient from '../../api/apiClient';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -137,6 +137,8 @@ function EnTeteSquelette() {
 
 export default function ProcessusDetailPage() {
   const { id } = useParams();
+  const location = useLocation();
+  const retour = location.state?.retour ?? '/processus';
   const { user } = useAuth();
   const [processus, setProcessus] = useState(null);
   const [chargement, setChargement] = useState(true);
@@ -222,7 +224,7 @@ export default function ProcessusDetailPage() {
   if (chargement) {
     return (
       <>
-        <LienRetour to="/processus" label="Retour aux processus" />
+        <LienRetour to={retour} label="Retour aux processus" />
         <PageHeader surTitre="Workflow" titre="Processus mensuel" />
         <div className="flex flex-col gap-6 p-8">
           <EnTeteSquelette />
@@ -242,7 +244,7 @@ export default function ProcessusDetailPage() {
 
   return (
     <>
-      <LienRetour to="/processus" label="Retour aux processus" />
+      <LienRetour to={retour} label="Retour aux processus" />
       <PageHeader surTitre="Workflow" titre={getPeriodeLabel(processus.moisPaiement, processus.anneePaiement)} />
       <div className="flex flex-col gap-6 p-8">
         <Card>

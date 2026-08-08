@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import apiClient from '../../api/apiClient';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -11,6 +11,7 @@ import { Select } from '../../components/ui/Select';
 import { Alert, AlertDescription } from '../../components/ui/Alert';
 import { useAuth } from '../../contexts/AuthContext';
 import { getRoleInfo } from '../../utils/statutUtilisateur';
+import { definirParametre, construireRetour } from '../../utils/searchParams';
 
 const ROLES = ['EMPLOYE', 'ARH', 'CRH', 'DRH', 'ADMIN'];
 
@@ -67,8 +68,9 @@ function colonnes() {
 export default function UtilisateursListPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [role, setRole] = useState('');
-  const [actif, setActif] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const role = searchParams.get('role') ?? '';
+  const actif = searchParams.get('actif') ?? '';
   const [donnees, setDonnees] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [rafraichissement, setRafraichissement] = useState(0);
@@ -155,7 +157,13 @@ export default function UtilisateursListPage() {
           <div className="flex flex-wrap items-end gap-4">
             <div className="flex w-48 flex-col gap-1.5">
               <Label htmlFor="filtre-role">Rôle</Label>
-              <Select id="filtre-role" value={role} onChange={(e) => setRole(e.target.value)}>
+              <Select
+                id="filtre-role"
+                value={role}
+                onChange={(e) =>
+                  setSearchParams((precedent) => definirParametre(precedent, 'role', e.target.value))
+                }
+              >
                 <option value="">Tous</option>
                 {ROLES.map((r) => (
                   <option key={r} value={r}>
@@ -167,7 +175,13 @@ export default function UtilisateursListPage() {
 
             <div className="flex w-40 flex-col gap-1.5">
               <Label htmlFor="filtre-actif">Statut</Label>
-              <Select id="filtre-actif" value={actif} onChange={(e) => setActif(e.target.value)}>
+              <Select
+                id="filtre-actif"
+                value={actif}
+                onChange={(e) =>
+                  setSearchParams((precedent) => definirParametre(precedent, 'actif', e.target.value))
+                }
+              >
                 <option value="">Tous</option>
                 <option value="true">Actif</option>
                 <option value="false">Inactif</option>
@@ -175,7 +189,13 @@ export default function UtilisateursListPage() {
             </div>
           </div>
 
-          <Button onClick={() => navigate('/admin/utilisateurs/creer')}>
+          <Button
+            onClick={() =>
+              navigate('/admin/utilisateurs/creer', {
+                state: { retour: construireRetour('/admin/utilisateurs', searchParams) },
+              })
+            }
+          >
             <Plus className="h-4 w-4" />
             Créer un utilisateur
           </Button>

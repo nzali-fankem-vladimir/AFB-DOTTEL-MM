@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../../comp
 import { Checkbox } from '../../components/ui/Checkbox';
 import { Select } from '../../components/ui/Select';
 import { Button } from '../../components/ui/Button';
+import { Input } from '../../components/ui/Input';
 import { Alert, AlertDescription } from '../../components/ui/Alert';
 import { cn } from '../../utils/cn';
 
@@ -21,6 +22,7 @@ export function AjusterLignesModal({ idProcessus, lignes, onFerme, onSucces }) {
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState(null);
   const [resultats, setResultats] = useState(null);
+  const [recherche, setRecherche] = useState('');
 
   useEffect(() => {
     apiClient.get('/fonctions-eligibles').then(({ data }) => setFonctionsEligibles(data));
@@ -31,11 +33,35 @@ export function AjusterLignesModal({ idProcessus, lignes, onFerme, onSucces }) {
     [lignes]
   );
 
+  const lignesFiltrees = useMemo(() => {
+    const terme = recherche.trim().toLowerCase();
+    if (!terme) return lignes;
+    return lignes.filter(
+      (ligne) =>
+        ligne.matricule.toLowerCase().includes(terme) ||
+        ligne.nomPrenoms.toLowerCase().includes(terme)
+    );
+  }, [lignes, recherche]);
+
+  const toutesIncluses =
+    lignesFiltrees.length > 0 &&
+    lignesFiltrees.every((ligne) => valeurs[ligne.idBeneficiaire].inclusDansEtat);
+
   const modifierInclusion = (idBeneficiaire, inclusDansEtat) => {
     setValeurs((precedent) => ({
       ...precedent,
       [idBeneficiaire]: { ...precedent[idBeneficiaire], inclusDansEtat },
     }));
+  };
+
+  const definirInclusionGlobale = (inclusDansEtat) => {
+    setValeurs((precedent) => {
+      const suivant = { ...precedent };
+      lignesFiltrees.forEach((ligne) => {
+        suivant[ligne.idBeneficiaire] = { ...suivant[ligne.idBeneficiaire], inclusDansEtat };
+      });
+      return suivant;
+    });
   };
 
   const modifierFonction = (idBeneficiaire, fonctionRetenue) => {
@@ -86,8 +112,19 @@ export function AjusterLignesModal({ idProcessus, lignes, onFerme, onSucces }) {
           retrecir sous la taille de son contenu -- elle deborde alors du modal
           au lieu de scroller, et pousse les boutons hors de l'ecran. */}
       <Card className="flex max-h-[85vh] w-full max-w-3xl flex-col">
-        <CardHeader className="shrink-0">
+        <CardHeader className="shrink-0 flex-row items-center justify-between">
           <CardTitle>Ajuster les lignes de l'état mensuel</CardTitle>
+          {!resultats && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => definirInclusionGlobale(!toutesIncluses)}
+              disabled={enCours || lignesFiltrees.length === 0}
+            >
+              {toutesIncluses ? 'Tout désélectionner' : 'Tout sélectionner'}
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="flex min-h-0 flex-1 flex-col gap-4">
           {erreur && (
@@ -95,6 +132,17 @@ export function AjusterLignesModal({ idProcessus, lignes, onFerme, onSucces }) {
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>{erreur}</AlertDescription>
             </Alert>
+          )}
+
+          {!resultats && (
+            <Input
+              className="shrink-0"
+              type="text"
+              placeholder="Rechercher par matricule ou nom…"
+              value={recherche}
+              onChange={(e) => setRecherche(e.target.value)}
+              disabled={enCours}
+            />
           )}
 
           {!resultats && (
@@ -109,7 +157,14 @@ export function AjusterLignesModal({ idProcessus, lignes, onFerme, onSucces }) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-200">
-                  {lignes.map((ligne) => {
+                  {lignesFiltrees.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-6 text-center text-neutral-500">
+                        Aucun bénéficiaire ne correspond à la recherche.
+                      </td>
+                    </tr>
+                  )}
+                  {lignesFiltrees.map((ligne) => {
                     const valeur = valeurs[ligne.idBeneficiaire];
                     return (
                       <tr key={ligne.idBeneficiaire}>

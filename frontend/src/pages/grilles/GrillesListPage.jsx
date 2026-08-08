@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, History, MessageSquareWarning, PowerOff } from 'lucide-react';
 import apiClient from '../../api/apiClient';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -14,6 +14,7 @@ import { VoirMotifModal } from '../../components/ui/VoirMotifModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatMontantFCFA, formatDate } from '../../utils/formatters';
 import { getStatutGrilleInfo } from '../../utils/statutGrille';
+import { definirParametre, construireRetour } from '../../utils/searchParams';
 import { ModifierGrilleModal } from './ModifierGrilleModal';
 
 const colonnes = [
@@ -46,9 +47,10 @@ const colonnes = [
 export default function GrillesListPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const fonction = searchParams.get('fonction') ?? '';
+  const statut = searchParams.get('statut') ?? '';
   const [fonctionsEligibles, setFonctionsEligibles] = useState([]);
-  const [fonction, setFonction] = useState('');
-  const [statut, setStatut] = useState('');
   const [donnees, setDonnees] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [rafraichissement, setRafraichissement] = useState(0);
@@ -100,7 +102,13 @@ export default function GrillesListPage() {
           <div className="flex flex-wrap items-end gap-4">
             <div className="flex w-56 flex-col gap-1.5">
               <Label htmlFor="filtre-fonction">Fonction</Label>
-              <Select id="filtre-fonction" value={fonction} onChange={(e) => setFonction(e.target.value)}>
+              <Select
+                id="filtre-fonction"
+                value={fonction}
+                onChange={(e) =>
+                  setSearchParams((precedent) => definirParametre(precedent, 'fonction', e.target.value))
+                }
+              >
                 <option value="">Toutes</option>
                 {fonctionsEligibles.map((f) => (
                   <option key={f.code} value={f.code}>
@@ -112,7 +120,13 @@ export default function GrillesListPage() {
 
             <div className="flex w-48 flex-col gap-1.5">
               <Label htmlFor="filtre-statut">Statut</Label>
-              <Select id="filtre-statut" value={statut} onChange={(e) => setStatut(e.target.value)}>
+              <Select
+                id="filtre-statut"
+                value={statut}
+                onChange={(e) =>
+                  setSearchParams((precedent) => definirParametre(precedent, 'statut', e.target.value))
+                }
+              >
                 <option value="">Tous</option>
                 <option value="BROUILLON">Brouillon</option>
                 <option value="EN_ATTENTE_DRH">En attente DRH</option>
@@ -124,7 +138,13 @@ export default function GrillesListPage() {
           </div>
 
           {user?.role === 'ARH' && (
-            <Button onClick={() => navigate('/grilles-tarifaires/creer')}>
+            <Button
+              onClick={() =>
+                navigate('/grilles-tarifaires/creer', {
+                  state: { retour: construireRetour('/grilles-tarifaires', searchParams) },
+                })
+              }
+            >
               <Plus className="h-4 w-4" />
               Créer une grille
             </Button>
@@ -152,7 +172,11 @@ export default function GrillesListPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => navigate(`/grilles-tarifaires/historique/${grille.codeFonction}`)}
+                onClick={() =>
+                  navigate(`/grilles-tarifaires/historique/${grille.codeFonction}`, {
+                    state: { retour: construireRetour('/grilles-tarifaires', searchParams) },
+                  })
+                }
               >
                 <History className="h-4 w-4" />
                 Historique

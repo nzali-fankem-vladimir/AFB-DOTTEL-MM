@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
 import apiClient from '../../api/apiClient';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -13,6 +13,8 @@ import { LienRetour } from '../../components/ui/LienRetour';
 
 export default function CreerGrillePage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const retourListe = location.state?.retour ?? '/grilles-tarifaires';
   const [fonctionsEligibles, setFonctionsEligibles] = useState([]);
   const [codeFonction, setCodeFonction] = useState('');
   const [montantFcfa, setMontantFcfa] = useState('');
@@ -37,7 +39,7 @@ export default function CreerGrillePage() {
         montantFcfa: Number(montantFcfa),
         dateDebut,
       });
-      navigate('/grilles-tarifaires');
+      navigate(retourListe);
     } catch (err) {
       if (err.response?.status === 409) {
         setErreur('Une grille est déjà en attente de validation DRH pour cette fonction.');
@@ -53,7 +55,7 @@ export default function CreerGrillePage() {
 
   return (
     <>
-      <LienRetour to="/grilles-tarifaires" label="Retour aux grilles tarifaires" />
+      <LienRetour to={retourListe} label="Retour aux grilles tarifaires" />
       <PageHeader surTitre="ARH" titre="Créer une grille tarifaire" />
       <div className="flex flex-col gap-6 p-8">
         <Card className="max-w-lg">

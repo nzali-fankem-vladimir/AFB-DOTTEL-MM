@@ -198,7 +198,7 @@ class BeneficiaireServiceTest {
         when(grilleTarifaireApi.resoudrePourFonction("GFC")).thenReturn(ResolutionGrilleDto.resolue(40000));
         when(grilleTarifaireApi.resoudrePourFonction("COMPTABLE")).thenReturn(ResolutionGrilleDto.resolue(35000));
 
-        Page<BeneficiaireResponseDto> resultat = beneficiaireService.rechercher(null, null, null, pageable);
+        Page<BeneficiaireResponseDto> resultat = beneficiaireService.rechercher(null, null, null, null, pageable);
 
         assertThat(resultat.getContent()).hasSize(2);
         assertThat(resultat.getContent()).extracting(BeneficiaireResponseDto::getMatricule)
@@ -214,10 +214,26 @@ class BeneficiaireServiceTest {
                 .thenReturn(new PageImpl<>(List.of(sylvie), pageable, 1));
         when(grilleTarifaireApi.resoudrePourFonction("GFC")).thenReturn(ResolutionGrilleDto.resolue(40000));
 
-        Page<BeneficiaireResponseDto> resultat = beneficiaireService.rechercher("GFC", null, null, pageable);
+        Page<BeneficiaireResponseDto> resultat = beneficiaireService.rechercher("GFC", null, null, null, pageable);
 
         assertThat(resultat.getContent()).hasSize(1);
         assertThat(resultat.getContent().get(0).getFonction()).isEqualTo("GFC");
+    }
+
+    @Test
+    void rechercher_filtreParRecherche_retourneParNomOuMatricule() {
+        Beneficiaire pierre = creerBeneficiaire("2095", "Pierre TCHINDA", "CONSEILLER", true);
+        Pageable pageable = PageRequest.of(0, 20);
+
+        when(beneficiaireRepository.findAll(any(Specification.class), eq(pageable)))
+                .thenReturn(new PageImpl<>(List.of(pierre), pageable, 1));
+        when(grilleTarifaireApi.resoudrePourFonction("CONSEILLER")).thenReturn(ResolutionGrilleDto.resolue(50000));
+
+        Page<BeneficiaireResponseDto> resultat =
+                beneficiaireService.rechercher(null, "tchinda", null, null, pageable);
+
+        assertThat(resultat.getContent()).hasSize(1);
+        assertThat(resultat.getContent().get(0).getMatricule()).isEqualTo("2095");
     }
 
     @Test
@@ -230,7 +246,7 @@ class BeneficiaireServiceTest {
         when(grilleTarifaireApi.resoudrePourFonction("CONSEILLER"))
                 .thenReturn(ResolutionGrilleDto.exclue(ResolutionGrilleDto.MOTIF_GRILLE_INTROUVABLE));
 
-        Page<BeneficiaireResponseDto> resultat = beneficiaireService.rechercher(null, null, null, pageable);
+        Page<BeneficiaireResponseDto> resultat = beneficiaireService.rechercher(null, null, null, null, pageable);
 
         assertThat(resultat.getContent().get(0).getMontantCourant()).isNull();
     }
@@ -347,7 +363,7 @@ class BeneficiaireServiceTest {
         when(grilleTarifaireApi.resoudrePourFonction("ATTACHE_COMMERCIAL"))
                 .thenReturn(ResolutionGrilleDto.resolue(30000));
 
-        Page<BeneficiaireResponseDto> resultat = beneficiaireService.rechercher(null, null, null, pageable);
+        Page<BeneficiaireResponseDto> resultat = beneficiaireService.rechercher(null, null, null, null, pageable);
 
         assertThat(resultat.getNumber()).isEqualTo(1);
         assertThat(resultat.getSize()).isEqualTo(5);

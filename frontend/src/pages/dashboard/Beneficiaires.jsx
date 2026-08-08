@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Download } from 'lucide-react';
 import apiClient from '../../api/apiClient';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -12,6 +13,7 @@ import { formatMontantFCFA } from '../../utils/formatters';
 import { ModifierBeneficiaireModal } from './ModifierBeneficiaireModal';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { Alert, AlertDescription } from '../../components/ui/Alert';
+import { definirParametre } from '../../utils/searchParams';
 
 const TAILLE_PAGE = 20;
 
@@ -43,11 +45,16 @@ function colonnes(libellesFonctions) {
 }
 
 export default function Beneficiaires() {
-  const [fonction, setFonction] = useState('');
-  const [uniteSaisie, setUniteSaisie] = useState('');
-  const [unite, setUnite] = useState('');
-  const [actif, setActif] = useState('');
-  const [page, setPage] = useState(0);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const fonction = searchParams.get('fonction') ?? '';
+  const unite = searchParams.get('unite') ?? '';
+  const recherche = searchParams.get('recherche') ?? '';
+  const actif = searchParams.get('actif') ?? '';
+  const page = Number(searchParams.get('page') ?? '0');
+
+  const [uniteSaisie, setUniteSaisie] = useState(unite);
+  const [rechercheSaisie, setRechercheSaisie] = useState(recherche);
+  const premierRendu = useRef(true);
 
   const [donnees, setDonnees] = useState([]);
   const [total, setTotal] = useState(0);
@@ -71,11 +78,30 @@ export default function Beneficiaires() {
 
   // Debounce 300ms sur la saisie libre "unite" avant de declencher la requete.
   useEffect(() => {
-    const minuteur = setTimeout(() => setUnite(uniteSaisie), 300);
+    const minuteur = setTimeout(() => {
+      setSearchParams((precedent) => definirParametre(precedent, 'unite', uniteSaisie));
+    }, 300);
     return () => clearTimeout(minuteur);
-  }, [uniteSaisie]);
+  }, [uniteSaisie, setSearchParams]);
 
-  useEffect(() => setPage(0), [fonction, unite, actif]);
+  // Debounce 300ms sur la saisie libre "recherche" (meme pattern que "unite").
+  useEffect(() => {
+    const minuteur = setTimeout(() => {
+      setSearchParams((precedent) => definirParametre(precedent, 'recherche', rechercheSaisie));
+    }, 300);
+    return () => clearTimeout(minuteur);
+  }, [rechercheSaisie, setSearchParams]);
+
+  // PIEGE 1 : garde premierRendu pour ne pas ramener a la page 0 au premier
+  // montage -- sinon un lien profond vers une page > 0 avec filtres actifs
+  // serait casse des le chargement.
+  useEffect(() => {
+    if (premierRendu.current) {
+      premierRendu.current = false;
+      return;
+    }
+    setSearchParams((precedent) => definirParametre(precedent, 'page', ''));
+  }, [fonction, unite, recherche, actif, setSearchParams]);
 
   useEffect(() => {
     let annule = false;
@@ -84,6 +110,7 @@ export default function Beneficiaires() {
       .get('/beneficiaires', {
         params: {
           fonction: fonction || undefined,
+          recherche: recherche || undefined,
           uniteRattachement: unite || undefined,
           actif: actif === '' ? undefined : actif === 'true',
           page,
@@ -101,7 +128,7 @@ export default function Beneficiaires() {
     return () => {
       annule = true;
     };
-  }, [fonction, unite, actif, page, rafraichissement]);
+  }, [fonction, unite, recherche, actif, page, rafraichissement]);
 
   const desactiver = async () => {
     await apiClient.delete(`/beneficiaires/${beneficiaireADesactiver.id}`);
@@ -152,8 +179,14 @@ export default function Beneficiaires() {
   };
 
   const pagination = useMemo(
-    () => ({ page, taille: TAILLE_PAGE, total, onChangerPage: setPage }),
-    [page, total]
+    () => ({
+      page,
+      taille: TAILLE_PAGE,
+      total,
+      onChangerPage: (nouvellePage) =>
+        setSearchParams((precedent) => definirParametre(precedent, 'page', String(nouvellePage))),
+    }),
+    [page, total, setSearchParams]
   );
 
   return (
@@ -162,9 +195,15 @@ export default function Beneficiaires() {
       <div className="flex flex-col gap-6 p-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-wrap items-end gap-4">
-            <div className="flex w-56 flex-col gap-1.5">
+            <div className="flex w-48 flex-col gap-1.5">
               <Label htmlFor="filtre-fonction">Fonction</Label>
-              <Select id="filtre-fonction" value={fonction} onChange={(e) => setFonction(e.target.value)}>
+              <Select
+                id="filtre-fonction"
+                value={fonction}
+                onChange={(e) =>
+                  setSearchParams((precedent) => definirParametre(precedent, 'fonction', e.target.value))
+                }
+              >
                 <option value="">Toutes</option>
                 {fonctionsEligibles.map((f) => (
                   <option key={f.code} value={f.code}>
@@ -174,7 +213,17 @@ export default function Beneficiaires() {
               </Select>
             </div>
 
-            <div className="flex w-56 flex-col gap-1.5">
+            <div className="flex w-52 flex-col gap-1.5">
+              <Label htmlFor="filtre-recherche">Nom ou matricule</Label>
+              <Input
+                id="filtre-recherche"
+                placeholder="Rechercher par nom ou matricule…"
+                value={rechercheSaisie}
+                onChange={(e) => setRechercheSaisie(e.target.value)}
+              />
+            </div>
+
+            <div className="flex w-48 flex-col gap-1.5">
               <Label htmlFor="filtre-unite">Unité de rattachement</Label>
               <Input
                 id="filtre-unite"
@@ -186,7 +235,13 @@ export default function Beneficiaires() {
 
             <div className="flex w-40 flex-col gap-1.5">
               <Label htmlFor="filtre-actif">Statut</Label>
-              <Select id="filtre-actif" value={actif} onChange={(e) => setActif(e.target.value)}>
+              <Select
+                id="filtre-actif"
+                value={actif}
+                onChange={(e) =>
+                  setSearchParams((precedent) => definirParametre(precedent, 'actif', e.target.value))
+                }
+              >
                 <option value="">Tous</option>
                 <option value="true">Actif</option>
                 <option value="false">Inactif</option>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useLocation, useParams } from 'react-router-dom';
 import { MessageSquareWarning } from 'lucide-react';
 import apiClient from '../../api/apiClient';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -35,6 +35,8 @@ const colonnes = [
 
 export default function HistoriqueGrillePage() {
   const { code } = useParams();
+  const location = useLocation();
+  const retour = location.state?.retour ?? '/grilles-tarifaires';
   const [libelleFonction, setLibelleFonction] = useState('');
   const [donnees, setDonnees] = useState([]);
   const [chargement, setChargement] = useState(true);
@@ -60,7 +62,7 @@ export default function HistoriqueGrillePage() {
 
   return (
     <>
-      <LienRetour to="/grilles-tarifaires" label="Retour aux grilles tarifaires" />
+      <LienRetour to={retour} label="Retour aux grilles tarifaires" />
       <PageHeader surTitre="Historique" titre={libelleFonction || code} />
       <div className="flex flex-col gap-6 p-8">
         <DataTable

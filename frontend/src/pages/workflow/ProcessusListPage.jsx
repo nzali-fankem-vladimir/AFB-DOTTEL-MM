@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import apiClient from '../../api/apiClient';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -11,6 +11,7 @@ import { Select } from '../../components/ui/Select';
 import { useAuth } from '../../contexts/AuthContext';
 import { getPeriodeLabel, formatDateHeure } from '../../utils/formatters';
 import { getStatutProcessusInfo, STATUTS_PROCESSUS } from '../../utils/statutProcessus';
+import { definirParametre, construireRetour } from '../../utils/searchParams';
 
 const colonnes = [
   {
@@ -36,8 +37,9 @@ const colonnes = [
 export default function ProcessusListPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [statut, setStatut] = useState('');
-  const [annee, setAnnee] = useState('');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const statut = searchParams.get('statut') ?? '';
+  const annee = searchParams.get('annee') ?? '';
   const [anneesDisponibles, setAnneesDisponibles] = useState([]);
   const [donnees, setDonnees] = useState([]);
   const [chargement, setChargement] = useState(true);
@@ -81,7 +83,13 @@ export default function ProcessusListPage() {
           <div className="flex flex-wrap items-end gap-4">
             <div className="flex w-48 flex-col gap-1.5">
               <Label htmlFor="filtre-statut">Statut</Label>
-              <Select id="filtre-statut" value={statut} onChange={(e) => setStatut(e.target.value)}>
+              <Select
+                id="filtre-statut"
+                value={statut}
+                onChange={(e) =>
+                  setSearchParams((precedent) => definirParametre(precedent, 'statut', e.target.value))
+                }
+              >
                 <option value="">Tous</option>
                 {Object.entries(STATUTS_PROCESSUS).map(([valeur, { libelle }]) => (
                   <option key={valeur} value={valeur}>
@@ -93,7 +101,13 @@ export default function ProcessusListPage() {
 
             <div className="flex w-36 flex-col gap-1.5">
               <Label htmlFor="filtre-annee">Année</Label>
-              <Select id="filtre-annee" value={annee} onChange={(e) => setAnnee(e.target.value)}>
+              <Select
+                id="filtre-annee"
+                value={annee}
+                onChange={(e) =>
+                  setSearchParams((precedent) => definirParametre(precedent, 'annee', e.target.value))
+                }
+              >
                 <option value="">Toutes</option>
                 {anneesDisponibles.map((a) => (
                   <option key={a} value={a}>
@@ -105,7 +119,13 @@ export default function ProcessusListPage() {
           </div>
 
           {user?.role === 'ARH' && (
-            <Button onClick={() => navigate('/processus/declencher')}>
+            <Button
+              onClick={() =>
+                navigate('/processus/declencher', {
+                  state: { retour: construireRetour('/processus', searchParams) },
+                })
+              }
+            >
               <Plus className="h-4 w-4" />
               Déclencher un processus
             </Button>
@@ -117,7 +137,11 @@ export default function ProcessusListPage() {
           donnees={donnees}
           cleLigne={(processus) => processus.id}
           chargement={chargement}
-          onLigneClick={(processus) => navigate(`/processus/${processus.id}`)}
+          onLigneClick={(processus) =>
+            navigate(`/processus/${processus.id}`, {
+              state: { retour: construireRetour('/processus', searchParams) },
+            })
+          }
         />
       </div>
     </>

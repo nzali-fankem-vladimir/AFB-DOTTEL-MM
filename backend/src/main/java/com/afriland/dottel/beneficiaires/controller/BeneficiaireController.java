@@ -46,12 +46,14 @@ public class BeneficiaireController {
     @PreAuthorize("hasAnyRole('ARH', 'DRH')")
     public ResponseEntity<BeneficiairePageResponseDto> rechercher(
             @RequestParam(required = false) String fonction,
+            @RequestParam(required = false) String recherche,
             @RequestParam(required = false) String uniteRattachement,
             @RequestParam(required = false) Boolean actif,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int taille) {
         Pageable pageable = PageRequest.of(page, taille);
-        Page<BeneficiaireResponseDto> resultat = beneficiaireService.rechercher(fonction, uniteRattachement, actif, pageable);
+        Page<BeneficiaireResponseDto> resultat =
+                beneficiaireService.rechercher(fonction, recherche, uniteRattachement, actif, pageable);
         return ResponseEntity.ok(BeneficiairePageResponseDto.depuis(resultat));
     }
 

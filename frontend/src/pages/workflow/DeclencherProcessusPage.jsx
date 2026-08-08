@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import apiClient from '../../api/apiClient';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -23,6 +23,8 @@ const ANNEES = [ANNEE_COURANTE - 1, ANNEE_COURANTE, ANNEE_COURANTE + 1];
 
 export default function DeclencherProcessusPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const retourListe = location.state?.retour ?? '/processus';
   const [moisPaiement, setMoisPaiement] = useState(new Date().getMonth() + 1);
   const [anneePaiement, setAnneePaiement] = useState(ANNEE_COURANTE);
   const [enCours, setEnCours] = useState(false);
@@ -53,7 +55,7 @@ export default function DeclencherProcessusPage() {
 
   return (
     <>
-      <LienRetour to="/processus" label="Retour aux processus" />
+      <LienRetour to={retourListe} label="Retour aux processus" />
       <PageHeader surTitre="ARH" titre="Déclencher un processus mensuel" />
       <div className="flex flex-col gap-6 p-8">
         <Card className="max-w-lg">
@@ -147,7 +149,12 @@ export default function DeclencherProcessusPage() {
               )}
             </CardContent>
             <CardFooter>
-              <Button variant="outline" onClick={() => navigate(`/processus/${resultat.id}`)}>
+              <Button
+                variant="outline"
+                onClick={() =>
+                  navigate(`/processus/${resultat.id}`, { state: { retour: retourListe } })
+                }
+              >
                 Voir le détail du processus
               </Button>
             </CardFooter>
