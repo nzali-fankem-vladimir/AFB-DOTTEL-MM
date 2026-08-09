@@ -2,6 +2,7 @@ package com.afriland.dottel.processus.service;
 import com.afriland.dottel.beneficiaires.api.BeneficiaireApi;
 import com.afriland.dottel.beneficiaires.api.BeneficiaireDotationDto;
 import com.afriland.dottel.beneficiaires.api.BeneficiaireIdentiteDto;
+import com.afriland.dottel.referentiel.api.GrilleEnAttenteDto;
 import com.afriland.dottel.referentiel.api.GrilleTarifaireApi;
 import com.afriland.dottel.referentiel.api.ResolutionGrilleDto;
 import com.afriland.dottel.utilisateurs.api.DestinataireNotificationDto;
@@ -16,10 +17,15 @@ import com.afriland.dottel.processus.exception.ProcessusMensuelExisteDejaExcepti
 import com.afriland.dottel.processus.exception.ProcessusMensuelIntrouvableException;
 import com.afriland.dottel.processus.exception.ProcessusMensuelNonModifiableException;
 import com.afriland.dottel.processus.exception.ProcessusOriginalIntrouvableException;
+import com.afriland.dottel.processus.exception.ResynchronisationNonConfirmeeException;
+import com.afriland.dottel.processus.exception.ValidationBloqueeGrilleEnAttenteException;
 import com.afriland.dottel.processus.exception.RoleEtapeNonAutoriseException;
 import com.afriland.dottel.processus.exception.SeparationTachesViolationException;
 import com.afriland.dottel.processus.model.dto.processus.AjustementLigneEtatDto;
 import com.afriland.dottel.processus.model.dto.processus.DeclencherProcessusRequestDto;
+import com.afriland.dottel.processus.model.dto.processus.EcartsMontantsResponseDto;
+import com.afriland.dottel.processus.model.dto.processus.LigneExclueResynchronisationDto;
+import com.afriland.dottel.processus.model.dto.processus.LigneResynchroniseeDto;
 import com.afriland.dottel.processus.model.dto.processus.PatchProcessusRequestDto;
 import com.afriland.dottel.processus.model.dto.processus.PatchProcessusResponseDto;
 import com.afriland.dottel.processus.model.dto.processus.PieceJointeMetadonneesResponseDto;
@@ -54,6 +60,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.nio.file.Path;
+import java.time.LocalDateTime;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
@@ -65,6 +72,7 @@ import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -1597,13 +1605,17 @@ class ProcessusMensuelServiceTest {
         when(processusMensuelRepository.findById(900L)).thenReturn(Optional.of(processus));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndInclusDansEtatTrue(900L)).thenReturn(List.of(ligneIncluse));
+        // Sprint MM.12 : la branche ARH compare desormais chaque ligne incluse a
+        // la grille ACTIVE (variante B2-RESYNC). Meme montant que la ligne = pas
+        // d'ecart, donc validation nominale sans recapitulatif ni confirmation.
+        when(grilleTarifaireApi.resoudrePourFonction("DA")).thenReturn(ResolutionGrilleDto.resolue(50000));
         when(documentService.genererInitiale(eq(processus), eq(List.of(ligneIncluse)), any(), eq(arhConnecte)))
                 .thenReturn(pieceJointeGeneree);
         when(signatureService.signer(arhConnecte)).thenReturn("Jean-Paul MBARGA (matricule 2201) - 22/07/2026 10:00:00");
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(utilisateurApi.destinatairesParRole(RoleEnum.CRH)).thenReturn(List.of());
 
-        ValiderProcessusResponseDto reponse = processusMensuelService.valider(900L, "État vérifié et conforme");
+        ValiderProcessusResponseDto reponse = processusMensuelService.valider(900L, "État vérifié et conforme", false);
 
         assertThat(reponse.getId()).isEqualTo(900L);
         assertThat(reponse.getStatut()).isEqualTo(StatutEnum.EN_ATTENTE_CRH);
@@ -1635,7 +1647,7 @@ class ProcessusMensuelServiceTest {
 
         when(processusMensuelRepository.findById(900L)).thenReturn(Optional.of(processus));
 
-        assertThatThrownBy(() -> processusMensuelService.valider(900L, "commentaire"))
+        assertThatThrownBy(() -> processusMensuelService.valider(900L, "commentaire", false))
                 .isInstanceOf(ProcessusMensuelNonModifiableException.class);
 
         verify(documentService, never()).genererInitiale(any(), any(), any(), any());
@@ -1647,7 +1659,7 @@ class ProcessusMensuelServiceTest {
     void valider_processusIntrouvable_leve404() {
         when(processusMensuelRepository.findById(999L)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> processusMensuelService.valider(999L, null))
+        assertThatThrownBy(() -> processusMensuelService.valider(999L, null, false))
                 .isInstanceOf(ProcessusMensuelIntrouvableException.class);
 
         verify(documentService, never()).genererInitiale(any(), any(), any(), any());
@@ -1673,7 +1685,7 @@ class ProcessusMensuelServiceTest {
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(utilisateurApi.destinatairesParRole(RoleEnum.CRH)).thenReturn(List.of(crh1, crh2));
 
-        processusMensuelService.valider(910L, null);
+        processusMensuelService.valider(910L, null, false);
 
         verify(notificationService).notifier(eq(crh1), any(), any());
         verify(notificationService).notifier(eq(crh2), any(), any());
@@ -1690,7 +1702,7 @@ class ProcessusMensuelServiceTest {
 
         when(processusMensuelRepository.findById(920L)).thenReturn(Optional.of(processusDejaValide));
 
-        assertThatThrownBy(() -> processusMensuelService.valider(920L, "seconde tentative"))
+        assertThatThrownBy(() -> processusMensuelService.valider(920L, "seconde tentative", false))
                 .isInstanceOf(ProcessusMensuelNonModifiableException.class);
 
         verify(documentService, never()).genererInitiale(any(), any(), any(), any());
@@ -1715,7 +1727,7 @@ class ProcessusMensuelServiceTest {
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(utilisateurApi.destinatairesParRole(RoleEnum.DRH)).thenReturn(List.of());
 
-        ValiderProcessusResponseDto reponse = processusMensuelService.valider(930L, "Etat verifie niveau CRH");
+        ValiderProcessusResponseDto reponse = processusMensuelService.valider(930L, "Etat verifie niveau CRH", false);
 
         assertThat(reponse.getId()).isEqualTo(930L);
         assertThat(reponse.getStatut()).isEqualTo(StatutEnum.EN_ATTENTE_DRH);
@@ -1762,7 +1774,7 @@ class ProcessusMensuelServiceTest {
                         "L'étape VALIDATION_ARH doit être validée par un utilisateur de rôle ARH"))
                 .when(separationTachesService).verifierRoleAttendu(NomEtapeEnum.VALIDATION_ARH, atanganaDrh);
 
-        assertThatThrownBy(() -> processusMensuelService.valider(940L, "tentative DRH sur etape ARH"))
+        assertThatThrownBy(() -> processusMensuelService.valider(940L, "tentative DRH sur etape ARH", false))
                 .isInstanceOf(RoleEtapeNonAutoriseException.class);
 
         // La branche ARH ne doit avoir produit aucun effet : ni PDF, ni etape,
@@ -1790,7 +1802,7 @@ class ProcessusMensuelServiceTest {
                         "L'étape VALIDATION_CRH doit être validée par un utilisateur de rôle CRH"))
                 .when(separationTachesService).verifierRoleAttendu(NomEtapeEnum.VALIDATION_CRH, mbargaArh);
 
-        assertThatThrownBy(() -> processusMensuelService.valider(941L, null))
+        assertThatThrownBy(() -> processusMensuelService.valider(941L, null, false))
                 .isInstanceOf(RoleEtapeNonAutoriseException.class);
 
         // Le controle RG-05 precede RG-08 : la separation des taches ne doit
@@ -1814,7 +1826,7 @@ class ProcessusMensuelServiceTest {
                         "L'acteur de l'étape VALIDATION_ARH ne peut pas valider l'étape suivante du même processus"))
                 .when(separationTachesService).verifier(931L, 21L, NomEtapeEnum.VALIDATION_ARH);
 
-        assertThatThrownBy(() -> processusMensuelService.valider(931L, "tentative meme acteur"))
+        assertThatThrownBy(() -> processusMensuelService.valider(931L, "tentative meme acteur", false))
                 .isInstanceOf(SeparationTachesViolationException.class);
 
         verify(pieceJointeRepository, never()).findByIdProcessus(any());
@@ -1844,7 +1856,7 @@ class ProcessusMensuelServiceTest {
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(utilisateurApi.destinatairesParRole(RoleEnum.DRH)).thenReturn(List.of(drh1, drh2));
 
-        processusMensuelService.valider(932L, null);
+        processusMensuelService.valider(932L, null, false);
 
         verify(notificationService).notifier(eq(drh1), any(), any());
         verify(notificationService).notifier(eq(drh2), any(), any());
@@ -1871,13 +1883,15 @@ class ProcessusMensuelServiceTest {
         when(processusMensuelRepository.findById(940L)).thenReturn(Optional.of(processus));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndInclusDansEtatTrue(940L)).thenReturn(List.of(ligneIncluse));
+        // Montant a jour (MM.12) : aucun ecart, comportement ARH inchange.
+        when(grilleTarifaireApi.resoudrePourFonction("CHEF_ANTENNE")).thenReturn(ResolutionGrilleDto.resolue(40000));
         when(documentService.genererInitiale(eq(processus), eq(List.of(ligneIncluse)), any(), eq(arhConnecte)))
                 .thenReturn(pieceJointeGeneree);
         when(signatureService.signer(arhConnecte)).thenReturn("Christian EYENGA (matricule 2203) - 24/07/2026 09:00:00");
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(utilisateurApi.destinatairesParRole(RoleEnum.CRH)).thenReturn(List.of());
 
-        ValiderProcessusResponseDto reponse = processusMensuelService.valider(940L, "État vérifié niveau ARH");
+        ValiderProcessusResponseDto reponse = processusMensuelService.valider(940L, "État vérifié niveau ARH", false);
 
         assertThat(reponse.getId()).isEqualTo(940L);
         assertThat(reponse.getStatut()).isEqualTo(StatutEnum.EN_ATTENTE_CRH);
@@ -1916,7 +1930,7 @@ class ProcessusMensuelServiceTest {
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(ligneEtatMensuelRepository.sumMontantAppliqueByIdProcessus(950L)).thenReturn(50000L);
 
-        ValiderProcessusResponseDto reponse = processusMensuelService.valider(950L, "Valide, autorise au paiement");
+        ValiderProcessusResponseDto reponse = processusMensuelService.valider(950L, "Valide, autorise au paiement", false);
 
         assertThat(reponse.getId()).isEqualTo(950L);
         assertThat(reponse.getStatut()).isEqualTo(StatutEnum.CLOTURE);
@@ -1969,7 +1983,7 @@ class ProcessusMensuelServiceTest {
                         "L'acteur de l'étape VALIDATION_CRH ne peut pas valider l'étape suivante du même processus"))
                 .when(separationTachesService).verifier(951L, 41L, NomEtapeEnum.VALIDATION_CRH);
 
-        assertThatThrownBy(() -> processusMensuelService.valider(951L, "tentative meme acteur"))
+        assertThatThrownBy(() -> processusMensuelService.valider(951L, "tentative meme acteur", false))
                 .isInstanceOf(SeparationTachesViolationException.class);
 
         verify(pieceJointeRepository, never()).findByIdProcessus(any());
@@ -2003,7 +2017,7 @@ class ProcessusMensuelServiceTest {
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(ligneEtatMensuelRepository.sumMontantAppliqueByIdProcessus(952L)).thenReturn(40000L);
 
-        processusMensuelService.valider(952L, "Valide, autorise au paiement");
+        processusMensuelService.valider(952L, "Valide, autorise au paiement", false);
 
         assertThat(pieceJointeExistante.getNombreSignatures()).isEqualTo(3);
     }
@@ -2025,7 +2039,7 @@ class ProcessusMensuelServiceTest {
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(ligneEtatMensuelRepository.sumMontantAppliqueByIdProcessus(953L)).thenReturn(125000L);
 
-        processusMensuelService.valider(953L, null);
+        processusMensuelService.valider(953L, null, false);
 
         ArgumentCaptor<Long> montantCaptor = ArgumentCaptor.forClass(Long.class);
         verify(evenementClotureService).publier(eq(processus), montantCaptor.capture());
@@ -2056,6 +2070,9 @@ class ProcessusMensuelServiceTest {
         when(processusMensuelRepository.findById(960L)).thenReturn(Optional.of(processus));
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte, crhConnecte, drhConnecte);
         when(ligneEtatMensuelRepository.findByIdProcessusAndInclusDansEtatTrue(960L)).thenReturn(List.of(ligneIncluse));
+        // Montant a jour (MM.12) : aucun ecart, le cycle ARH->CRH->DRH est
+        // inchange -- seule la branche ARH resynchronise, et seulement en ecart.
+        when(grilleTarifaireApi.resoudrePourFonction("DA")).thenReturn(ResolutionGrilleDto.resolue(50000));
         when(documentService.genererInitiale(eq(processus), eq(List.of(ligneIncluse)), any(), eq(arhConnecte)))
                 .thenReturn(pieceJointe);
         when(signatureService.signer(arhConnecte)).thenReturn("Paul ATANGANA (matricule 2210) - 24/07/2026 08:00:00");
@@ -2067,15 +2084,15 @@ class ProcessusMensuelServiceTest {
                 .thenReturn(pieceJointe);
         when(ligneEtatMensuelRepository.sumMontantAppliqueByIdProcessus(960L)).thenReturn(50000L);
 
-        ValiderProcessusResponseDto reponseArh = processusMensuelService.valider(960L, "Etat verifie niveau ARH");
+        ValiderProcessusResponseDto reponseArh = processusMensuelService.valider(960L, "Etat verifie niveau ARH", false);
         assertThat(reponseArh.getStatut()).isEqualTo(StatutEnum.EN_ATTENTE_CRH);
         assertThat(reponseArh.getEtapeValidee()).isEqualTo("VALIDATION_ARH");
 
-        ValiderProcessusResponseDto reponseCrh = processusMensuelService.valider(960L, "Etat verifie niveau CRH");
+        ValiderProcessusResponseDto reponseCrh = processusMensuelService.valider(960L, "Etat verifie niveau CRH", false);
         assertThat(reponseCrh.getStatut()).isEqualTo(StatutEnum.EN_ATTENTE_DRH);
         assertThat(reponseCrh.getEtapeValidee()).isEqualTo("VALIDATION_CRH");
 
-        ValiderProcessusResponseDto reponseDrh = processusMensuelService.valider(960L, "Valide, autorise au paiement");
+        ValiderProcessusResponseDto reponseDrh = processusMensuelService.valider(960L, "Valide, autorise au paiement", false);
         assertThat(reponseDrh.getStatut()).isEqualTo(StatutEnum.CLOTURE);
         assertThat(reponseDrh.getEtapeValidee()).isEqualTo("VALIDATION_DRH");
 
@@ -2324,12 +2341,16 @@ class ProcessusMensuelServiceTest {
                 .nomFichier("dotations-telephoniques-7-2026.pdf").nombreSignatures(1).build();
 
         when(ligneEtatMensuelRepository.findByIdProcessusAndInclusDansEtatTrue(980L)).thenReturn(List.of(ligneIncluse));
+        // Montant a jour (MM.12) : la revalidation apres correction ne
+        // resynchronise rien de plus que ce que l'ARH vient de corriger.
+        when(grilleTarifaireApi.resoudrePourFonction("CHEF_DEPARTEMENT"))
+                .thenReturn(ResolutionGrilleDto.resolue(40000));
         when(documentService.genererInitiale(eq(processus), eq(List.of(ligneIncluse)), any(), eq(arhConnecte)))
                 .thenReturn(pieceJointeRegeneree);
         when(signatureService.signer(arhConnecte)).thenReturn("Jean-Paul MBARGA (matricule 2201) - 24/07/2026 12:00:00");
         when(utilisateurApi.destinatairesParRole(RoleEnum.CRH)).thenReturn(List.of());
 
-        ValiderProcessusResponseDto reponseRevalidation = processusMensuelService.valider(980L, "Corrige et revalide");
+        ValiderProcessusResponseDto reponseRevalidation = processusMensuelService.valider(980L, "Corrige et revalide", false);
 
         assertThat(reponseRevalidation.getStatut()).isEqualTo(StatutEnum.EN_ATTENTE_CRH);
         assertThat(reponseRevalidation.getIdPieceJointe()).isEqualTo(60L);
@@ -2491,5 +2512,317 @@ class ProcessusMensuelServiceTest {
 
         assertThatThrownBy(() -> processusMensuelService.obtenirPieceJointePourTelechargement(60L))
                 .isInstanceOf(PieceJointeIntrouvableException.class);
+    }
+
+    // =================================================================
+    // Sprint MM.12 -- resynchronisation des montants (variante B2-RESYNC)
+    // =================================================================
+
+    private ProcessusMensuel processusArhPourResync() {
+        return ProcessusMensuel.builder().id(990L).moisPaiement(8).anneePaiement(2026)
+                .statut(StatutEnum.EN_COURS_ARH).build();
+    }
+
+    private LigneEtatMensuel ligneIncluse(Long id, Long idBeneficiaire, String fonction, int montant) {
+        return LigneEtatMensuel.builder()
+                .id(id).idProcessus(990L).idBeneficiaire(idBeneficiaire)
+                .montantApplique(montant).inclusDansEtat(true).fonctionRetenue(fonction).build();
+    }
+
+    @Test
+    void detecterEcartsMontants_montantObsolete_leSignaleSansRienModifier() {
+        // Premier temps de B2-RESYNC : l'ARH doit pouvoir consulter puis
+        // renoncer -- aucune ecriture ne doit avoir lieu a la detection.
+        ProcessusMensuel processus = processusArhPourResync();
+        LigneEtatMensuel ligne = ligneIncluse(4001L, 701L, "GFC", 40000);
+
+        when(processusMensuelRepository.findById(990L)).thenReturn(Optional.of(processus));
+        when(ligneEtatMensuelRepository.findByIdProcessusAndInclusDansEtatTrue(990L)).thenReturn(List.of(ligne));
+        when(grilleTarifaireApi.resoudrePourFonction("GFC")).thenReturn(ResolutionGrilleDto.resolue(45000));
+        when(beneficiaireApi.identitesParId(List.of(701L))).thenReturn(Map.of(
+                701L, new BeneficiaireIdentiteDto(701L, "1874", "ESSAMA Jeanne")));
+
+        EcartsMontantsResponseDto ecarts = processusMensuelService.detecterEcartsMontants(990L);
+
+        assertThat(ecarts.getLignesResynchronisees()).hasSize(1);
+        assertThat(ecarts.getLignesExclues()).isEmpty();
+        assertThat(ecarts.isAucunEcart()).isFalse();
+
+        LigneResynchroniseeDto ligneEcart = ecarts.getLignesResynchronisees().get(0);
+        assertThat(ligneEcart.getMatricule()).isEqualTo("1874");
+        assertThat(ligneEcart.getNomPrenoms()).isEqualTo("ESSAMA Jeanne");
+        assertThat(ligneEcart.getFonctionRetenue()).isEqualTo("GFC");
+        assertThat(ligneEcart.getAncienMontant()).isEqualTo(40000);
+        assertThat(ligneEcart.getNouveauMontant()).isEqualTo(45000);
+
+        // Le montant en base est INTACT tant que l'ARH n'a pas confirme.
+        assertThat(ligne.getMontantApplique()).isEqualTo(40000);
+        verify(ligneEtatMensuelRepository, never()).save(any());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    @Test
+    void detecterEcartsMontants_montantAJour_neSignaleRien() {
+        ProcessusMensuel processus = processusArhPourResync();
+        LigneEtatMensuel ligne = ligneIncluse(4002L, 702L, "GFC", 40000);
+
+        when(processusMensuelRepository.findById(990L)).thenReturn(Optional.of(processus));
+        when(ligneEtatMensuelRepository.findByIdProcessusAndInclusDansEtatTrue(990L)).thenReturn(List.of(ligne));
+        when(grilleTarifaireApi.resoudrePourFonction("GFC")).thenReturn(ResolutionGrilleDto.resolue(40000));
+
+        EcartsMontantsResponseDto ecarts = processusMensuelService.detecterEcartsMontants(990L);
+
+        assertThat(ecarts.isAucunEcart()).isTrue();
+    }
+
+    @Test
+    void detecterEcartsMontants_fonctionSansGrilleActive_classeLaLigneEnExclusion() {
+        // Les deux categories doivent rester SEPAREES : etre paye a un autre
+        // montant et ne pas etre paye du tout n'ont pas la meme consequence
+        // (exigence utilisateur du 2026-08-09).
+        ProcessusMensuel processus = processusArhPourResync();
+        LigneEtatMensuel ligneRecalee = ligneIncluse(4003L, 703L, "GFC", 40000);
+        LigneEtatMensuel ligneSansGrille = ligneIncluse(4004L, 704L, "COMPTABLE", 35000);
+
+        when(processusMensuelRepository.findById(990L)).thenReturn(Optional.of(processus));
+        when(ligneEtatMensuelRepository.findByIdProcessusAndInclusDansEtatTrue(990L))
+                .thenReturn(List.of(ligneRecalee, ligneSansGrille));
+        when(grilleTarifaireApi.resoudrePourFonction("GFC")).thenReturn(ResolutionGrilleDto.resolue(45000));
+        when(grilleTarifaireApi.resoudrePourFonction("COMPTABLE"))
+                .thenReturn(ResolutionGrilleDto.exclue(ResolutionGrilleDto.MOTIF_GRILLE_INTROUVABLE));
+
+        EcartsMontantsResponseDto ecarts = processusMensuelService.detecterEcartsMontants(990L);
+
+        assertThat(ecarts.getLignesResynchronisees()).extracting(LigneResynchroniseeDto::getIdBeneficiaire)
+                .containsExactly(703L);
+        assertThat(ecarts.getLignesExclues()).extracting(LigneExclueResynchronisationDto::getIdBeneficiaire)
+                .containsExactly(704L);
+        assertThat(ecarts.getLignesExclues().get(0).getMotifExclusion())
+                .isEqualTo(ResolutionGrilleDto.MOTIF_GRILLE_INTROUVABLE);
+        assertThat(ecarts.getLignesExclues().get(0).getAncienMontant()).isEqualTo(35000);
+    }
+
+    @Test
+    void validerArh_ecartsNonConfirmes_leve409SansRienModifier() {
+        // Le "deux temps" doit etre reel, pas conventionnel : un client qui
+        // ignore GET /ecarts-montants ne doit pas pouvoir resynchroniser
+        // silencieusement (ce serait la variante B3, ecartee).
+        ProcessusMensuel processus = processusArhPourResync();
+        LigneEtatMensuel ligne = ligneIncluse(4005L, 705L, "GFC", 40000);
+
+        when(processusMensuelRepository.findById(990L)).thenReturn(Optional.of(processus));
+        when(authenticatedUserService.utilisateurCourant()).thenReturn(
+                Utilisateur.builder().id(10L).nom("MBARGA").role(RoleEnum.ARH).build());
+        when(ligneEtatMensuelRepository.findByIdProcessusAndInclusDansEtatTrue(990L)).thenReturn(List.of(ligne));
+        when(grilleTarifaireApi.resoudrePourFonction("GFC")).thenReturn(ResolutionGrilleDto.resolue(45000));
+
+        assertThatThrownBy(() -> processusMensuelService.valider(990L, null, false))
+                .isInstanceOf(ResynchronisationNonConfirmeeException.class);
+
+        assertThat(ligne.getMontantApplique()).isEqualTo(40000);
+        assertThat(processus.getStatut()).isEqualTo(StatutEnum.EN_COURS_ARH);
+        verify(ligneEtatMensuelRepository, never()).save(any());
+        verify(documentService, never()).genererInitiale(any(), any(), any(), any());
+    }
+
+    @Test
+    void validerArh_ecartsConfirmes_resynchroniseTraceLeDeltaEtRetourneLeRecapitulatif() {
+        ProcessusMensuel processus = processusArhPourResync();
+        LigneEtatMensuel ligne = ligneIncluse(4006L, 706L, "GFC", 40000);
+        Utilisateur arhConnecte = Utilisateur.builder().id(10L).matricule("2201").nom("MBARGA").prenom("Jean-Paul")
+                .role(RoleEnum.ARH).build();
+        PieceJointe pieceJointe = PieceJointe.builder().id(760L).idProcessus(990L).nombreSignatures(1).build();
+
+        when(processusMensuelRepository.findById(990L)).thenReturn(Optional.of(processus));
+        when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
+        when(ligneEtatMensuelRepository.findByIdProcessusAndInclusDansEtatTrue(990L)).thenReturn(List.of(ligne));
+        when(grilleTarifaireApi.resoudrePourFonction("GFC")).thenReturn(ResolutionGrilleDto.resolue(45000));
+        when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(990L, 706L)).thenReturn(Optional.of(ligne));
+        when(ligneEtatMensuelRepository.save(any(LigneEtatMensuel.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(documentService.genererInitiale(eq(processus), any(), any(), eq(arhConnecte))).thenReturn(pieceJointe);
+        when(signatureService.signer(arhConnecte)).thenReturn("Jean-Paul MBARGA (matricule 2201)");
+        when(processusMensuelRepository.save(any(ProcessusMensuel.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(utilisateurApi.destinatairesParRole(RoleEnum.CRH)).thenReturn(List.of());
+
+        ValiderProcessusResponseDto reponse = processusMensuelService.valider(990L, null, true);
+
+        // RG-04 : le montant est recale sur la grille ACTIVE.
+        assertThat(ligne.getMontantApplique()).isEqualTo(45000);
+        assertThat(reponse.getStatut()).isEqualTo(StatutEnum.EN_ATTENTE_CRH);
+
+        // Non silencieux : le recapitulatif remonte dans la reponse.
+        assertThat(reponse.getLignesResynchronisees()).hasSize(1);
+        assertThat(reponse.getLignesResynchronisees().get(0).getAncienMontant()).isEqualTo(40000);
+        assertThat(reponse.getLignesResynchronisees().get(0).getNouveauMontant()).isEqualTo(45000);
+        assertThat(reponse.getLignesExclues()).isEmpty();
+
+        // RG-09, exigence explicite de la decision B : delta avant/apres trace.
+        ArgumentCaptor<EvenementAudit> evenementCaptor = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher, atLeastOnce()).publishEvent(evenementCaptor.capture());
+
+        EvenementAudit deltaResync = evenementCaptor.getAllValues().stream()
+                .filter(evenement -> "RESYNCHRONISATION_MONTANT_LIGNE".equals(evenement.action()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(deltaResync.entiteCible()).isEqualTo("ligne_etat_mensuel");
+        assertThat(deltaResync.idEntite()).isEqualTo(4006L);
+        assertThat(deltaResync.idUtilisateur()).isEqualTo(10L);
+        assertThat(deltaResync.avant()).containsEntry("montantApplique", 40000);
+        assertThat(deltaResync.apres()).containsEntry("montantApplique", 45000);
+    }
+
+    @Test
+    void validerArh_fonctionSansGrilleActive_exclutLaLigneEtTraceLeDelta() {
+        ProcessusMensuel processus = processusArhPourResync();
+        LigneEtatMensuel ligne = ligneIncluse(4007L, 707L, "COMPTABLE", 35000);
+        Utilisateur arhConnecte = Utilisateur.builder().id(10L).matricule("2201").nom("MBARGA").prenom("Jean-Paul")
+                .role(RoleEnum.ARH).build();
+        PieceJointe pieceJointe = PieceJointe.builder().id(770L).idProcessus(990L).nombreSignatures(1).build();
+
+        when(processusMensuelRepository.findById(990L)).thenReturn(Optional.of(processus));
+        when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
+        when(ligneEtatMensuelRepository.findByIdProcessusAndInclusDansEtatTrue(990L)).thenReturn(List.of(ligne));
+        when(grilleTarifaireApi.resoudrePourFonction("COMPTABLE"))
+                .thenReturn(ResolutionGrilleDto.exclue(ResolutionGrilleDto.MOTIF_GRILLE_INTROUVABLE));
+        when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(990L, 707L)).thenReturn(Optional.of(ligne));
+        when(ligneEtatMensuelRepository.save(any(LigneEtatMensuel.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(documentService.genererInitiale(eq(processus), any(), any(), eq(arhConnecte))).thenReturn(pieceJointe);
+        when(signatureService.signer(arhConnecte)).thenReturn("Jean-Paul MBARGA (matricule 2201)");
+        when(processusMensuelRepository.save(any(ProcessusMensuel.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(utilisateurApi.destinatairesParRole(RoleEnum.CRH)).thenReturn(List.of());
+
+        ValiderProcessusResponseDto reponse = processusMensuelService.valider(990L, null, true);
+
+        // Arbitrage du 2026-08-09 : la ligne est retiree de l'etat, et son
+        // montant remis a 0 -- une ligne hors etat ne doit pas conserver un
+        // montant issu d'une grille qui n'est plus en vigueur.
+        assertThat(ligne.getInclusDansEtat()).isFalse();
+        assertThat(ligne.getMontantApplique()).isZero();
+
+        assertThat(reponse.getLignesExclues()).hasSize(1);
+        assertThat(reponse.getLignesExclues().get(0).getMotifExclusion())
+                .isEqualTo(ResolutionGrilleDto.MOTIF_GRILLE_INTROUVABLE);
+        assertThat(reponse.getLignesResynchronisees()).isEmpty();
+
+        ArgumentCaptor<EvenementAudit> evenementCaptor = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher, atLeastOnce()).publishEvent(evenementCaptor.capture());
+
+        EvenementAudit deltaExclusion = evenementCaptor.getAllValues().stream()
+                .filter(evenement -> "EXCLUSION_LIGNE_SANS_GRILLE_ACTIVE".equals(evenement.action()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(deltaExclusion.avant()).containsEntry("inclusDansEtat", true);
+        assertThat(deltaExclusion.apres()).containsEntry("inclusDansEtat", false);
+        assertThat(deltaExclusion.apres()).containsEntry("montantApplique", 0);
+    }
+
+    @Test
+    void detecterEcartsMontants_grilleEnAttenteDeSignature_marqueLaLigneBloquante() {
+        // P-1 (2026-08-09) : distinguer l'absence TRANSITOIRE (une grille attend
+        // une signature) de l'absence DURABLE, que le seul motif d'exclusion
+        // confondait.
+        ProcessusMensuel processus = processusArhPourResync();
+        LigneEtatMensuel ligne = ligneIncluse(4008L, 708L, "JURISTE", 37000);
+
+        when(processusMensuelRepository.findById(990L)).thenReturn(Optional.of(processus));
+        when(ligneEtatMensuelRepository.findByIdProcessusAndInclusDansEtatTrue(990L)).thenReturn(List.of(ligne));
+        when(grilleTarifaireApi.resoudrePourFonction("JURISTE"))
+                .thenReturn(ResolutionGrilleDto.exclue(ResolutionGrilleDto.MOTIF_GRILLE_INTROUVABLE));
+        when(grilleTarifaireApi.grilleEnAttentePourFonction("JURISTE")).thenReturn(
+                Optional.of(new GrilleEnAttenteDto(35000, "DRH", LocalDateTime.of(2026, 8, 5, 9, 0))));
+
+        EcartsMontantsResponseDto ecarts = processusMensuelService.detecterEcartsMontants(990L);
+
+        LigneExclueResynchronisationDto exclue = ecarts.getLignesExclues().get(0);
+        assertThat(exclue.isBloquante()).isTrue();
+        assertThat(exclue.getMontantGrilleEnAttente()).isEqualTo(35000);
+        assertThat(exclue.getEtapeGrilleEnAttente()).isEqualTo("DRH");
+        // Le motif d'origine n'est PAS reformule : ses libelles sont figes par
+        // le contrat API, l'information est ajoutee a cote.
+        assertThat(exclue.getMotifExclusion()).isEqualTo(ResolutionGrilleDto.MOTIF_GRILLE_INTROUVABLE);
+    }
+
+    @Test
+    void detecterEcartsMontants_absenceDurableDeGrille_neMarquePasLaLigneBloquante() {
+        // Aucune grille en attente : absence durable, la ligne reste simplement
+        // exclue -- comportement arbitre le 2026-08-09, inchange.
+        ProcessusMensuel processus = processusArhPourResync();
+        LigneEtatMensuel ligne = ligneIncluse(4009L, 709L, "COMPTABLE", 35000);
+
+        when(processusMensuelRepository.findById(990L)).thenReturn(Optional.of(processus));
+        when(ligneEtatMensuelRepository.findByIdProcessusAndInclusDansEtatTrue(990L)).thenReturn(List.of(ligne));
+        when(grilleTarifaireApi.resoudrePourFonction("COMPTABLE"))
+                .thenReturn(ResolutionGrilleDto.exclue(ResolutionGrilleDto.MOTIF_GRILLE_INTROUVABLE));
+        when(grilleTarifaireApi.grilleEnAttentePourFonction("COMPTABLE")).thenReturn(Optional.empty());
+
+        EcartsMontantsResponseDto ecarts = processusMensuelService.detecterEcartsMontants(990L);
+
+        assertThat(ecarts.getLignesExclues().get(0).isBloquante()).isFalse();
+    }
+
+    @Test
+    void validerArh_grilleEnAttenteDeSignature_bloqueMemeAvecConfirmation() {
+        // P-2 : ce cas n'est PAS confirmable. Meme avec
+        // confirmerResynchronisation=true, la validation est refusee tant que la
+        // signature n'a pas abouti ou que la ligne n'a pas ete exclue a la main.
+        ProcessusMensuel processus = processusArhPourResync();
+        LigneEtatMensuel ligne = ligneIncluse(4010L, 710L, "JURISTE", 37000);
+
+        when(processusMensuelRepository.findById(990L)).thenReturn(Optional.of(processus));
+        when(authenticatedUserService.utilisateurCourant()).thenReturn(
+                Utilisateur.builder().id(10L).nom("MBARGA").role(RoleEnum.ARH).build());
+        when(ligneEtatMensuelRepository.findByIdProcessusAndInclusDansEtatTrue(990L)).thenReturn(List.of(ligne));
+        when(grilleTarifaireApi.resoudrePourFonction("JURISTE"))
+                .thenReturn(ResolutionGrilleDto.exclue(ResolutionGrilleDto.MOTIF_GRILLE_INTROUVABLE));
+        when(grilleTarifaireApi.grilleEnAttentePourFonction("JURISTE")).thenReturn(
+                Optional.of(new GrilleEnAttenteDto(35000, "DRH", LocalDateTime.of(2026, 8, 5, 9, 0))));
+        when(beneficiaireApi.identitesParId(List.of(710L))).thenReturn(Map.of(
+                710L, new BeneficiaireIdentiteDto(710L, "4409", "NGUEMA Paul")));
+
+        assertThatThrownBy(() -> processusMensuelService.valider(990L, null, true))
+                .isInstanceOf(ValidationBloqueeGrilleEnAttenteException.class)
+                // Le message doit porter les DEUX sorties, pas seulement le constat.
+                .hasMessageContaining("JURISTE")
+                .hasMessageContaining("DRH")
+                .hasMessageContaining("attendre la validation de la grille")
+                .hasMessageContaining("Ajuster les lignes");
+
+        // Rien n'a ete ecrit : ni exclusion, ni validation.
+        assertThat(ligne.getInclusDansEtat()).isTrue();
+        assertThat(processus.getStatut()).isEqualTo(StatutEnum.EN_COURS_ARH);
+        verify(ligneEtatMensuelRepository, never()).save(any());
+        verify(documentService, never()).genererInitiale(any(), any(), any(), any());
+    }
+
+    @Test
+    void validerCrh_neResynchroniseJamais() {
+        // Seule la branche ARH resynchronise : le CRH signe un etat deja fige,
+        // le modifier sous ses yeux viderait sa validation de son sens.
+        ProcessusMensuel processus = ProcessusMensuel.builder().id(991L).moisPaiement(8).anneePaiement(2026)
+                .statut(StatutEnum.EN_ATTENTE_CRH).build();
+        Utilisateur crhConnecte = Utilisateur.builder().id(21L).matricule("3002").nom("NKOLO").prenom("Sylvie")
+                .role(RoleEnum.CRH).build();
+        PieceJointe pieceJointe = PieceJointe.builder().id(780L).idProcessus(991L).nombreSignatures(1).build();
+        // RG-05/RG-08 non stubbes ici : separationTachesService est mocke dans
+        // cette classe, ses deux verifications sont donc des no-op.
+        when(processusMensuelRepository.findById(991L)).thenReturn(Optional.of(processus));
+        when(authenticatedUserService.utilisateurCourant()).thenReturn(crhConnecte);
+        when(pieceJointeRepository.findByIdProcessus(991L)).thenReturn(Optional.of(pieceJointe));
+        when(documentService.ajouterSignature(eq(pieceJointe), eq(crhConnecte), eq(NomEtapeEnum.VALIDATION_CRH)))
+                .thenReturn(pieceJointe);
+        when(processusMensuelRepository.save(any(ProcessusMensuel.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(utilisateurApi.destinatairesParRole(RoleEnum.DRH)).thenReturn(List.of());
+
+        ValiderProcessusResponseDto reponse = processusMensuelService.valider(991L, null, false);
+
+        assertThat(reponse.getStatut()).isEqualTo(StatutEnum.EN_ATTENTE_DRH);
+        assertThat(reponse.getLignesResynchronisees()).isNull();
+        assertThat(reponse.getLignesExclues()).isNull();
+        verify(grilleTarifaireApi, never()).resoudrePourFonction(any());
     }
 }

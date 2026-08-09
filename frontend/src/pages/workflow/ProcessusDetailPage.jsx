@@ -8,13 +8,16 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Card, CardContent } from '../../components/ui/Card';
 import { Alert, AlertDescription } from '../../components/ui/Alert';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { LienRetour } from '../../components/ui/LienRetour';
 import { VoirMotifModal } from '../../components/ui/VoirMotifModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { cn } from '../../utils/cn';
 import { formatMontantFCFA, getPeriodeLabel } from '../../utils/formatters';
+import { estBloquante } from '../../utils/resynchronisation';
 import { ETAPES_WORKFLOW, getStatutProcessusInfo } from '../../utils/statutProcessus';
 import { AjusterLignesModal } from './AjusterLignesModal';
+import { RecapitulatifResynchronisation } from './RecapitulatifResynchronisation';
 import { RetournerProcessusModal } from './RetournerProcessusModal';
 
 // Statuts depuis lesquels l'ARH peut encore ajuster les lignes -- alignes sur
@@ -149,6 +152,13 @@ export default function ProcessusDetailPage() {
   const [validationEnCours, setValidationEnCours] = useState(false);
   const [telechargementEnCours, setTelechargementEnCours] = useState(false);
   const [erreurValidation, setErreurValidation] = useState(null);
+  // Sprint MM.12 : ecarts detectes en attente de confirmation (premier temps),
+  // puis recapitulatif de ce qui a reellement ete applique (apres validation).
+  const [ecartsAConfirmer, setEcartsAConfirmer] = useState(null);
+  const [recapitulatifApplique, setRecapitulatifApplique] = useState(null);
+  // Confirmation d'une validation sans écart : garde-fou contre le clic trop
+  // rapide sur une action qui fait avancer le workflow de façon irréversible.
+  const [confirmationSimpleOuverte, setConfirmationSimpleOuverte] = useState(false);
 
   useEffect(() => {
     let annule = false;
@@ -176,16 +186,76 @@ export default function ProcessusDetailPage() {
     setPieceJointe(metadonneesPieceJointe);
   };
 
-  const valider = async () => {
+  // Sprint MM.12, variante B2-RESYNC "en deux temps". PREMIER temps, reserve a
+  // l'ARH : on interroge GET /ecarts-montants (lecture pure) avant toute
+  // validation. Sinon on ouvre le recapitulatif, et l'ARH peut encore renoncer.
+  //
+  // Quand il n'y a AUCUN ecart, on ne valide plus directement : une validation
+  // de processus mensuel fait avancer le workflow, genere le PDF et n'est
+  // annulable que par un retour CRH/DRH. Elle merite donc une confirmation, ne
+  // serait-ce que contre le clic trop rapide.
+  const demanderValidation = async () => {
+    setErreurValidation(null);
+    setRecapitulatifApplique(null);
+
+    if (ROLE_PAR_STATUT_VALIDABLE[processus?.statut] !== 'ARH') {
+      setConfirmationSimpleOuverte(true);
+      return;
+    }
+
+    setValidationEnCours(true);
+    try {
+      const { data } = await apiClient.get(`/processus/${id}/ecarts-montants`);
+      const aucunEcart =
+        (data.lignesResynchronisees?.length ?? 0) === 0 && (data.lignesExclues?.length ?? 0) === 0;
+      if (aucunEcart) {
+        setConfirmationSimpleOuverte(true);
+      } else {
+        setEcartsAConfirmer(data);
+      }
+    } catch {
+      setErreurValidation(
+        'Impossible de vérifier les montants avant validation. Veuillez réessayer.'
+      );
+    } finally {
+      setValidationEnCours(false);
+    }
+  };
+
+  // SECOND temps : la resynchronisation n'est appliquee qu'ici, et seulement
+  // avec confirmerResynchronisation=true -- sans ce parametre le backend
+  // repond 409 plutot que de recaler les montants en silence.
+  const validerEffectivement = async (confirmerResynchronisation) => {
     setErreurValidation(null);
     setValidationEnCours(true);
     try {
-      await apiClient.post(`/processus/${id}/valider`);
-      rafraichir();
+      // Parametre porte par l'URL, et AUCUN corps de requete : passer `null`
+      // comme second argument suffit a faire appliquer par axios son
+      // Content-Type POST par defaut (application/x-www-form-urlencoded), que
+      // Spring rejette sur ce endpoint annote @RequestBody JSON -> 500.
+      const url = confirmerResynchronisation
+        ? `/processus/${id}/valider?confirmerResynchronisation=true`
+        : `/processus/${id}/valider`;
+      const { data } = await apiClient.post(url);
+      setEcartsAConfirmer(null);
+      setConfirmationSimpleOuverte(false);
+      // Le recapitulatif reste affiche APRES la validation : l'ARH doit pouvoir
+      // relire ce qui a ete applique, pas seulement ce qu'il a confirme.
+      if (data.lignesResynchronisees?.length || data.lignesExclues?.length) {
+        setRecapitulatifApplique(data);
+      }
+      await rafraichir();
     } catch (err) {
+      setEcartsAConfirmer(null);
+      setConfirmationSimpleOuverte(false);
       if (err.response?.status === 403) {
         setErreurValidation(
           "Vous ne pouvez pas valider cette étape : vous avez déjà validé l'étape précédente de ce processus (séparation des tâches, RG-08)."
+        );
+      } else if (err.response?.status === 409) {
+        setErreurValidation(
+          err.response?.data?.erreur ??
+            'Une erreur est survenue lors de la validation. Veuillez réessayer.'
         );
       } else {
         setErreurValidation('Une erreur est survenue lors de la validation. Veuillez réessayer.');
@@ -241,6 +311,9 @@ export default function ProcessusDetailPage() {
   const peutRetourner = peutValider && STATUTS_RETOURNABLES.includes(processus.statut);
   const peutTelecharger = pieceJointe !== null;
   const estRetourne = processus.statut === 'RETOURNE';
+  // Sprint MM.12 (P-2) : au moins une fonction attend une signature de grille.
+  // La validation est refusee par le backend tant que ce n'est pas tranche.
+  const comporteUnBlocage = (ecartsAConfirmer?.lignesExclues ?? []).some(estBloquante);
 
   return (
     <>
@@ -262,6 +335,22 @@ export default function ProcessusDetailPage() {
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>{erreurValidation}</AlertDescription>
+              </Alert>
+            )}
+
+            {/* Sprint MM.12 : ce qui a REELLEMENT ete applique a la validation.
+                Reutilise le meme composant que la confirmation prealable, donc
+                les memes deux blocs separes -- l'ARH relit exactement ce qu'il
+                a confirme. */}
+            {recapitulatifApplique && (
+              <Alert variant="warning">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  <p className="mb-3 font-medium">
+                    Les montants ont été mis à jour sur la grille tarifaire en vigueur avant validation.
+                  </p>
+                  <RecapitulatifResynchronisation ecarts={recapitulatifApplique} />
+                </AlertDescription>
               </Alert>
             )}
 
@@ -302,7 +391,7 @@ export default function ProcessusDetailPage() {
                   </Button>
                 )}
                 {peutValider && (
-                  <Button onClick={valider} disabled={validationEnCours}>
+                  <Button onClick={demanderValidation} disabled={validationEnCours}>
                     <Check className="h-4 w-4" />
                     {validationEnCours ? 'Validation en cours…' : 'Valider'}
                   </Button>
@@ -348,6 +437,40 @@ export default function ProcessusDetailPage() {
           origine={processus.origineRetour}
           motif={processus.motifRetour}
           onFermer={() => setMotifRetourOuvert(false)}
+        />
+      )}
+
+      {/* Validation sans ecart : confirmation simple. L'etape franchie genere
+          ou signe le PDF et ne se defait que par un retour CRH/DRH. */}
+      {confirmationSimpleOuverte && (
+        <ConfirmDialog
+          titre={`Valider l'étape ${ROLE_PAR_STATUT_VALIDABLE[processus.statut] ?? ''}`}
+          message={`Vous êtes sur le point de valider l'état mensuel ${getPeriodeLabel(
+            processus.moisPaiement,
+            processus.anneePaiement
+          )}. Cette action fait avancer le workflow et ne peut être défaite que par un retour. Confirmer ?`}
+          libelleConfirmer="Valider"
+          onAnnuler={() => setConfirmationSimpleOuverte(false)}
+          onConfirmer={() => validerEffectivement(false)}
+        />
+      )}
+
+      {/* Sprint MM.12 : point d'arret AVANT toute ecriture. Rien n'a encore ete
+          modifie a ce stade -- "Annuler" laisse le processus intact. */}
+      {ecartsAConfirmer && (
+        <ConfirmDialog
+          titre={
+            comporteUnBlocage
+              ? 'Validation impossible pour le moment'
+              : 'Des montants ne sont plus à jour'
+          }
+          largeur="max-w-lg"
+          libelleConfirmer="Appliquer et valider"
+          contenu={<RecapitulatifResynchronisation ecarts={ecartsAConfirmer} />}
+          onAnnuler={() => setEcartsAConfirmer(null)}
+          /* Une grille en cours de signature n'est pas confirmable : le backend
+             refuserait (409). On n'offre donc pas un bouton qui echouerait. */
+          onConfirmer={comporteUnBlocage ? undefined : () => validerEffectivement(true)}
         />
       )}
     </>

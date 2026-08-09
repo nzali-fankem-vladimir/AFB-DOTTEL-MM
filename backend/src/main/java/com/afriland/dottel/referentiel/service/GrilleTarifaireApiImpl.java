@@ -1,5 +1,6 @@
 package com.afriland.dottel.referentiel.service;
 
+import com.afriland.dottel.referentiel.api.GrilleEnAttenteDto;
 import com.afriland.dottel.referentiel.api.GrilleTarifaireApi;
 import com.afriland.dottel.referentiel.api.ResolutionGrilleDto;
 import com.afriland.dottel.referentiel.model.entity.FonctionEligible;
@@ -10,11 +11,17 @@ import com.afriland.dottel.referentiel.repository.GrilleTarifaireRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.EnumSet;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 class GrilleTarifaireApiImpl implements GrilleTarifaireApi {
+
+    // Les deux etages du circuit de validation (Sprint MM.12).
+    private static final Set<StatutGrilleEnum> STATUTS_EN_ATTENTE =
+            EnumSet.of(StatutGrilleEnum.EN_ATTENTE_CRH, StatutGrilleEnum.EN_ATTENTE_DRH);
 
     private final FonctionEligibleRepository fonctionEligibleRepository;
     private final GrilleTarifaireRepository grilleTarifaireRepository;
@@ -41,5 +48,20 @@ class GrilleTarifaireApiImpl implements GrilleTarifaireApi {
         return grilleActive
                 .map(grille -> ResolutionGrilleDto.resolue(grille.getMontantFcfa()))
                 .orElseGet(() -> ResolutionGrilleDto.exclue(ResolutionGrilleDto.MOTIF_GRILLE_INTROUVABLE));
+    }
+
+    // Sprint MM.12 : ne dit rien du montant applicable (c'est le role de
+    // resoudrePourFonction) -- uniquement s'il existe une grille en cours de
+    // signature, pour distinguer une absence transitoire d'une absence durable.
+    @Override
+    public Optional<GrilleEnAttenteDto> grilleEnAttentePourFonction(String codeFonction) {
+        return fonctionEligibleRepository.findByCode(codeFonction)
+                .flatMap(fonction -> grilleTarifaireRepository
+                        .findFirstByIdFonctionEligibleAndStatutValidationInOrderByDateCreationDesc(
+                                fonction.getId(), STATUTS_EN_ATTENTE))
+                .map(grille -> new GrilleEnAttenteDto(
+                        grille.getMontantFcfa(),
+                        grille.getStatutValidation() == StatutGrilleEnum.EN_ATTENTE_CRH ? "CRH" : "DRH",
+                        grille.getDateCreation()));
     }
 }

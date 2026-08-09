@@ -3,6 +3,10 @@
 // Meme convention de variants que statutProcessus.js.
 export const STATUTS_GRILLE = {
   BROUILLON: { libelle: 'Brouillon', variant: 'neutral' },
+  // Sprint MM.12 : premier etage du workflow a trois acteurs (ARH -> CRH -> DRH).
+  // Meme variant "info" que EN_ATTENTE_DRH -- les deux decrivent une grille en
+  // cours de validation, seul l'etage change.
+  EN_ATTENTE_CRH: { libelle: 'En attente CRH', variant: 'info' },
   EN_ATTENTE_DRH: { libelle: 'En attente DRH', variant: 'info' },
   ACTIVE: { libelle: 'Active', variant: 'success' },
   CLOTUREE: { libelle: 'Clôturée', variant: 'neutral' },

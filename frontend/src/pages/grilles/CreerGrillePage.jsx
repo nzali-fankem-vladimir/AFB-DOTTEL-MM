@@ -9,7 +9,9 @@ import { Input } from '../../components/ui/Input';
 import { Select } from '../../components/ui/Select';
 import { Button } from '../../components/ui/Button';
 import { Alert, AlertDescription } from '../../components/ui/Alert';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { LienRetour } from '../../components/ui/LienRetour';
+import { formatMontantFCFA, formatDate } from '../../utils/formatters';
 
 export default function CreerGrillePage() {
   const navigate = useNavigate();
@@ -21,6 +23,12 @@ export default function CreerGrillePage() {
   const [dateDebut, setDateDebut] = useState('');
   const [erreur, setErreur] = useState(null);
   const [enCours, setEnCours] = useState(false);
+  const [confirmationOuverte, setConfirmationOuverte] = useState(false);
+
+  // Le formulaire ne connait que le CODE de la fonction ; le recapitulatif de
+  // confirmation doit montrer le libelle que l'ARH vient de choisir.
+  const libelleFonctionChoisie =
+    fonctionsEligibles.find((f) => f.code === codeFonction)?.libelle ?? codeFonction;
 
   useEffect(() => {
     apiClient.get('/fonctions-eligibles').then(({ data }) => {
@@ -29,9 +37,19 @@ export default function CreerGrillePage() {
     });
   }, []);
 
-  const creer = async (event) => {
+  // Sprint MM.12 : la soumission n'est plus declenchee par le seul submit du
+  // formulaire. Une grille soumise part au CRH puis a la DRH et n'est plus
+  // annulable -- seul un rejet peut la faire retomber. Le recapitulatif
+  // ci-dessous laisse une derniere chance de relire le montant saisi.
+  const demanderCreation = (event) => {
     event.preventDefault();
     setErreur(null);
+    setConfirmationOuverte(true);
+  };
+
+  const creer = async () => {
+    setErreur(null);
+    setConfirmationOuverte(false);
     setEnCours(true);
     try {
       await apiClient.post('/grilles-tarifaires', {
@@ -42,7 +60,9 @@ export default function CreerGrillePage() {
       navigate(retourListe);
     } catch (err) {
       if (err.response?.status === 409) {
-        setErreur('Une grille est déjà en attente de validation DRH pour cette fonction.');
+        // Sprint MM.12 : le 409 couvre les DEUX etages d'attente (CRH et DRH),
+        // le message ne peut donc plus nommer la seule DRH.
+        setErreur('Une grille est déjà en attente de validation pour cette fonction.');
       } else if (err.response?.status === 404) {
         setErreur('Fonction éligible introuvable.');
       } else {
@@ -64,7 +84,7 @@ export default function CreerGrillePage() {
           </CardHeader>
           {/* Pas de noValidate : validation cote client portee par les
               attributs `required` natifs (audit Sprint 6F.9). */}
-          <form onSubmit={creer}>
+          <form onSubmit={demanderCreation}>
             <CardContent className="flex flex-col gap-4">
               {erreur && (
                 <Alert variant="destructive">
@@ -117,12 +137,28 @@ export default function CreerGrillePage() {
             </CardContent>
             <CardFooter>
               <Button type="submit" disabled={enCours}>
-                {enCours ? 'Création en cours…' : 'Soumettre à la DRH'}
+                {/* Sprint MM.12 : le premier etage du workflow est desormais le CRH. */}
+                {enCours ? 'Création en cours…' : 'Soumettre au CRH'}
               </Button>
             </CardFooter>
           </form>
         </Card>
       </div>
+
+      {confirmationOuverte && (
+        <ConfirmDialog
+          titre="Soumettre la grille au CRH"
+          message={
+            `${libelleFonctionChoisie} — ${formatMontantFCFA(Number(montantFcfa))} `
+            + `applicable au ${formatDate(dateDebut)}. `
+            + `Une fois soumise, la grille suit le circuit CRH puis DRH et n'est plus modifiable `
+            + `dès que le CRH a statué. Confirmer ?`
+          }
+          libelleConfirmer="Soumettre"
+          onAnnuler={() => setConfirmationOuverte(false)}
+          onConfirmer={creer}
+        />
+      )}
     </>
   );
 }

@@ -3,6 +3,7 @@ import com.afriland.dottel.beneficiaires.api.BeneficiaireApi;
 import com.afriland.dottel.beneficiaires.api.BeneficiaireDocumentDto;
 import com.afriland.dottel.beneficiaires.api.BeneficiaireDotationDto;
 import com.afriland.dottel.beneficiaires.api.BeneficiaireIdentiteDto;
+import com.afriland.dottel.referentiel.api.GrilleEnAttenteDto;
 import com.afriland.dottel.referentiel.api.GrilleTarifaireApi;
 import com.afriland.dottel.referentiel.api.ResolutionGrilleDto;
 import com.afriland.dottel.utilisateurs.api.DestinataireNotificationDto;
@@ -17,10 +18,15 @@ import com.afriland.dottel.processus.exception.ProcessusMensuelExisteDejaExcepti
 import com.afriland.dottel.processus.exception.ProcessusOriginalIntrouvableException;
 import com.afriland.dottel.processus.exception.ProcessusMensuelIntrouvableException;
 import com.afriland.dottel.processus.exception.ProcessusMensuelNonModifiableException;
+import com.afriland.dottel.processus.exception.ResynchronisationNonConfirmeeException;
+import com.afriland.dottel.processus.exception.ValidationBloqueeGrilleEnAttenteException;
 import com.afriland.dottel.processus.model.dto.processus.AjustementLigneEtatDto;
 import com.afriland.dottel.processus.model.dto.processus.BeneficiaireExcluDto;
 import com.afriland.dottel.processus.model.dto.processus.DeclencherProcessusRequestDto;
+import com.afriland.dottel.processus.model.dto.processus.EcartsMontantsResponseDto;
 import com.afriland.dottel.processus.model.dto.processus.LigneDocumentDto;
+import com.afriland.dottel.processus.model.dto.processus.LigneExclueResynchronisationDto;
+import com.afriland.dottel.processus.model.dto.processus.LigneResynchroniseeDto;
 import com.afriland.dottel.processus.model.dto.processus.LigneEtatMensuelDetailDto;
 import com.afriland.dottel.processus.model.dto.processus.PatchProcessusRequestDto;
 import com.afriland.dottel.processus.model.dto.processus.PatchProcessusResponseDto;
@@ -366,11 +372,100 @@ public class ProcessusMensuelService {
                 .build();
     }
 
+    /**
+     * Premier temps de la variante B2-RESYNC (Sprint MM.12) : detecte les
+     * ecarts entre le montant stocke sur chaque ligne INCLUSE et la grille
+     * ACTIVE courante, SANS RIEN ECRIRE.
+     *
+     * <p>Deliberement {@code readOnly} : c'est la garantie technique que
+     * consulter le recapitulatif ne modifie rien, l'ARH devant pouvoir renoncer
+     * apres l'avoir lu.</p>
+     */
+    @Transactional(readOnly = true)
+    public EcartsMontantsResponseDto detecterEcartsMontants(Long idProcessus) {
+        ProcessusMensuel processus = processusMensuelRepository.findById(idProcessus)
+                .orElseThrow(() -> new ProcessusMensuelIntrouvableException("Aucun processus mensuel avec l'id " + idProcessus));
+
+        return calculerEcarts(processus.getId());
+    }
+
+    // Coeur commun aux deux temps : la detection est calculee A L'IDENTIQUE
+    // pour l'apercu (readOnly) et pour l'application, afin que l'ARH ne puisse
+    // pas confirmer un recapitulatif different de ce qui sera applique.
+    //
+    // RG-04 : la resolution du montant passe par GrilleTarifaireApi, UNIQUE
+    // point de resolution du projet depuis MM.3 (couplage C2). Aucune
+    // reimplementation ici, et aucun nouveau couplage : la dependance
+    // processus -> referentiel::api est declaree depuis MM.2.
+    private EcartsMontantsResponseDto calculerEcarts(Long idProcessus) {
+        List<LigneEtatMensuel> lignesIncluses = ligneEtatMensuelRepository
+                .findByIdProcessusAndInclusDansEtatTrue(idProcessus);
+
+        Map<Long, BeneficiaireIdentiteDto> beneficiairesParId = beneficiaireApi.identitesParId(
+                lignesIncluses.stream().map(LigneEtatMensuel::getIdBeneficiaire).toList());
+
+        List<LigneResynchroniseeDto> resynchronisees = new ArrayList<>();
+        List<LigneExclueResynchronisationDto> exclues = new ArrayList<>();
+
+        for (LigneEtatMensuel ligne : lignesIncluses) {
+            ResolutionGrilleDto resolution = grilleTarifaireApi.resoudrePourFonction(ligne.getFonctionRetenue());
+            BeneficiaireIdentiteDto beneficiaire = beneficiairesParId.get(ligne.getIdBeneficiaire());
+            String matricule = beneficiaire != null ? beneficiaire.matricule() : null;
+            String nomPrenoms = beneficiaire != null ? beneficiaire.nomPrenoms() : null;
+
+            // Cas limite arbitre le 2026-08-09 : plus de grille ACTIVE pour
+            // cette fonction (grille desactivee depuis le declenchement). La
+            // ligne est retiree de l'etat -- consequence bien plus lourde qu'un
+            // recalage, d'ou une liste distincte.
+            if (resolution.motifExclusion() != null) {
+                // P-1 (2026-08-09) : distinguer une absence de grille DURABLE
+                // d'une absence TRANSITOIRE due a une signature en cours. Le
+                // motif d'exclusion lui-meme n'est pas reformule -- ses libelles
+                // sont figes par le contrat API (voir ResolutionGrilleDto) --
+                // l'information est AJOUTEE a cote.
+                GrilleEnAttenteDto grilleEnAttente = grilleTarifaireApi
+                        .grilleEnAttentePourFonction(ligne.getFonctionRetenue())
+                        .orElse(null);
+
+                exclues.add(LigneExclueResynchronisationDto.builder()
+                        .idBeneficiaire(ligne.getIdBeneficiaire())
+                        .matricule(matricule)
+                        .nomPrenoms(nomPrenoms)
+                        .fonctionRetenue(ligne.getFonctionRetenue())
+                        .ancienMontant(ligne.getMontantApplique())
+                        .motifExclusion(resolution.motifExclusion())
+                        .montantGrilleEnAttente(grilleEnAttente != null ? grilleEnAttente.montantFcfa() : null)
+                        .etapeGrilleEnAttente(grilleEnAttente != null ? grilleEnAttente.etape() : null)
+                        .dateSoumissionGrilleEnAttente(grilleEnAttente != null ? grilleEnAttente.dateSoumission() : null)
+                        .build());
+                continue;
+            }
+
+            if (!Objects.equals(ligne.getMontantApplique(), resolution.montantFcfa())) {
+                resynchronisees.add(LigneResynchroniseeDto.builder()
+                        .idBeneficiaire(ligne.getIdBeneficiaire())
+                        .matricule(matricule)
+                        .nomPrenoms(nomPrenoms)
+                        .fonctionRetenue(ligne.getFonctionRetenue())
+                        .ancienMontant(ligne.getMontantApplique())
+                        .nouveauMontant(resolution.montantFcfa())
+                        .build());
+            }
+        }
+
+        return EcartsMontantsResponseDto.builder()
+                .idProcessus(idProcessus)
+                .lignesResynchronisees(resynchronisees)
+                .lignesExclues(exclues)
+                .build();
+    }
+
     // Un seul endpoint (POST /processus/{id}/valider) pour les trois roles,
     // differencie par le statut courant du processus. Sprint 3.4 : branche ARH.
     // Sprint 5.2 : branche CRH. Sprint 5.3 : branche DRH (cloture).
     @Transactional
-    public ValiderProcessusResponseDto valider(Long idProcessus, String commentaire) {
+    public ValiderProcessusResponseDto valider(Long idProcessus, String commentaire,
+                                                 boolean confirmerResynchronisation) {
         ProcessusMensuel processus = processusMensuelRepository.findById(idProcessus)
                 .orElseThrow(() -> new ProcessusMensuelIntrouvableException("Aucun processus mensuel avec l'id " + idProcessus));
 
@@ -380,7 +475,7 @@ public class ProcessusMensuelService {
         // qui remplace desormais la PieceJointe existante en place (RG-06) plutot
         // que d'en creer une seconde -- voir DocumentService.
         if (processus.getStatut() == StatutEnum.EN_COURS_ARH || processus.getStatut() == StatutEnum.RETOURNE) {
-            return validerBrancheArh(processus, commentaire);
+            return validerBrancheArh(processus, commentaire, confirmerResynchronisation);
         }
         if (processus.getStatut() == StatutEnum.EN_ATTENTE_CRH) {
             return validerBrancheCrh(processus, commentaire);
@@ -400,10 +495,17 @@ public class ProcessusMensuelService {
     // RG-08/verifier() n'est en revanche pas applicable : il compare l'acteur
     // courant au validateur de l'etape PRECEDENTE, or il n'y a pas d'etape
     // precedente pour une premiere validation ARH.
-    private ValiderProcessusResponseDto validerBrancheArh(ProcessusMensuel processus, String commentaire) {
+    private ValiderProcessusResponseDto validerBrancheArh(ProcessusMensuel processus, String commentaire,
+                                                            boolean confirmerResynchronisation) {
         Utilisateur utilisateurCourant = authenticatedUserService.utilisateurCourant();
 
         separationTachesService.verifierRoleAttendu(NomEtapeEnum.VALIDATION_ARH, utilisateurCourant);
+
+        // Variante B2-RESYNC, second temps (Sprint MM.12). Applique AVANT la
+        // generation du PDF : le document et l'evenement Kafka qui en decoulent
+        // doivent porter les montants a jour, jamais ceux d'avant recalage.
+        EcartsMontantsResponseDto ecarts = appliquerResynchronisation(
+                processus, utilisateurCourant, confirmerResynchronisation);
 
         List<LigneEtatMensuel> lignesIncluses = ligneEtatMensuelRepository.findByIdProcessusAndInclusDansEtatTrue(processus.getId());
         Map<Long, LigneDocumentDto> donneesDocumentParBeneficiaire = assemblerDonneesDocument(lignesIncluses);
@@ -448,7 +550,121 @@ public class ProcessusMensuelService {
                 .statut(processus.getStatut())
                 .etapeValidee(NomEtapeEnum.VALIDATION_ARH.name())
                 .idPieceJointe(pieceJointe.getId())
+                .lignesResynchronisees(ecarts.getLignesResynchronisees())
+                .lignesExclues(ecarts.getLignesExclues())
                 .build();
+    }
+
+    // Le message doit porter les DEUX sorties possibles, pas seulement le
+    // constat : sans elles l'ARH se retrouve devant un refus sans savoir quoi
+    // faire, ce qui gele le cycle de paie (exigence utilisateur du 2026-08-09).
+    private String messageBlocage(List<LigneExclueResynchronisationDto> bloquantes) {
+        String detail = bloquantes.stream()
+                .map(ligne -> ligne.getFonctionRetenue() + " (" + ligne.getNomPrenoms() + ") : grille de "
+                        + ligne.getMontantGrilleEnAttente() + " FCFA en attente de validation "
+                        + ligne.getEtapeGrilleEnAttente()
+                        + " depuis le " + ligne.getDateSoumissionGrilleEnAttente().toLocalDate())
+                .collect(Collectors.joining(" ; "));
+
+        return "Validation impossible : " + bloquantes.size()
+                + (bloquantes.size() > 1 ? " fonctions n'ont" : " fonction n'a")
+                + " plus de grille en vigueur, alors qu'une grille est en cours de validation. "
+                + detail + ". "
+                + "Deux options : attendre la validation de la grille pour que "
+                + (bloquantes.size() > 1 ? "ces bénéficiaires soient payés" : "ce bénéficiaire soit payé")
+                + ", ou exclure explicitement "
+                + (bloquantes.size() > 1 ? "ces lignes" : "cette ligne")
+                + " via « Ajuster les lignes » avant de valider.";
+    }
+
+    /**
+     * Applique la variante B2-RESYNC : recale les montants obsoletes sur la
+     * grille ACTIVE (RG-04) et retire les lignes dont la fonction n'a plus de
+     * grille ACTIVE, apres confirmation explicite de l'ARH.
+     *
+     * <p>Retourne le recapitulatif de ce qui a ete applique, pour que la
+     * reponse de validation le porte -- la resynchronisation ne doit jamais
+     * etre silencieuse (c'est le point qui distingue B2-RESYNC de B3).</p>
+     */
+    private EcartsMontantsResponseDto appliquerResynchronisation(ProcessusMensuel processus,
+                                                                   Utilisateur utilisateurCourant,
+                                                                   boolean confirmerResynchronisation) {
+        EcartsMontantsResponseDto ecarts = calculerEcarts(processus.getId());
+
+        if (ecarts.isAucunEcart()) {
+            return ecarts;
+        }
+
+        // P-2 (2026-08-09) : blocage AVANT le controle de confirmation. Une
+        // grille en cours de signature n'est pas une situation que l'ARH doit
+        // pouvoir confirmer -- c'est une situation qui doit se resoudre, soit
+        // par la signature, soit par une exclusion deliberee de la ligne.
+        List<LigneExclueResynchronisationDto> bloquantes = ecarts.getLignesExclues().stream()
+                .filter(LigneExclueResynchronisationDto::isBloquante)
+                .toList();
+        if (!bloquantes.isEmpty()) {
+            throw new ValidationBloqueeGrilleEnAttenteException(messageBlocage(bloquantes));
+        }
+
+        // Deuxieme temps NON contournable : sans confirmation, on refuse plutot
+        // que de resynchroniser dans le dos de l'ARH. Le client doit d'abord
+        // appeler GET /processus/{id}/ecarts-montants, montrer le recapitulatif,
+        // puis revenir avec confirmerResynchronisation=true.
+        if (!confirmerResynchronisation) {
+            throw new ResynchronisationNonConfirmeeException(
+                    "Des montants de ce processus ne correspondent plus à la grille tarifaire en vigueur. "
+                            + "Consultez GET /processus/" + processus.getId() + "/ecarts-montants puis confirmez "
+                            + "la validation avec confirmerResynchronisation=true.");
+        }
+
+        for (LigneResynchroniseeDto ligneResynchronisee : ecarts.getLignesResynchronisees()) {
+            LigneEtatMensuel ligne = ligneEtatMensuelRepository
+                    .findByIdProcessusAndIdBeneficiaire(processus.getId(), ligneResynchronisee.getIdBeneficiaire())
+                    .orElseThrow();
+
+            Map<String, Object> avant = new LinkedHashMap<>();
+            avant.put("montantApplique", ligne.getMontantApplique());
+
+            ligne.setMontantApplique(ligneResynchronisee.getNouveauMontant());
+            ligneEtatMensuelRepository.save(ligne);
+
+            Map<String, Object> apres = new LinkedHashMap<>();
+            apres.put("montantApplique", ligne.getMontantApplique());
+
+            // RG-09, exigence explicite de la decision B : le delta de
+            // resynchronisation doit etre trace. Une entree par ligne, comme
+            // AJUSTEMENT_LIGNE_ETAT_MENSUEL -- une entree agregee ne permettrait
+            // pas de retrouver quel beneficiaire a change de montant.
+            eventPublisher.publishEvent(new EvenementAudit(utilisateurCourant.getId(),
+                    "RESYNCHRONISATION_MONTANT_LIGNE", "ligne_etat_mensuel", ligne.getId(), avant, apres));
+        }
+
+        for (LigneExclueResynchronisationDto ligneExclue : ecarts.getLignesExclues()) {
+            LigneEtatMensuel ligne = ligneEtatMensuelRepository
+                    .findByIdProcessusAndIdBeneficiaire(processus.getId(), ligneExclue.getIdBeneficiaire())
+                    .orElseThrow();
+
+            Map<String, Object> avant = new LinkedHashMap<>();
+            avant.put("inclusDansEtat", ligne.getInclusDansEtat());
+            avant.put("montantApplique", ligne.getMontantApplique());
+
+            // Montant remis a 0 comme au declenchement d'une ligne exclue : une
+            // ligne hors etat ne doit pas conserver un montant issu d'une grille
+            // qui n'est plus en vigueur.
+            ligne.setInclusDansEtat(false);
+            ligne.setMontantApplique(0);
+            ligneEtatMensuelRepository.save(ligne);
+
+            Map<String, Object> apres = new LinkedHashMap<>();
+            apres.put("inclusDansEtat", ligne.getInclusDansEtat());
+            apres.put("montantApplique", ligne.getMontantApplique());
+            apres.put("motifExclusion", ligneExclue.getMotifExclusion());
+
+            eventPublisher.publishEvent(new EvenementAudit(utilisateurCourant.getId(),
+                    "EXCLUSION_LIGNE_SANS_GRILLE_ACTIVE", "ligne_etat_mensuel", ligne.getId(), avant, apres));
+        }
+
+        return ecarts;
     }
 
     // Couplage C4 (Sprint MM.3) : DocumentService ne va plus chercher Beneficiaire

@@ -8,7 +8,8 @@ import { Button } from '../../components/ui/Button';
 import { Alert, AlertDescription } from '../../components/ui/Alert';
 
 // PATCH /grilles-tarifaires/{id} n'accepte que le montant, et seulement
-// tant que la grille est EN_ATTENTE_DRH (RG-10).
+// tant que la grille est EN_ATTENTE_CRH (RG-10 ; Sprint MM.12 : le montant est
+// gele des que le CRH a statue).
 export function ModifierGrilleModal({ grille, onFerme, onSucces }) {
   const [montantFcfa, setMontantFcfa] = useState(String(grille.montantFcfa));
   const [erreur, setErreur] = useState(null);
@@ -23,7 +24,7 @@ export function ModifierGrilleModal({ grille, onFerme, onSucces }) {
       onSucces();
     } catch (err) {
       if (err.response?.status === 400) {
-        setErreur("Cette grille n'est plus en attente de validation DRH, elle ne peut plus être modifiée.");
+        setErreur("Le CRH a déjà statué sur cette grille : son montant est gelé et ne peut plus être modifié.");
       } else if (err.response?.status === 404) {
         setErreur('Grille introuvable.');
       } else {

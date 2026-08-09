@@ -24,4 +24,9 @@ public class GrilleTarifaireListeLigneDto {
     private LocalDate dateFin;
     private StatutGrilleEnum statutValidation;
     private String motifRejet;
+
+    // Sprint MM.12 : "CRH" ou "DRH" selon l'etage qui a rejete, null si la
+    // grille n'est pas REJETEE. Derive cote service, jamais stocke -- equivalent
+    // d'origineRetour pour le processus mensuel.
+    private String origineRejet;
 }

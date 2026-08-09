@@ -16,6 +16,8 @@ import com.afriland.dottel.referentiel.exception.GrilleNonEnAttenteDrhException;
 import com.afriland.dottel.referentiel.exception.GrilleNonModifiableException;
 import com.afriland.dottel.referentiel.exception.GrilleTarifaireIntrouvableException;
 import com.afriland.dottel.referentiel.exception.GrilleTarifaireMotifRejetObligatoireException;
+import com.afriland.dottel.referentiel.exception.RoleDecisionGrilleNonAutoriseException;
+import com.afriland.dottel.referentiel.exception.SeparationTachesGrilleViolationException;
 import com.afriland.dottel.beneficiaires.exception.MatriculeDejaEnroleException;
 import com.afriland.dottel.beneficiaires.exception.MatriculeInconnuException;
 import com.afriland.dottel.utilisateurs.exception.MatriculeUtilisateurDejaUtiliseException;
@@ -29,7 +31,9 @@ import com.afriland.dottel.processus.exception.ProcessusMensuelIntrouvableExcept
 import com.afriland.dottel.processus.exception.ProcessusMensuelNonModifiableException;
 import com.afriland.dottel.processus.exception.EtapeWorkflowIntrouvableException;
 import com.afriland.dottel.processus.exception.PieceJointeIntrouvableException;
+import com.afriland.dottel.processus.exception.ResynchronisationNonConfirmeeException;
 import com.afriland.dottel.processus.exception.RoleEtapeNonAutoriseException;
+import com.afriland.dottel.processus.exception.ValidationBloqueeGrilleEnAttenteException;
 import com.afriland.dottel.utilisateurs.exception.RoleInvalideException;
 import com.afriland.dottel.processus.exception.SeparationTachesViolationException;
 import com.afriland.dottel.utilisateurs.exception.UtilisateurIntrouvableException;
@@ -379,6 +383,57 @@ public class GlobalExceptionHandler {
     // mais motif distinct pour rester exploitable en audit et cote client.
     @ExceptionHandler(RoleEtapeNonAutoriseException.class)
     public ResponseEntity<Map<String, Object>> gererRoleEtapeNonAutorise(RoleEtapeNonAutoriseException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.FORBIDDEN.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(corps);
+    }
+
+    // Sprint MM.12 (option P-2) : une fonction de l'etat mensuel n'a plus de
+    // grille en vigueur parce qu'une grille attend encore une signature. 409 :
+    // l'etat courant du referentiel est en conflit avec la validation demandee.
+    @ExceptionHandler(ValidationBloqueeGrilleEnAttenteException.class)
+    public ResponseEntity<Map<String, Object>> gererValidationBloqueeGrilleEnAttente(ValidationBloqueeGrilleEnAttenteException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.CONFLICT.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(corps);
+    }
+
+    // Sprint MM.12 : validation ARH demandee alors que des montants sont
+    // obsoletes et que l'ARH ne les a pas confirmes (variante B2-RESYNC en deux
+    // temps). 409 : l'etat courant du processus est en conflit avec la requete.
+    @ExceptionHandler(ResynchronisationNonConfirmeeException.class)
+    public ResponseEntity<Map<String, Object>> gererResynchronisationNonConfirmee(ResynchronisationNonConfirmeeException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.CONFLICT.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(corps);
+    }
+
+    // Pendants MM.12 des deux handlers ci-dessus pour le workflow des grilles.
+    // Exceptions distinctes et non reutilisees : celles du processus vivent dans
+    // processus.exception, les lever depuis referentiel creerait un second cycle
+    // de modules (option W-3 ecartee, MM.12 section 1bis). Meme statut HTTP,
+    // meme forme de corps.
+    @ExceptionHandler(RoleDecisionGrilleNonAutoriseException.class)
+    public ResponseEntity<Map<String, Object>> gererRoleDecisionGrilleNonAutorise(RoleDecisionGrilleNonAutoriseException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.FORBIDDEN.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(corps);
+    }
+
+    @ExceptionHandler(SeparationTachesGrilleViolationException.class)
+    public ResponseEntity<Map<String, Object>> gererSeparationTachesGrilleViolation(SeparationTachesGrilleViolationException exception) {
         Map<String, Object> corps = new LinkedHashMap<>();
         corps.put("horodatage", LocalDateTime.now());
         corps.put("statut", HttpStatus.FORBIDDEN.value());

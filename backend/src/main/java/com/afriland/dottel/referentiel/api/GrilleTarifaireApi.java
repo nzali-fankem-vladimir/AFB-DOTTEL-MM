@@ -1,5 +1,7 @@
 package com.afriland.dottel.referentiel.api;
 
+import java.util.Optional;
+
 /**
  * API publique du module referentiel pour la resolution du montant de dotation.
  *
@@ -22,4 +24,22 @@ public interface GrilleTarifaireApi {
      * fonction inconnue -> fonction desactivee -> grille ACTIVE introuvable.
      */
     ResolutionGrilleDto resoudrePourFonction(String codeFonction);
+
+    /**
+     * Grille engagee dans le circuit de validation pour cette fonction, s'il y
+     * en a une (Sprint MM.12).
+     *
+     * <p>Volontairement SEPAREE de {@link #resoudrePourFonction} plutot
+     * qu'ajoutee a {@link ResolutionGrilleDto} : ce dernier porte "SOIT un
+     * montant, SOIT un motif d'exclusion, jamais les deux", invariant que tout
+     * le projet exploite depuis MM.2, et ses libelles de motif sont figes par
+     * le contrat API. Cette methode n'est appelee que sur le chemin d'exclusion,
+     * cas rare.</p>
+     *
+     * <p>Au plus une grille peut etre en attente par fonction : la creation
+     * refuse une seconde grille tant qu'une autre attend le CRH ou la DRH.</p>
+     *
+     * @return la grille en attente, ou vide si la fonction n'en a aucune
+     */
+    Optional<GrilleEnAttenteDto> grilleEnAttentePourFonction(String codeFonction);
 }

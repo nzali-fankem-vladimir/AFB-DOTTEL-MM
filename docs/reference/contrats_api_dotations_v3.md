@@ -673,12 +673,104 @@ Réponse succès (rapport partiel, pas le détail complet du processus — chaqu
 
 # 5. Groupe Workflow — /processus/{id}/...
 
-### POST /processus/{id}/valider — En cours (branche ARH uniquement)
+### GET /processus/{id}/ecarts-montants — Implémenté (Sprint MM.12)
 
-**Seule la branche ARH est implémentée à ce jour** (transition `EN_COURS_ARH → EN_ATTENTE_CRH`, génération du PDF initial via `DocumentService.genererInitiale()`). Les branches CRH et DRH, ainsi que la vérification RG-08 (séparation des tâches), sont **non implémentées**, prévues au Sprint 5.
+**Premier temps de la variante B2-RESYNC** (décision B de M.0, interprétation
+« en deux temps » arbitrée le 2026-08-09).
 
-**Rôles autorisés (portée actuelle) : ARH, si statut EN_COURS_ARH**
-**Rôles autorisés (prévus, non actifs) : CRH si EN_ATTENTE_CRH, DRH si EN_ATTENTE_DRH**
+Détecte, pour chaque ligne **incluse** du processus, l'écart entre le montant
+stocké et la grille tarifaire ACTIVE courante (RG-04, résolution via
+`GrilleTarifaireApi` — unique point de résolution du projet depuis MM.3).
+
+**Lecture pure : aucune écriture.** L'ARH doit pouvoir consulter le
+récapitulatif puis renoncer.
+
+**Rôles autorisés : ARH** (seule sa branche de validation resynchronise).
+
+Réponse succès :
+
+```json
+{
+  "idProcessus": 12,
+  "lignesResynchronisees": [
+    {
+      "idBeneficiaire": 701, "matricule": "1874", "nomPrenoms": "ESSAMA Jeanne",
+      "fonctionRetenue": "GFC", "ancienMontant": 40000, "nouveauMontant": 45000
+    }
+  ],
+  "lignesExclues": [
+    {
+      "idBeneficiaire": 704, "matricule": "2093", "nomPrenoms": "NKOLO Sylvie",
+      "fonctionRetenue": "COMPTABLE", "ancienMontant": 35000,
+      "motifExclusion": "Aucune grille tarifaire ACTIVE pour cette fonction",
+      "montantGrilleEnAttente": null,
+      "etapeGrilleEnAttente": null,
+      "dateSoumissionGrilleEnAttente": null
+    },
+    {
+      "idBeneficiaire": 710, "matricule": "4409", "nomPrenoms": "NGUEMA Paul",
+      "fonctionRetenue": "JURISTE", "ancienMontant": 37000,
+      "motifExclusion": "Aucune grille tarifaire ACTIVE pour cette fonction",
+      "montantGrilleEnAttente": 35000,
+      "etapeGrilleEnAttente": "DRH",
+      "dateSoumissionGrilleEnAttente": "2026-08-05T09:00:00"
+    }
+  ]
+}
+```
+
+**Les deux listes sont volontairement distinctes** : leurs conséquences n'ont
+rien de comparable — `lignesResynchronisees` = la personne **est** payée, à un
+autre montant ; `lignesExclues` = la personne **n'est pas** payée ce mois-ci.
+Les clients doivent les présenter en deux blocs séparés et visuellement
+distincts, jamais dans une liste indifférenciée (exigence du 2026-08-09).
+
+#### Absence durable / absence transitoire (options P-1 + P-2, 2026-08-09)
+
+Une ligne exclue l'est pour deux raisons de nature différente, que
+`motifExclusion` seul confondait. Les trois champs `*GrilleEnAttente` sont le
+discriminant — le motif lui-même n'est **pas** reformulé, ses libellés étant
+figés par ce contrat.
+
+| Situation | `etapeGrilleEnAttente` | Comportement à la validation |
+|---|---|---|
+| Aucune grille, ou uniquement des grilles rejetées — **durable** | `null` | La ligne est **exclue** ; le bénéficiaire n'est pas payé ce mois-ci (arbitrage du 2026-08-09). |
+| Une grille attend une signature CRH ou DRH — **transitoire** | `"CRH"` ou `"DRH"` | La validation est **REFUSÉE (409)** — voir `POST /processus/{id}/valider`. |
+
+Le blocage n'est pas une confirmation à cocher : c'est une situation à
+résoudre. L'ARH a deux sorties, explicitées dans le message d'erreur — faire
+aboutir la signature (le bénéficiaire sera payé au montant recalé), ou exclure
+délibérément la ligne via `PATCH /processus/{id}` (il ne sera pas payé, mais
+c'est alors une décision prise).
+
+Motif : l'argument qui avait fait écarter « bloquer » le 9 août — devoir
+relancer un cycle ARH→CRH→DRH complet — ne s'applique pas ici, puisque le cycle
+est **déjà en vol**. MM.12 rend d'ailleurs ce cas plus fréquent : en passant de
+deux à trois acteurs, il a allongé la fenêtre pendant laquelle une fonction n'a
+plus de grille en vigueur.
+
+| **Code HTTP** | **Description** |
+| --- | --- |
+| 200 | Écarts retournés (les deux listes sont vides si tout est à jour). |
+| 404 | Processus introuvable. |
+
+### POST /processus/{id}/valider — Implémenté (trois branches)
+
+Endpoint unique pour les trois rôles, la branche étant choisie par le **statut
+courant du processus**.
+
+> *Correction de contrat (Sprint MM.12)* : cette entrée décrivait encore
+> « seule la branche ARH est implémentée » et RG-08 comme non vérifiée. C'est
+> périmé depuis le Sprint 5 — les branches CRH et DRH et la séparation des
+> tâches sont en place.
+
+**Rôles autorisés : ARH si `EN_COURS_ARH` ou `RETOURNE`, CRH si `EN_ATTENTE_CRH`, DRH si `EN_ATTENTE_DRH`**
+
+Paramètre de requête (Sprint MM.12) :
+
+| Paramètre | Défaut | Rôle |
+| --- | --- | --- |
+| `confirmerResynchronisation` | `false` | **Second temps de B2-RESYNC.** Sans lui, une validation ARH portant des montants obsolètes est **refusée (409)** plutôt que resynchronisée en silence — ce serait la variante B3, écartée. Sans effet sur les branches CRH et DRH, qui ne resynchronisent rien. |
 
 Corps de la requête :
 
@@ -693,15 +785,32 @@ Réponse succès :
   "id": 1,
   "statut": "EN_ATTENTE_CRH",
   "etapeValidee": "VALIDATION_ARH",
-  "idPieceJointe": 1
+  "idPieceJointe": 1,
+  "lignesResynchronisees": [],
+  "lignesExclues": []
 }
 ```
+
+`lignesResynchronisees` / `lignesExclues` (Sprint MM.12) : récapitulatif de ce
+qui a **réellement été appliqué**, même forme que
+`GET /processus/{id}/ecarts-montants`. Renseignés uniquement par la branche ARH
+(`null` pour les branches CRH et DRH). La resynchronisation est appliquée
+**avant** la génération du PDF : le document et l'événement Kafka qui en découle
+portent toujours les montants à jour.
+
+Audit (RG-09, exigence explicite de la décision B) : une entrée par ligne —
+`RESYNCHRONISATION_MONTANT_LIGNE` et `EXCLUSION_LIGNE_SANS_GRILLE_ACTIVE`, sur
+l'entité `ligne_etat_mensuel`, avec delta `{"avant": …, "apres": …}`.
 
 | **Code HTTP** | **Description** |
 | --- | --- |
 | 200 | Validation réussie. |
-| 403 | Séparation des tâches violée (RG-08) — non vérifié à ce jour, réservé aux branches CRH/DRH du Sprint 5. |
+| 403 | RG-05 : rôle incompatible avec l'étape déclenchée par le statut. |
+| 403 | RG-08 : l'acteur a déjà validé l'étape précédente du processus. |
+| 404 | Processus introuvable. |
 | 409 | Statut incompatible avec l'action. |
+| 409 | **Sprint MM.12** — des montants sont obsolètes et `confirmerResynchronisation` n'a pas été fourni. Appeler `GET /processus/{id}/ecarts-montants`, présenter le récapitulatif, puis rappeler avec `confirmerResynchronisation=true`. |
+| 409 | **Sprint MM.12 (P-2)** — une fonction de l'état mensuel n'a plus de grille en vigueur alors qu'une grille attend une signature CRH ou DRH. **Non contournable par `confirmerResynchronisation`** : le contrôle s'effectue avant. Le message nomme la fonction, le bénéficiaire, l'étage bloquant et la date de soumission, et rappelle les deux sorties (attendre la signature, ou exclure la ligne via `PATCH /processus/{id}`). |
 
 ### POST /processus/{id}/retourner — Planifié (non implémenté)
 
@@ -839,6 +948,31 @@ Réponse succès :
 
 **Groupe en cours de construction (Sprint 4bis).**
 
+> **Sprint MM.12 — workflow à trois acteurs.** Le CRH est inséré entre l'ARH et
+> la DRH, sur le modèle du workflow du processus mensuel. Le cycle de vie
+> `StatutGrilleEnum` devient :
+>
+> ```
+> création ARH ──► EN_ATTENTE_CRH ──(CRH valide)──► EN_ATTENTE_DRH ──(DRH valide)──► ACTIVE
+>                        │                                 │
+>                   (CRH rejette)                     (DRH rejette)
+>                        └──────────► REJETEE ◄────────────┘
+> ```
+>
+> `BROUILLON` reste déclaré mais demeure inatteignable (décision Sprint 4bis.1).
+> `REJETEE` est **terminal** : l'ARH crée une nouvelle grille, il n'y a jamais de
+> resoumission — donc jamais plus d'un rejet par ligne.
+>
+> **RG-08 appliquée (option W-2, arbitrée le 2026-08-09)** avec un mécanisme
+> propre au module `referentiel` (colonnes `id_decideur_crh` /
+> `date_decision_crh`, migration V7), et non par réutilisation de
+> `SeparationTachesService` qui aurait créé un second cycle de modules. Le CRH ne
+> peut pas être l'ARH créateur ; la DRH ne peut pas être le CRH décideur → 403.
+>
+> Les grilles déjà `EN_ATTENTE_DRH` avant MM.12 sont **laissées en l'état** (le
+> CRH est réputé avoir implicitement validé) ; leur `id_decideur_crh` reste
+> `null` et RG-08 est donc inopérante pour cette population transitoire.
+
 ### GET /grilles-tarifaires — Implémenté (Sprint 6F.7)
 
 Liste les grilles tarifaires, tous statuts confondus, avec filtres
@@ -849,7 +983,7 @@ au fil du temps), même décision que pour `GET /admin/utilisateurs`.
 **Rôles autorisés : ARH, ADMIN**
 
 Paramètres de requête (facultatifs) : `fonction` (code), `statut`
-(`BROUILLON` | `EN_ATTENTE_DRH` | `ACTIVE` | `REJETEE`).
+(`BROUILLON` | `EN_ATTENTE_CRH` | `EN_ATTENTE_DRH` | `ACTIVE` | `REJETEE`).
 
 Réponse succès :
 
@@ -859,7 +993,7 @@ Réponse succès :
     {
       "id": 12, "codeFonction": "GFC", "libelleFonction": "Gestionnaire de Fonds de Commerce",
       "montantFcfa": 40000, "dateDebut": "2026-01-01", "dateFin": null,
-      "statutValidation": "ACTIVE", "motifRejet": null
+      "statutValidation": "ACTIVE", "motifRejet": null, "origineRejet": null
     }
   ]
 }
@@ -867,6 +1001,12 @@ Réponse succès :
 
 `motifRejet` (Sprint 6F.7, RG-10) : renseigné uniquement pour une grille au
 statut `REJETEE`, `null` sinon.
+
+`origineRejet` (Sprint MM.12) : `"CRH"` ou `"DRH"` selon l'étage qui a rejeté,
+`null` si la grille n'est pas `REJETEE`. **Dérivé côté service, jamais stocké** —
+équivalent d'`origineRetour` pour le processus mensuel. La DRH est testée en
+premier, car après un rejet DRH les deux couples de décision sont renseignés.
+Peut être `null` sur une grille rejetée avant MM.12.
 
 | **Code HTTP** | **Description** |
 | --- | --- |
@@ -876,10 +1016,12 @@ statut `REJETEE`, `null` sinon.
 ### POST /grilles-tarifaires — Implémenté
 
 Crée une nouvelle grille tarifaire pour une fonction. La grille passe
-directement au statut EN_ATTENTE_DRH (soumission automatique à la DRH,
-conforme à US-20 — pas d'étape BROUILLON distincte, décision actée au
-Sprint 4bis.1 après contradiction repérée dans une version antérieure
-de ce contrat).
+directement au premier statut d'attente (soumission automatique, conforme à
+US-20 — pas d'étape BROUILLON distincte, décision actée au Sprint 4bis.1 après
+contradiction repérée dans une version antérieure de ce contrat).
+
+**Sprint MM.12** : ce premier statut est désormais `EN_ATTENTE_CRH`, plus
+`EN_ATTENTE_DRH`.
 
 **Rôles autorisés : ARH, ADMIN**
 
@@ -899,30 +1041,49 @@ Réponse succès :
 {
   "id": 25, "codeFonction": "GFC",
   "montantFcfa": 45000, "dateDebut": "2026-08-01",
-  "statutValidation": "EN_ATTENTE_DRH"
+  "statutValidation": "EN_ATTENTE_CRH"
 }
 ```
 
 | **Code HTTP** | **Description** |
 | --- | --- |
-| 201 | Grille créée, soumise automatiquement à la DRH. |
+| 201 | Grille créée, soumise automatiquement au CRH. |
 | 404 | Fonction inconnue. |
-| 409 | Une grille est déjà EN_ATTENTE_DRH pour cette fonction (pas ACTIVE — bloquer sur ACTIVE empêcherait le cas d'usage normal de mise à jour tarifaire). |
+| 409 | Une grille est déjà en attente pour cette fonction. **Sprint MM.12** : le contrôle couvre désormais les DEUX statuts d'attente (`EN_ATTENTE_CRH` **ou** `EN_ATTENTE_DRH`) — ne vérifier que l'un des deux laisserait créer deux grilles concurrentes pour la même fonction. Toujours pas de blocage sur ACTIVE : ce serait le cas d'usage normal de mise à jour tarifaire. |
 | 409 | `dateDebut` antérieure ou égale à la date de la grille non rejetée la plus récente pour cette fonction (comparée à `dateFin` si elle est déjà clôturée, sinon à `dateDebut`). Ajouté au Sprint 6F.7bis : avant l'introduction de la désactivation manuelle, il existait toujours une grille ACTIVE + `dateFin IS NULL` par fonction, et la validation DRH la fermait automatiquement, imposant de fait un ordre chronologique. Une fois cette grille désactivée manuellement, plus rien n'empêchait de créer une grille avec une `dateDebut` antérieure à l'historique existant — constat remonté manuellement en test, corrigé par ce contrôle explicite. |
 
 ### PATCH /grilles-tarifaires/{id} — Implémenté
 
-Modifie une grille en statut EN_ATTENTE_DRH (corrige la version
+Modifie une grille **en statut `EN_ATTENTE_CRH` uniquement** (corrige la version
 précédente de ce contrat, qui exigeait à tort le statut BROUILLON —
-inatteignable puisque la création passe directement à EN_ATTENTE_DRH).
+inatteignable puisque la création passe directement au premier statut d'attente).
+
+**Sprint MM.12, arbitrage du 2026-08-09** : le montant est **gelé dès que le CRH
+a statué**. Autoriser `EN_ATTENTE_DRH` permettrait à l'ARH de changer le montant
+après la validation CRH — la DRH validerait alors un chiffre que le CRH n'a
+jamais vu, ce qui viderait l'étape CRH de son sens.
 
 **Rôles autorisés : ARH, ADMIN**
 
 | **Code HTTP** | **Description** |
 | --- | --- |
 | 200 | Modification enregistrée. |
-| 400 | Grille non en statut EN_ATTENTE_DRH. |
+| 400 | Grille non en statut `EN_ATTENTE_CRH` (y compris `EN_ATTENTE_DRH` : le CRH a déjà statué). |
 | 404 | Grille introuvable. |
+
+### GET /grilles-tarifaires/en-attente-crh — Implémenté (Sprint MM.12)
+
+Endpoint dédié CRH : liste uniquement les grilles au statut `EN_ATTENTE_CRH`.
+Pendant strict de `/en-attente-drh`, et pour la même raison :
+`GET /grilles-tarifaires` reste réservé ARH/ADMIN, on ne l'élargit pas.
+
+**Rôles autorisés : CRH**
+
+Réponse succès : même forme que `GET /grilles-tarifaires`.
+
+| **Code HTTP** | **Description** |
+| --- | --- |
+| 200 | Liste retournée (vide si aucune grille en attente CRH). |
 
 ### GET /grilles-tarifaires/en-attente-drh — Implémenté (Sprint 6F.7)
 
@@ -940,9 +1101,49 @@ Réponse succès : même forme que `GET /grilles-tarifaires`.
 | --- | --- |
 | 200 | Liste retournée (vide si aucune grille en attente). |
 
-### POST /grilles-tarifaires/{id}/valider — Planifié (Sprint 4bis.2)
+### POST /grilles-tarifaires/{id}/valider — Implémenté (Sprint MM.12)
 
-**Rôles autorisés prévus : DRH**
+**Endpoint unique partagé par le CRH et la DRH**, la branche étant choisie par
+le **statut courant de la grille** — exactement le modèle de
+`POST /processus/{id}/valider`, qui sert déjà trois rôles.
+
+**Rôles autorisés : CRH, DRH**
+
+`hasAnyRole('CRH','DRH')` ne suffit pas à garantir l'ordre des étapes : c'est
+`SeparationTachesGrilleService.verifierRoleAttendu()`, en tête de chaque branche
+du service, qui empêche une DRH de statuer sur une grille `EN_ATTENTE_CRH` (ce
+qui sauterait purement et simplement l'étape CRH).
+
+Corps de la requête :
+
+```json
+{
+  "decision": "VALIDER",
+  "motifRejet": null
+}
+```
+
+`decision` : `VALIDER` | `REJETER`. `motifRejet` obligatoire et non vide si
+`REJETER` (RG-07), quel que soit l'acteur.
+
+| Statut avant | Décision | Statut après |
+| --- | --- | --- |
+| `EN_ATTENTE_CRH` | `VALIDER` | `EN_ATTENTE_DRH` |
+| `EN_ATTENTE_CRH` | `REJETER` | `REJETEE` (`origineRejet = "CRH"`) |
+| `EN_ATTENTE_DRH` | `VALIDER` | `ACTIVE` — l'ancienne grille ACTIVE voit sa `dateFin` renseignée à `dateDebut - 1 jour` (RG-10) |
+| `EN_ATTENTE_DRH` | `REJETER` | `REJETEE` (`origineRejet = "DRH"`) |
+
+Une validation CRH ne met **aucune** grille en vigueur : RG-10 ne s'applique
+qu'à la validation DRH.
+
+| **Code HTTP** | **Description** |
+| --- | --- |
+| 200 | Décision enregistrée. |
+| 400 | `decision` invalide, ou `motifRejet` absent/vide sur un `REJETER` (RG-07). |
+| 403 | RG-05 : le rôle de l'acteur ne correspond pas à l'étage de la grille. |
+| 403 | RG-08 : l'acteur a déjà statué sur l'étape précédente de cette grille (CRH = l'ARH créateur, ou DRH = le CRH décideur). |
+| 404 | Grille introuvable. |
+| 409 | Grille non en attente de décision (`ACTIVE`, `REJETEE`…). |
 
 ### GET /grilles-tarifaires/fonction/{code} — Implémenté
 
@@ -961,17 +1162,19 @@ Réponse succès :
     {
       "id": 31, "montantFcfa": 38000, "dateDebut": "2026-10-01", "dateFin": null,
       "statutValidation": "REJETEE",
-      "motifRejet": "Montant supérieur au plafond prévu pour cette fonction selon la note NS 69/17."
+      "motifRejet": "Montant supérieur au plafond prévu pour cette fonction selon la note NS 69/17.",
+      "origineRejet": "CRH"
     },
     {
       "id": 20, "montantFcfa": 35000, "dateDebut": "2025-01-01", "dateFin": null,
-      "statutValidation": "ACTIVE", "motifRejet": null
+      "statutValidation": "ACTIVE", "motifRejet": null, "origineRejet": null
     }
   ]
 }
 ```
 
-`motifRejet` (Sprint 6F.7, RG-10) : mêmes règles que sur `GET /grilles-tarifaires`.
+`motifRejet` (Sprint 6F.7, RG-10) et `origineRejet` (Sprint MM.12) : mêmes
+règles que sur `GET /grilles-tarifaires`.
 
 | **Code HTTP** | **Description** |
 | --- | --- |

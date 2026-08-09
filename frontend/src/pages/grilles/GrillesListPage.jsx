@@ -129,6 +129,7 @@ export default function GrillesListPage() {
               >
                 <option value="">Tous</option>
                 <option value="BROUILLON">Brouillon</option>
+                <option value="EN_ATTENTE_CRH">En attente CRH</option>
                 <option value="EN_ATTENTE_DRH">En attente DRH</option>
                 <option value="ACTIVE_COURANTE">Active (courante)</option>
                 <option value="ACTIVE_CLOTUREE">Clôturée</option>
@@ -164,7 +165,9 @@ export default function GrillesListPage() {
           chargement={chargement}
           actions={(grille) => (
             <div className="flex gap-2">
-              {user?.role === 'ARH' && grille.statutValidation === 'EN_ATTENTE_DRH' && (
+              {/* Sprint MM.12 : le montant est gele des que le CRH a statue --
+                  le backend refuse desormais un PATCH sur EN_ATTENTE_DRH. */}
+              {user?.role === 'ARH' && grille.statutValidation === 'EN_ATTENTE_CRH' && (
                 <Button variant="outline" size="sm" onClick={() => setGrilleAModifier(grille)}>
                   Modifier
                 </Button>
@@ -218,7 +221,14 @@ export default function GrillesListPage() {
 
       {grilleMotifAVoir && (
         <VoirMotifModal
-          titre={`Motif de rejet — ${grilleMotifAVoir.libelleFonction}`}
+          /* Sprint MM.12 : origineRejet ("CRH" ou "DRH") permet a l'ARH de
+             savoir a quel etage sa grille est tombee. Derive cote backend, il
+             peut etre absent sur les grilles rejetees avant MM.12. */
+          titre={
+            grilleMotifAVoir.origineRejet
+              ? `Motif de rejet ${grilleMotifAVoir.origineRejet} — ${grilleMotifAVoir.libelleFonction}`
+              : `Motif de rejet — ${grilleMotifAVoir.libelleFonction}`
+          }
           motif={grilleMotifAVoir.motifRejet}
           onFermer={() => setGrilleMotifAVoir(null)}
         />

@@ -40,7 +40,11 @@ const NAV_LINKS = [
   { href: '/beneficiaires/import', label: 'Importer bénéficiaires', icon: Upload, roles: ['ARH'] },
   { href: '/processus', label: 'Processus mensuel', icon: FileCheck, roles: ['ARH', 'CRH', 'DRH'] },
   { href: '/grilles-tarifaires', label: 'Grilles tarifaires', icon: Wallet, roles: ['ARH', 'ADMIN'] },
-  { href: '/grilles-tarifaires/valider', label: 'Grilles tarifaires', icon: Wallet, roles: ['DRH'] },
+  // Sprint MM.12 : le CRH entre dans le workflow des grilles et gagne donc
+  // cette entree. Roles STRICTEMENT identiques au ProtectedRoute de
+  // /grilles-tarifaires/valider dans AppRouter.jsx (audit 6F.9) -- l'ARH garde
+  // l'entree de consultation ci-dessus et ne voit PAS celle-ci.
+  { href: '/grilles-tarifaires/valider', label: 'Grilles tarifaires', icon: Wallet, roles: ['CRH', 'DRH'] },
   { href: '/reporting/historique', label: 'Historique annuel', icon: BarChart3, roles: ['DRH'] },
   { href: '/reporting/audit', label: "Journal d'audit", icon: BarChart3, roles: ['DRH'] },
   { href: '/admin/utilisateurs', label: 'Administration', icon: Shield, roles: ['ADMIN'] },

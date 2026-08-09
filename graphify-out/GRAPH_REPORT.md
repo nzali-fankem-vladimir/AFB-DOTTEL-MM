@@ -1,16 +1,16 @@
 # Graph Report - afb-dottel-mm  (2026-08-09)
 
 ## Corpus Check
-- 321 files · ~180,502 words
+- 324 files · ~184,096 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2159 nodes · 5984 edges · 151 communities (118 shown, 33 thin omitted)
-- Extraction: 86% EXTRACTED · 14% INFERRED · 0% AMBIGUOUS · INFERRED: 856 edges (avg confidence: 0.8)
+- 2186 nodes · 6118 edges · 168 communities (135 shown, 33 thin omitted)
+- Extraction: 85% EXTRACTED · 15% INFERRED · 0% AMBIGUOUS · INFERRED: 916 edges (avg confidence: 0.8)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `1b65a3b4`
+- Built from commit: `921613c7`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -96,11 +96,13 @@
 - BeneficiaireServiceTest.java
 - CorsConfig.java
 - ProcessusMensuelResponseDto
+- BeneficiaireExcluDto
 - HistoriqueLigneDto
 - ModifierGrilleTarifaireRequestDto
 - DashboardResponseDto
 - AuthController.java
 - ChangerStatutRequestDto
+- LigneEtatMensuelDetailDto
 - EnrolementService.java
 - GlobalExceptionHandler
 - Décision de portée P-2 — Keycloak pour les 5 rôles, EMPLOYE compris
@@ -110,6 +112,8 @@
 - BeneficiaireResponseDto
 - AuditServiceImpl.enregistrer
 - ModularityTests.java
+- PatchProcessusResponseDto
+- PieceJointeMetadonneesResponseDto
 - constants.js
 - AuthProviderLocal.js (implémentation matricule/mot de passe)
 - DottelApplication
@@ -140,14 +144,26 @@
 - utilisateurs/package-info.java
 - NotificationServiceStub
 - Logo Afriland First Bank
+- ProcessusDetailResponseDto
+- ProcessusMensuelResponseDto
+- ResultatAjustementDto
+- RetournerProcessusResponseDto
+- ValiderProcessusResponseDto
+- AuditLogPageResponseDto
+- AuthenticatedUserService
+- ChangerStatutRequestDto
+- ConfirmerEnrolementResponseDto
+- NotificationServiceStub
+- ValiderProcessusRequestDto
+- processus_mensuel
 
 ## God Nodes (most connected - your core abstractions)
-1. `Utilisateur` - 104 edges
-2. `ProcessusMensuelServiceTest` - 87 edges
+1. `Utilisateur` - 111 edges
+2. `ProcessusMensuelServiceTest` - 99 edges
 3. `EvenementAudit` - 43 edges
-4. `ProcessusMensuel` - 41 edges
-5. `ProcessusMensuelService` - 38 edges
-6. `GlobalExceptionHandler` - 38 edges
+4. `ProcessusMensuel` - 42 edges
+5. `GlobalExceptionHandler` - 40 edges
+6. `ProcessusMensuelService` - 38 edges
 7. `react` - 38 edges
 8. `GrilleTarifaireServiceTest` - 36 edges
 9. `StatutEnum` - 35 edges
@@ -189,23 +205,23 @@
 - **Les trois questions ouvertes MM.7 et la décision de portée, toutes tranchées le 2026-07-31** — mm7_decision_e3_enrolement_tiers, mm7_decision_f2_pkce, mm7_decision_i2_resolution_email, mm7_decision_p2_portee [EXTRACTED 1.00]
 - **Infrastructure locale provisoire simulée en docker-compose (Kafka + Keycloak)** — docker_compose_service_kafka, docker_compose_service_keycloak, docker_compose_realm_dottel_dev_json, claude_md_deploiement_k8s [EXTRACTED 1.00]
 
-## Communities (151 total, 33 thin omitted)
+## Communities (168 total, 33 thin omitted)
 
 ### Community 0 - "AppRouter.jsx"
 Cohesion: 0.06
 Nodes (111): apiClient, App(), AppLayout(), PageHeader(), initiales(), NAV_LINKS, Sidebar(), trouverHrefActif() (+103 more)
 
 ### Community 1 - "ProcessusMensuelController.java"
-Cohesion: 0.10
-Nodes (25): FichierImportInvalideException, ImportErreurDto, AllArgsConstructor, Builder, Data, NoArgsConstructor, ImportRapportDto, AllArgsConstructor (+17 more)
+Cohesion: 0.27
+Nodes (6): BeneficiaireImportServiceTest, ApplicationEventPublisher, ExtendWith, Row, Test, MockMultipartFile
 
 ### Community 2 - "SeparationTachesService"
 Cohesion: 0.06
 Nodes (28): BeneficiaireDocumentDto, BeneficiaireIdentiteDto, Beneficiaire, AllArgsConstructor, Builder, Entity, Getter, NoArgsConstructor (+20 more)
 
 ### Community 3 - "GlobalExceptionHandlerTest"
-Cohesion: 0.13
-Nodes (14): EtapeWorkflowIntrouvableException, RoleEtapeNonAutoriseException, SeparationTachesViolationException, NomEtapeEnum, VALIDATION_ARH, VALIDATION_CRH, VALIDATION_DRH, EtapeWorkflowRepository (+6 more)
+Cohesion: 0.09
+Nodes (26): EtapeWorkflowIntrouvableException, RoleEtapeNonAutoriseException, SeparationTachesViolationException, EtapeWorkflow, AllArgsConstructor, Builder, Entity, Getter (+18 more)
 
 ### Community 4 - ".utilisateurCourant"
 Cohesion: 0.05
@@ -216,8 +232,8 @@ Cohesion: 0.10
 Nodes (12): AccessDeniedException, GlobalExceptionHandler, Logger, MethodArgumentNotValidException, ResponseEntity, GlobalExceptionHandlerTest, ExtendWith, MethodArgumentNotValidException (+4 more)
 
 ### Community 6 - "Décision C - Découpage 6 modules"
-Cohesion: 0.13
-Nodes (14): MotifRejetObligatoireException, ProcessusMensuelExisteDejaException, AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter, ResultatAjustementDto (+6 more)
+Cohesion: 0.07
+Nodes (21): MotifRejetObligatoireException, PeriodeProcessusFutureException, PieceJointeIntrouvableException, ProcessusMensuelExisteDejaException, ProcessusMensuelIntrouvableException, ProcessusMensuelNonModifiableException, ProcessusOriginalIntrouvableException, AllArgsConstructor (+13 more)
 
 ### Community 7 - "Rapport d'audit de securite OWASP V1 (AFB_AUDIT_DOTTEL_V1_2026)"
 Cohesion: 0.08
@@ -228,44 +244,44 @@ Cohesion: 0.08
 Nodes (38): AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter, LigneDocumentDto, AllArgsConstructor, Builder (+30 more)
 
 ### Community 9 - "ProcessusMensuel"
-Cohesion: 0.15
-Nodes (15): UtilisateurApi, RoleEnum, ADMIN, ARH, CRH, DRH, EMPLOYE, UtilisateurRepository (+7 more)
+Cohesion: 0.18
+Nodes (9): UtilisateurIntrouvableException, UtilisateurRepository, Override, RequiredArgsConstructor, Service, UtilisateurApiImpl, ExtendWith, Test (+1 more)
 
 ### Community 10 - "EvenementAudit"
 Cohesion: 0.05
 Nodes (39): Décision A - EligibiliteService (A1), Décision B - Référentiel unifié (B1), Décision C - Découpage 6 modules, EligibiliteService, Module audit, Module beneficiaires, Module integration (proposé puis rejeté, réparti), Module processus (+31 more)
 
-### Community 11 - "BeneficiaireApiImpl"
-Cohesion: 0.18
-Nodes (8): BeneficiaireApi, FonctionEligibleCodeDejaUtiliseException, FonctionEligibleService, ApplicationEventPublisher, Override, RequiredArgsConstructor, Service, Transactional
-
 ### Community 12 - "EnrolementServiceTest.java"
-Cohesion: 0.09
-Nodes (16): DateDebutGrilleAnterieureException, DecisionGrilleInvalideException, GrilleEnAttenteDrhExistanteException, GrilleIntrouvableException, GrilleNonActiveException, GrilleNonEnAttenteDrhException, GrilleNonModifiableException, GrilleTarifaireMotifRejetObligatoireException (+8 more)
+Cohesion: 0.08
+Nodes (16): DateDebutGrilleAnterieureException, DecisionGrilleInvalideException, FonctionEligibleIntrouvableException, GrilleEnAttenteDrhExistanteException, GrilleIntrouvableException, GrilleNonActiveException, GrilleNonEnAttenteDrhException, GrilleNonModifiableException (+8 more)
 
 ### Community 13 - "UtilisateurAdminServiceTest"
 Cohesion: 0.07
 Nodes (39): application-dev.yml (profil developpement), Repli en clair DB_PASSWORD:postgres (profil dev), application-prod.yml (profil production), server.error.* (prefixe corrige, ecart E6), Rapport d'audit de securite OWASP V1 (AFB_AUDIT_DOTTEL_V1_2026), A01 — Alignement des routes frontend sur la matrice de roles, A03 — Injection et echappement (zero dangerouslySetInnerHTML), Ecart E1 — CRH redirige vers /processus (ROUTE_PAR_ROLE) (+31 more)
 
 ### Community 14 - "ProcessusMensuelRepository"
-Cohesion: 0.08
-Nodes (27): EvenementAudit, MatriculeDejaEnroleException, MatriculeInconnuException, NonEligibleException, UniteInconnueException, BeneficiaireRepository, BeneficiaireService, ApplicationEventPublisher (+19 more)
+Cohesion: 0.13
+Nodes (13): MatriculeDejaEnroleException, MatriculeInconnuException, EnrolementService, ApplicationEventPublisher, RequiredArgsConstructor, Service, Transactional, EligibiliteService (+5 more)
+
+### Community 15 - "RoleJwtAuthenticationConverter"
+Cohesion: 0.18
+Nodes (3): Transactional, GrilleTarifaireServiceTest, Test
 
 ### Community 16 - ".findByCode"
-Cohesion: 0.06
-Nodes (43): BeneficiaireController, GetMapping, MultipartFile, PatchMapping, PostMapping, PreAuthorize, RequestMapping, RequiredArgsConstructor (+35 more)
+Cohesion: 0.05
+Nodes (51): BeneficiaireController, GetMapping, MultipartFile, PatchMapping, PostMapping, PreAuthorize, RequestMapping, RequiredArgsConstructor (+43 more)
 
 ### Community 17 - "EvenementClotureDto"
-Cohesion: 0.25
-Nodes (9): LigneEtatMensuelRepository, ProcessusMensuelRepository, EcartMensuelService, RequiredArgsConstructor, Service, EcartMensuelServiceTest, ExtendWith, Test (+1 more)
+Cohesion: 0.28
+Nodes (8): Query, LigneEtatMensuelRepository, EcartMensuelService, RequiredArgsConstructor, Service, EcartMensuelServiceTest, ExtendWith, Test
 
 ### Community 18 - "Graphify Skill Reference Files"
-Cohesion: 0.06
-Nodes (37): BeneficiaireDotationDto, PieceJointeIntrouvableException, ProcessusMensuelIntrouvableException, ProcessusMensuelNonModifiableException, AjustementLigneEtatDto, Getter, Setter, DeclencherProcessusRequestDto (+29 more)
+Cohesion: 0.15
+Nodes (4): NotificationService, DestinataireNotificationDto, Test, ProcessusMensuelServiceTest
 
 ### Community 19 - "HistoriqueResponseDto"
-Cohesion: 0.22
-Nodes (12): EtapeWorkflow, AllArgsConstructor, Builder, Entity, Getter, NoArgsConstructor, Setter, Table (+4 more)
+Cohesion: 0.23
+Nodes (4): BeneficiaireDotationDto, DeclencherProcessusRequestDto, Getter, Setter
 
 ### Community 20 - "FonctionEligible"
 Cohesion: 0.14
@@ -288,24 +304,28 @@ Cohesion: 0.16
 Nodes (14): HistoriqueResponseDto, AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter, HistoriqueExportService, RequiredArgsConstructor (+6 more)
 
 ### Community 25 - "BeneficiaireService.java"
-Cohesion: 0.27
-Nodes (3): FonctionEligibleIntrouvableException, FonctionEligibleServiceTest, Test
+Cohesion: 0.10
+Nodes (20): EvenementAudit, BeneficiaireApi, FonctionEligibleBeneficiairesActifsException, FonctionEligibleCodeDejaUtiliseException, AllArgsConstructor, Builder, Getter, NoArgsConstructor (+12 more)
 
 ### Community 26 - ".importer"
 Cohesion: 0.30
 Nodes (3): EligibiliteServiceTest, ExtendWith, Test
 
 ### Community 27 - "BeneficiaireServiceTest"
-Cohesion: 0.10
-Nodes (15): ActionAdminNonAutoriseeException, EmailUtilisateurDejaUtiliseException, MatriculeUtilisateurDejaUtiliseException, RoleInvalideException, UtilisateurIntrouvableException, ApplicationEventPublisher, PasswordEncoder, RequiredArgsConstructor (+7 more)
+Cohesion: 0.14
+Nodes (9): EmailUtilisateurDejaUtiliseException, MatriculeUtilisateurDejaUtiliseException, RoleInvalideException, ApplicationEventPublisher, PasswordEncoder, RequiredArgsConstructor, Service, UtilisateurAdminService (+1 more)
 
 ### Community 28 - "FonctionEligibleAdminResponseDto"
-Cohesion: 0.21
-Nodes (15): FonctionEligibleController, GetMapping, PatchMapping, PostMapping, PreAuthorize, RequestMapping, RequiredArgsConstructor, ResponseEntity (+7 more)
+Cohesion: 0.15
+Nodes (21): FonctionEligibleController, GetMapping, PatchMapping, PostMapping, PreAuthorize, RequestMapping, RequiredArgsConstructor, ResponseEntity (+13 more)
+
+### Community 29 - "RECAPITULATIF_CHANTIER.md"
+Cohesion: 0.16
+Nodes (7): ActionAdminNonAutoriseeException, Transactional, ApplicationEventPublisher, ExtendWith, PasswordEncoder, Test, UtilisateurAdminServiceTest
 
 ### Community 30 - ".confirmer"
-Cohesion: 0.22
-Nodes (11): EmployeEhrDto, AllArgsConstructor, Builder, Getter, NoArgsConstructor, ConfirmerEnrolementRequestDto, Getter, Setter (+3 more)
+Cohesion: 0.32
+Nodes (5): ConfirmerEnrolementRequestDto, Getter, Setter, EnrolementServiceTest, Test
 
 ### Community 31 - "AuditLog"
 Cohesion: 0.09
@@ -328,44 +348,44 @@ Cohesion: 0.18
 Nodes (11): AuditEventListener, Component, Logger, ObjectMapper, RequiredArgsConstructor, AuditEventListenerTest, AfterEach, BeforeEach (+3 more)
 
 ### Community 36 - "BeneficiaireController.java"
-Cohesion: 0.19
-Nodes (14): AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter, UtilisateurResponseDto, EnableMethodSecurity, Test (+6 more)
+Cohesion: 0.32
+Nodes (8): EnableMethodSecurity, Test, MethodSecurityConfig, UtilisateurAdminControllerTest, Import, MockMvc, WebMvcTest, WithMockUser
 
 ### Community 37 - "FonctionEligibleCodeDejaUtiliseException"
-Cohesion: 0.19
-Nodes (11): AuditServiceImpl, Override, Page, Pageable, RequiredArgsConstructor, Service, Transactional, AuditServiceImplTest (+3 more)
+Cohesion: 0.36
+Nodes (4): AuditServiceImplTest, BeforeEach, ExtendWith, Test
 
 ### Community 38 - "AuthProviderKeycloak.js"
-Cohesion: 0.19
-Nodes (15): GrilleTarifaireController, GetMapping, PatchMapping, PostMapping, PreAuthorize, RequestMapping, RequiredArgsConstructor, ResponseEntity (+7 more)
+Cohesion: 0.15
+Nodes (21): GrilleTarifaireController, GetMapping, PatchMapping, PostMapping, PreAuthorize, RequestMapping, RequiredArgsConstructor, ResponseEntity (+13 more)
 
 ### Community 39 - "AuditLogPageResponseDto"
 Cohesion: 0.16
 Nodes (8): setAuthToken(), AuthProvider, AuthProviderKeycloak, base64UrlEncode(), calculerCodeChallenge(), construireUtilisateur(), genererValeurAleatoire(), ROLES_DOTTEL
 
 ### Community 40 - "EnrolementController.java"
-Cohesion: 0.16
-Nodes (18): EnrolementController, GetMapping, PostMapping, PreAuthorize, RequestMapping, RequiredArgsConstructor, ResponseEntity, RestController (+10 more)
+Cohesion: 0.22
+Nodes (13): EnrolementController, GetMapping, PostMapping, PreAuthorize, RequestMapping, RequiredArgsConstructor, ResponseEntity, RestController (+5 more)
 
 ### Community 41 - "BeneficiaireRepository"
-Cohesion: 0.05
-Nodes (60): GetMapping, PatchMapping, PostMapping, PreAuthorize, RequestMapping, RequiredArgsConstructor, ResponseEntity, RestController (+52 more)
+Cohesion: 0.29
+Nodes (9): GetMapping, PatchMapping, PostMapping, PreAuthorize, RequestMapping, RequiredArgsConstructor, ResponseEntity, RestController (+1 more)
 
 ### Community 42 - "AuthenticatedUserService"
 Cohesion: 0.38
 Nodes (10): audit_log, beneficiaires, etape_workflow, fonction_eligible, grille_tarifaire, ligne_etat_mensuel, piece_jointe, processus_mensuel (+2 more)
 
 ### Community 43 - "BeneficiairePageResponseDto"
-Cohesion: 0.16
-Nodes (12): FonctionEligibleBeneficiairesActifsException, FonctionEligibleRepository, GrilleTarifaireRepository, GrilleTarifaireApiImpl, Override, RequiredArgsConstructor, Service, ApplicationEventPublisher (+4 more)
+Cohesion: 0.14
+Nodes (18): GrilleTarifaireApi, FonctionEligible, AllArgsConstructor, Builder, Entity, Getter, NoArgsConstructor, Setter (+10 more)
 
 ### Community 44 - "EmployeEhrDto"
-Cohesion: 0.40
-Nodes (7): GetMapping, PreAuthorize, RequestMapping, RequiredArgsConstructor, ResponseEntity, RestController, ReportingController
+Cohesion: 0.20
+Nodes (11): AuditService, Page, Pageable, GetMapping, PreAuthorize, RequestMapping, RequiredArgsConstructor, ResponseEntity (+3 more)
 
 ### Community 45 - "LigneEtatMensuel"
-Cohesion: 0.31
-Nodes (4): EhrIntegrationServiceStub, Override, Service, PostConstruct
+Cohesion: 0.23
+Nodes (9): EmployeEhrDto, AllArgsConstructor, Builder, Getter, NoArgsConstructor, EhrIntegrationServiceStub, Override, Service (+1 more)
 
 ### Community 46 - "Beneficiaire"
 Cohesion: 0.36
@@ -376,12 +396,12 @@ Cohesion: 0.32
 Nodes (3): Transactional, Test, ReportingServiceTest
 
 ### Community 48 - "Utilisateur"
-Cohesion: 0.22
-Nodes (13): GrilleTarifaire, AllArgsConstructor, Builder, Entity, Getter, NoArgsConstructor, Setter, Table (+5 more)
+Cohesion: 0.16
+Nodes (19): GrilleTarifaireListeLigneDto, AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter, GrilleTarifaire, AllArgsConstructor (+11 more)
 
 ### Community 49 - "dependencies"
-Cohesion: 0.26
-Nodes (5): UtilisateurConnecteIntrouvableException, AuthenticatedUserServiceTest, AfterEach, ExtendWith, Test
+Cohesion: 0.33
+Nodes (4): AuthenticatedUserServiceTest, AfterEach, ExtendWith, Test
 
 ### Community 50 - "devDependencies"
 Cohesion: 0.13
@@ -400,36 +420,36 @@ Cohesion: 0.25
 Nodes (12): GrilleHistoriqueLigneDto, AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter, HistoriqueGrilleTarifaireResponseDto, AllArgsConstructor (+4 more)
 
 ### Community 54 - "UtilisateurResponseDto"
-Cohesion: 0.25
-Nodes (12): GrilleTarifaireListeLigneDto, AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter, GrilleTarifaireListeResponseDto, AllArgsConstructor (+4 more)
+Cohesion: 0.17
+Nodes (10): FichierImportInvalideException, BeneficiaireImportService, ApplicationEventPublisher, MultipartFile, RequiredArgsConstructor, Row, Service, Transactional (+2 more)
 
 ### Community 55 - "ImportRapportDto"
 Cohesion: 0.26
 Nodes (14): Dictionnaire de données Dotations V3, Table audit_log, Table beneficiaires, Table etape_workflow, Table fonction_eligible, Table grille_tarifaire, Table ligne_etat_mensuel (pivot N-N), Table piece_jointe (+6 more)
 
 ### Community 56 - "GrilleTarifaire"
-Cohesion: 0.52
-Nodes (6): AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter, ModifierFonctionEligibleRequestDto
+Cohesion: 0.27
+Nodes (8): BeneficiaireRepository, ProcessusMensuelRepository, RequiredArgsConstructor, Service, ReportingService, BeforeEach, ExtendWith, JpaRepository
 
 ### Community 57 - "AuthenticatedUserServiceTest.java"
-Cohesion: 0.42
-Nodes (8): FonctionEligible, AllArgsConstructor, Builder, Entity, Getter, NoArgsConstructor, Setter, Table
+Cohesion: 0.29
+Nodes (10): ImportErreurDto, AllArgsConstructor, Builder, Data, NoArgsConstructor, ImportRapportDto, AllArgsConstructor, Builder (+2 more)
 
 ### Community 58 - "Sprint MM.7 — Keycloak local provisoire, en remplacement de la simulation JWT"
-Cohesion: 0.31
-Nodes (6): FonctionEligibleResponseDto, AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter
+Cohesion: 0.29
+Nodes (6): AjustementLigneEtatDto, Getter, Setter, Getter, Setter, PatchProcessusRequestDto
 
 ### Community 59 - "PLAN — AJOUTS MÉTIER, VERSION MONOLITHE MODULAIRE"
-Cohesion: 0.27
-Nodes (8): DashboardResponseDto, AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter, BeforeEach, ExtendWith
+Cohesion: 0.52
+Nodes (6): DashboardResponseDto, AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter
 
 ### Community 60 - "SPRINT MM.12"
 Cohesion: 0.33
 Nodes (6): mvnw script, clean(), die(), exec_maven(), set_java_home(), verbose()
 
 ### Community 61 - "FonctionEligibleServiceTest.java"
-Cohesion: 0.22
-Nodes (13): AuditLogResponseDto, AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter, AuditLogPageResponseDto, AllArgsConstructor (+5 more)
+Cohesion: 0.52
+Nodes (6): AuditLogResponseDto, AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter
 
 ### Community 62 - "ReportingController.java"
 Cohesion: 0.20
@@ -452,12 +472,12 @@ Cohesion: 0.52
 Nodes (6): AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter, UtilisateurListeResponseDto
 
 ### Community 67 - "Module DOTTEL (Dotations Téléphoniques Mensuelles)"
-Cohesion: 0.53
-Nodes (3): AuditLogRepository, JpaRepository, JpaSpecificationExecutor
+Cohesion: 0.22
+Nodes (10): AuditLogRepository, Query, AuditServiceImpl, Override, Page, Pageable, RequiredArgsConstructor, Service (+2 more)
 
 ### Community 68 - "Contrats API Dotations Téléphoniques V3.3 (AFB_API_DOTTEL_V3.3_2026)"
-Cohesion: 0.17
-Nodes (15): StatutEnum, CLOTURE, EN_ATTENTE_CRH, EN_ATTENTE_DRH, EN_COURS_ARH, RETOURNE, AllArgsConstructor, Builder (+7 more)
+Cohesion: 0.43
+Nodes (6): AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter, ProcessusEnCoursDto
 
 ### Community 69 - "package.json"
 Cohesion: 0.25
@@ -468,8 +488,8 @@ Cohesion: 0.29
 Nodes (8): Sprint 3.4 guide — Validation ARH et génération du PDF initial (US-11), Champ CHAPITRE (donnée EHR par bénéficiaire, décision révisée depuis 'valeur fixe 64310000' vers donnée variable + repli configurable), DocumentService.genererInitiale() (iText 8 PDF, RG-06), Entité EtapeWorkflow (NomEtapeEnum, StatutEtapeEnum, signature_numerique), NotificationService (stub log, appelé par ProcessusMensuelService.valider), Entité PieceJointe (UNIQUE par processus, nombre_signatures), Point de vigilance RG-08 : contrat API mentionne la vérification sur /valider, mais SeparationTachesService est reporté au Sprint 5, SignatureService (interface isolée, trace non-certifiée, remplaçable par intégration type INTRA)
 
 ### Community 71 - "Récapitulatif du chantier Monolithe Modulaire (MM.0 à MM.6)"
-Cohesion: 0.60
-Nodes (3): AuditService, Page, Pageable
+Cohesion: 0.36
+Nodes (8): AllArgsConstructor, Builder, Entity, Getter, NoArgsConstructor, Setter, Table, Utilisateur
 
 ### Community 72 - "Afriland First Bank Logo (PNG asset)"
 Cohesion: 0.43
@@ -488,8 +508,12 @@ Cohesion: 0.50
 Nodes (3): For --cluster-only, For --update (incremental re-extraction), graphify reference: incremental update and cluster-only
 
 ### Community 79 - "CorsConfig.java"
+Cohesion: 0.23
+Nodes (12): AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter, ProcessusListItemDto, StatutEnum, CLOTURE (+4 more)
+
+### Community 84 - "BeneficiaireExcluDto"
 Cohesion: 0.52
-Nodes (6): AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter, ProcessusListItemDto
+Nodes (6): BeneficiaireExcluDto, AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter
 
 ### Community 85 - "HistoriqueLigneDto"
 Cohesion: 0.52
@@ -500,7 +524,7 @@ Cohesion: 0.52
 Nodes (6): DecisionGrilleTarifaireRequestDto, AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter
 
 ### Community 87 - "DashboardResponseDto"
-Cohesion: 0.43
+Cohesion: 0.52
 Nodes (6): AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter, ModifierGrilleTarifaireRequestDto
 
 ### Community 88 - "AuthController.java"
@@ -511,9 +535,13 @@ Nodes (5): AuthController, PostMapping, RequestMapping, ResponseEntity, RestCont
 Cohesion: 0.52
 Nodes (6): ChangerRoleRequestDto, AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter
 
-### Community 91 - "EnrolementService.java"
+### Community 90 - "LigneEtatMensuelDetailDto"
 Cohesion: 0.52
-Nodes (6): CreerUtilisateurRequestDto, AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter
+Nodes (6): AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter, LigneEtatMensuelDetailDto
+
+### Community 91 - "EnrolementService.java"
+Cohesion: 0.19
+Nodes (12): CreerUtilisateurRequestDto, AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter, RoleEnum, ADMIN (+4 more)
 
 ### Community 92 - "GlobalExceptionHandler"
 Cohesion: 0.29
@@ -543,6 +571,14 @@ Nodes (3): DottelApplicationTests, Test, SpringBootTest
 Cohesion: 0.40
 Nodes (5): apiClient.js (jeton en mémoire seule), AuthContext.jsx (câblé au singleton authProviderLocal), AuthProvider.js (contrat frontend à 3 méthodes), AuthProviderLocal.js (implémentation matricule/mot de passe), Décision F-2 — Authorization Code + PKCE
 
+### Community 100 - "PatchProcessusResponseDto"
+Cohesion: 0.52
+Nodes (6): AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter, PatchProcessusResponseDto
+
+### Community 101 - "PieceJointeMetadonneesResponseDto"
+Cohesion: 0.52
+Nodes (6): AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter, PieceJointeMetadonneesResponseDto
+
 ### Community 103 - "AuthProviderLocal.js (implémentation matricule/mot de passe)"
 Cohesion: 0.67
 Nodes (4): AuthenticatedUserService (résolution par claim email), Décision I-2 — résolution d'identité par email, Utilisateur.java (entité, sans champ d'identité externe), V3__insertion_utilisateurs_test.sql (5 utilisateurs de test, écart tiret bas corrigé)
@@ -558,6 +594,50 @@ Nodes (3): React Framework, React Logo (Vite default asset), Vite/React Starter 
 ### Community 106 - "ValiderProcessusResponseDto"
 Cohesion: 0.67
 Nodes (3): Claim matricule (protocol mapper Keycloak), UtilisateurAdminService (garde-fou serveur), UtilisateursListPage.jsx (garde-fou frontend admin)
+
+### Community 156 - "ProcessusDetailResponseDto"
+Cohesion: 0.52
+Nodes (6): AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter, ProcessusDetailResponseDto
+
+### Community 157 - "ProcessusMensuelResponseDto"
+Cohesion: 0.52
+Nodes (6): AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter, ProcessusMensuelResponseDto
+
+### Community 158 - "ResultatAjustementDto"
+Cohesion: 0.52
+Nodes (6): AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter, ResultatAjustementDto
+
+### Community 159 - "RetournerProcessusResponseDto"
+Cohesion: 0.52
+Nodes (6): AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter, RetournerProcessusResponseDto
+
+### Community 160 - "ValiderProcessusResponseDto"
+Cohesion: 0.52
+Nodes (6): AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter, ValiderProcessusResponseDto
+
+### Community 161 - "AuditLogPageResponseDto"
+Cohesion: 0.52
+Nodes (6): AuditLogPageResponseDto, AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter
+
+### Community 162 - "AuthenticatedUserService"
+Cohesion: 0.38
+Nodes (4): AuthenticatedUserService, RequiredArgsConstructor, Service, UtilisateurConnecteIntrouvableException
+
+### Community 163 - "ChangerStatutRequestDto"
+Cohesion: 0.52
+Nodes (6): ChangerStatutRequestDto, AllArgsConstructor, Builder, Getter, NoArgsConstructor, Setter
+
+### Community 164 - "ConfirmerEnrolementResponseDto"
+Cohesion: 0.60
+Nodes (5): ConfirmerEnrolementResponseDto, AllArgsConstructor, Builder, Getter, NoArgsConstructor
+
+### Community 165 - "NotificationServiceStub"
+Cohesion: 0.47
+Nodes (4): Override, Service, NotificationServiceStub, Slf4j
+
+### Community 166 - "ValiderProcessusRequestDto"
+Cohesion: 0.83
+Nodes (3): Getter, Setter, ValiderProcessusRequestDto
 
 ## Ambiguous Edges - Review These
 - `Identité de marque Afriland First Bank` → `Symbole concentrique "C/E" sur bloc rouge`  [AMBIGUOUS]
@@ -581,11 +661,11 @@ _Questions this graph is uniquely positioned to answer:_
   _Edge tagged AMBIGUOUS (relation: semantically_similar_to) - confidence is low._
 - **What is the exact relationship between `Variables d'environnement Keycloak (DOTTEL_KEYCLOAK_ISSUER_URI, VITE_KEYCLOAK_*)` and `RoleJwtAuthenticationConverter (forme du claim de rôle)`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
-- **Why does `EvenementAudit` connect `ProcessusMensuelRepository` to `ProcessusMensuelController.java`, `GrilleTarifaireServiceTest.java`, `GlobalExceptionHandlerTest`, `Décision C - Découpage 6 modules`, `BeneficiaireApiImpl`, `EnrolementServiceTest.java`, `BeneficiairePageResponseDto`, `RoleJwtAuthenticationConverter`, `.findByCode`, `Graphify Skill Reference Files`, `BeneficiaireService.java`, `BeneficiaireServiceTest`, `RECAPITULATIF_CHANTIER.md`, `.confirmer`?**
-  _High betweenness centrality (0.067) - this node is a cross-community bridge._
-- **Why does `AuthenticatedUserService` connect `ProcessusMensuelRepository` to `ProcessusMensuelController.java`, `SPRINT MM.8`, `BeneficiaireController.java`, `AuthProviderKeycloak.js`, `Décision C - Découpage 6 modules`, `ProcessusMensuel`, `.findByCode`, `dependencies`, `Graphify Skill Reference Files`, `FonctionEligibleAdminResponseDto`, `.confirmer`?**
-  _High betweenness centrality (0.052) - this node is a cross-community bridge._
-- **Why does `Utilisateur` connect `Graphify Skill Reference Files` to `ProcessusMensuelController.java`, `GlobalExceptionHandlerTest`, `Décision C - Découpage 6 modules`, `PieceJointe`, `ProcessusMensuel`, `ProcessusMensuelRepository`, `.findByCode`, `dependencies`, `BeneficiaireServiceTest`, `RECAPITULATIF_CHANTIER.md`, `.confirmer`?**
-  _High betweenness centrality (0.048) - this node is a cross-community bridge._
+- **Why does `EvenementAudit` connect `BeneficiaireService.java` to `GrilleTarifaireServiceTest.java`, `Décision C - Découpage 6 modules`, `BeneficiaireApiImpl`, `EnrolementServiceTest.java`, `ProcessusMensuelRepository`, `RoleJwtAuthenticationConverter`, `.findByCode`, `Graphify Skill Reference Files`, `HistoriqueResponseDto`, `UtilisateurResponseDto`, `BeneficiaireServiceTest`, `RECAPITULATIF_CHANTIER.md`, `.confirmer`?**
+  _High betweenness centrality (0.085) - this node is a cross-community bridge._
+- **Why does `Utilisateur` connect `Récapitulatif du chantier Monolithe Modulaire (MM.0 à MM.6)` to `ProcessusMensuelController.java`, `AuthenticatedUserService`, `GlobalExceptionHandlerTest`, `Décision C - Découpage 6 modules`, `PieceJointe`, `ProcessusMensuel`, `BeneficiaireServiceTest`, `BeneficiaireApiImpl`, `.findByCode`, `dependencies`, `Graphify Skill Reference Files`, `HistoriqueResponseDto`, `UtilisateurResponseDto`, `Sprint MM.7 — Keycloak local provisoire, en remplacement de la simulation JWT`, `EnrolementService.java`, `RECAPITULATIF_CHANTIER.md`, `.confirmer`?**
+  _High betweenness centrality (0.063) - this node is a cross-community bridge._
+- **Why does `AuthenticatedUserService` connect `AuthenticatedUserService` to `ProcessusMensuelController.java`, `SPRINT MM.8`, `BeneficiaireController.java`, `Décision C - Découpage 6 modules`, `AuthProviderKeycloak.js`, `ProcessusMensuel`, `BeneficiaireApiImpl`, `ProcessusMensuelRepository`, `.findByCode`, `dependencies`, `Graphify Skill Reference Files`, `UtilisateurResponseDto`, `FonctionEligibleAdminResponseDto`, `.confirmer`?**
+  _High betweenness centrality (0.056) - this node is a cross-community bridge._
 - **What connects `com.afriland:dottel`, `VALIDATION_ARH`, `VALIDATION_CRH` to the rest of the system?**
   _209 weakly-connected nodes found - possible documentation gaps or missing edges._

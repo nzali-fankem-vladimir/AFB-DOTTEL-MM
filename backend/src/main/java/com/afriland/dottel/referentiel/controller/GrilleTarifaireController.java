@@ -58,6 +58,17 @@ public class GrilleTarifaireController {
         return ResponseEntity.ok(grilleTarifaireService.modifier(id, requete, idModificateur));
     }
 
+    // Sprint MM.12 : pendant strict de /en-attente-drh pour la premiere etape
+    // du workflow a trois acteurs.
+    @GetMapping("/en-attente-crh")
+    @PreAuthorize("hasRole('CRH')")
+    public ResponseEntity<GrilleTarifaireListeResponseDto> listerEnAttenteCrh() {
+        GrilleTarifaireListeResponseDto reponse = GrilleTarifaireListeResponseDto.builder()
+                .contenu(grilleTarifaireService.rechercher(null, StatutGrilleEnum.EN_ATTENTE_CRH))
+                .build();
+        return ResponseEntity.ok(reponse);
+    }
+
     @GetMapping("/en-attente-drh")
     @PreAuthorize("hasRole('DRH')")
     public ResponseEntity<GrilleTarifaireListeResponseDto> listerEnAttenteDrh() {
@@ -67,12 +78,19 @@ public class GrilleTarifaireController {
         return ResponseEntity.ok(reponse);
     }
 
+    // Sprint MM.12 : endpoint unique partage par le CRH et la DRH, la branche
+    // etant choisie par le statut de la grille -- modele de
+    // POST /processus/{id}/valider, qui sert deja trois roles. hasAnyRole ne
+    // suffit donc PAS a garantir l'ordre des etapes : c'est
+    // SeparationTachesGrilleService.verifierRoleAttendu(), en tete de chaque
+    // branche du service, qui empeche un DRH de statuer sur une grille
+    // EN_ATTENTE_CRH (403).
     @PostMapping("/{id}/valider")
-    @PreAuthorize("hasRole('DRH')")
+    @PreAuthorize("hasAnyRole('CRH', 'DRH')")
     public ResponseEntity<GrilleTarifaireResponseDto> valider(@PathVariable Long id,
                                                                 @Valid @RequestBody DecisionGrilleTarifaireRequestDto requete) {
-        Long idValidateur = authenticatedUserService.utilisateurCourant().getId();
-        return ResponseEntity.ok(grilleTarifaireService.validerOuRejeter(id, requete, idValidateur));
+        return ResponseEntity.ok(grilleTarifaireService.validerOuRejeter(id, requete,
+                authenticatedUserService.utilisateurCourant()));
     }
 
     @GetMapping("/fonction/{code}")

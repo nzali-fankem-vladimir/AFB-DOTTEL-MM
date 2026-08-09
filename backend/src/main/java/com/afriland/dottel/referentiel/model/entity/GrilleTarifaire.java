@@ -50,6 +50,19 @@ public class GrilleTarifaire {
     @Column(name = "id_createur")
     private Long idCreateur;
 
+    // Sprint MM.12 : decision CRH, premiere etape du workflow a trois acteurs.
+    // Renseigne a la VALIDATION COMME AU REJET -- d'ou "decideur" plutot que
+    // "validateur". La derivation de l'origine d'un rejet (CRH ou DRH) repose
+    // sur cet invariant ; le renommer sans le respecter la casserait
+    // silencieusement. Voir migration V7 pour le motif complet du nommage.
+    @Column(name = "id_decideur_crh")
+    private Long idDecideurCrh;
+
+    @Column(name = "date_decision_crh")
+    private LocalDateTime dateDecisionCrh;
+
+    // Decision DRH, seconde etape. Nom historique : ces deux champs sont eux
+    // aussi renseignes au rejet, malgre "validateur"/"validation".
     @Column(name = "id_validateur")
     private Long idValidateur;
 

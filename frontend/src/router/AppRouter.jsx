@@ -78,11 +78,18 @@ export default function AppRouter() {
               <Route path="/grilles-tarifaires/historique/:code" element={<HistoriqueGrillePage />} />
             </Route>
 
+            {/* Validation des grilles : CRH et DRH partagent l'ecran, chacun
+                voyant son propre etage (Sprint MM.12). Roles STRICTEMENT
+                identiques a ceux de l'entree NAV_LINKS correspondante dans
+                Sidebar.jsx -- rappel de l'audit 6F.9. */}
+            <Route element={<ProtectedRoute roles={['CRH', 'DRH']} />}>
+              <Route path="/grilles-tarifaires/valider" element={<GrillesTarifairesValider />} />
+            </Route>
+
             {/* DRH */}
             <Route element={<ProtectedRoute roles={['DRH']} />}>
               <Route path="/reporting/historique" element={<HistoriquePage />} />
               <Route path="/reporting/audit" element={<AuditPage />} />
-              <Route path="/grilles-tarifaires/valider" element={<GrillesTarifairesValider />} />
             </Route>
 
             {/* ADMIN */}

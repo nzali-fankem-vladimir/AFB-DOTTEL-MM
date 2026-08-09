@@ -14,6 +14,12 @@
  *    seule la cascade de renommage reste un appel cross-module).
  *  - utilisateurs :: api  -- AuthenticatedUserService (acteur courant pour
  *    les controleurs de grille/fonction eligible).
+ *  - utilisateurs :: enums -- RoleEnum, separation des taches sur le workflow
+ *    des grilles (RG-05/RG-08, SeparationTachesGrilleService, Sprint MM.12).
+ *    Ajoutee par l'option W-2 : strict analogue de la dependance de meme nom
+ *    declaree par le module processus pour SeparationTachesService. Aucun
+ *    risque de cycle -- le module utilisateurs ne declare AUCUNE dependance
+ *    sortante, rien ne peut donc revenir vers referentiel par ce chemin.
  *  - utilisateurs :: entity -- DETTE TRACEE (retour de
  *    AuthenticatedUserService.utilisateurCourant()), voir
  *    utilisateurs/model/entity/package-info.java (prerequis MM.8).
@@ -30,6 +36,7 @@
         allowedDependencies = {
                 "beneficiaires :: api",
                 "utilisateurs :: api",
+                "utilisateurs :: enums",
                 "utilisateurs :: entity",
                 "audit :: api"
         }

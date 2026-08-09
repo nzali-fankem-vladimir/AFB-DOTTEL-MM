@@ -11,6 +11,7 @@ import com.afriland.dottel.processus.model.dto.processus.RetournerProcessusReque
 import com.afriland.dottel.processus.model.dto.processus.RetournerProcessusResponseDto;
 import com.afriland.dottel.processus.model.dto.processus.ValiderProcessusRequestDto;
 import com.afriland.dottel.processus.model.dto.processus.ValiderProcessusResponseDto;
+import com.afriland.dottel.processus.model.dto.processus.EcartsMontantsResponseDto;
 import com.afriland.dottel.processus.model.enums.StatutEnum;
 import com.afriland.dottel.processus.service.ProcessusMensuelService;
 import jakarta.validation.Valid;
@@ -74,16 +75,33 @@ public class ProcessusMensuelController {
         return ResponseEntity.ok(reponse);
     }
 
+    // Sprint MM.12, premier temps de la variante B2-RESYNC : l'ARH consulte les
+    // ecarts de montant AVANT de confirmer la validation. Lecture pure, aucune
+    // ecriture -- l'ARH doit pouvoir renoncer apres avoir lu le recapitulatif.
+    // Reserve a l'ARH : seule sa branche de validation resynchronise.
+    @GetMapping("/{id}/ecarts-montants")
+    @PreAuthorize("hasRole('ARH')")
+    public ResponseEntity<EcartsMontantsResponseDto> detecterEcartsMontants(@PathVariable Long id) {
+        return ResponseEntity.ok(processusMensuelService.detecterEcartsMontants(id));
+    }
+
     // Un seul endpoint pour les trois roles ; le branchement reel (quel statut
     // accepte quel role) est fait par ProcessusMensuelService.valider() selon
     // le statut courant du processus (contrat API section 8).
+    //
+    // confirmerResynchronisation (Sprint MM.12) : second temps de B2-RESYNC.
+    // Sans lui, une validation ARH portant des montants obsoletes est REFUSEE
+    // (409) plutot que resynchronisee silencieusement. Sans effet sur les
+    // branches CRH et DRH, qui ne resynchronisent rien.
     @PostMapping("/{id}/valider")
     @PreAuthorize("hasAnyRole('ARH', 'CRH', 'DRH')")
     public ResponseEntity<ValiderProcessusResponseDto> valider(
             @PathVariable Long id,
+            @RequestParam(defaultValue = "false") boolean confirmerResynchronisation,
             @RequestBody(required = false) ValiderProcessusRequestDto requeteValidation) {
         String commentaire = requeteValidation != null ? requeteValidation.getCommentaire() : null;
-        ValiderProcessusResponseDto reponse = processusMensuelService.valider(id, commentaire);
+        ValiderProcessusResponseDto reponse =
+                processusMensuelService.valider(id, commentaire, confirmerResynchronisation);
         return ResponseEntity.ok(reponse);
     }
 
