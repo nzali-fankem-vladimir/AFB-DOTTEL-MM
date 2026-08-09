@@ -802,6 +802,59 @@ Audit (RG-09, exigence explicite de la décision B) : une entrée par ligne —
 `RESYNCHRONISATION_MONTANT_LIGNE` et `EXCLUSION_LIGNE_SANS_GRILLE_ACTIVE`, sur
 l'entité `ligne_etat_mensuel`, avec delta `{"avant": …, "apres": …}`.
 
+#### Événement Kafka de clôture (branche DRH) — enrichi au Sprint MM.13
+
+La validation DRH clôture le processus et publie un événement sur le topic
+`dottel.processus.cloture`, consommé par le module comptable — hors périmètre
+DOTTEL, qui reste **producteur uniquement** (`CLAUDE.md` §11 et §17.9). Aucun
+endpoint REST n'est concerné : ce n'est pas un contrat HTTP, mais il est
+documenté ici faute d'autre emplacement, car c'est le seul contrat sortant du
+module.
+
+> **Schéma PROVISOIRE, à valider avec la comptabilité** (décision D de M.0).
+> Le contrat exact attendu n'est pas confirmé : DOTTEL en propose un.
+
+Jusqu'à MM.12 le payload ne portait qu'un **montant total agrégé**. MM.13 y
+ajoute le **détail par bénéficiaire**, sans retirer aucun champ existant — les
+consommateurs de l'ancien format restent valides.
+
+```json
+{
+  "idProcessus": 11,
+  "moisPaiement": 6,
+  "anneePaiement": 2026,
+  "montantTotal": 361000,
+  "dateCloture": "2026-08-09T21:48:58.968",
+  "lignes": [
+    {
+      "codeUnite": "1102",
+      "codeAgence": "00004",
+      "numCompteCourant": "10014275003",
+      "chapitre": "37210130",
+      "nomPrenoms": "ATANGANA Sylvie",
+      "fonctionRetenue": "CONSEILLER",
+      "montantAttribue": 50000
+    }
+  ]
+}
+```
+
+| Règle | Détail |
+| --- | --- |
+| **Bénéficiaires inclus uniquement** | Une entrée par ligne d'état `inclus_dans_etat = true`. Un bénéficiaire exclu n'a pas été payé : une écriture comptable le concernant serait fausse. |
+| **Valeurs figées** | `fonctionRetenue` et `montantAttribue` viennent de `ligne_etat_mensuel`, jamais recalculés depuis la grille courante — la comptabilité reçoit ce que la DRH a validé, même si la grille change ensuite. |
+| **Montants entiers** | FCFA en `long`, jamais `BigDecimal`. |
+| **Chapitre** | Donnée EHR du bénéficiaire, avec repli sur `dottel.documents.chapitre-defaut` — **même** mécanisme que le PDF, pas une seconde logique. |
+| **Clé du message** | `idProcessus`, pour que tous les événements d'un même processus restent ordonnés sur la même partition. Envoi *fire-and-forget*. |
+
+Les champs alimentent les deux lignes d'écriture comptable cibles (`CLAUDE.md`
+§11), que DOTTEL ne génère pas lui-même :
+
+```
+DEBIT  : codeUnite  - 64310090002      - montantAttribue - DOT TEL MM/AAAA
+CREDIT : codeAgence - numCompteCourant - montantAttribue - DOT TEL MM/AAAA
+```
+
 | **Code HTTP** | **Description** |
 | --- | --- |
 | 200 | Validation réussie. |

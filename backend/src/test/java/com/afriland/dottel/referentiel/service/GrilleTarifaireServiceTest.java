@@ -1,5 +1,8 @@
 package com.afriland.dottel.referentiel.service;
 import com.afriland.dottel.audit.api.EvenementAudit;
+import com.afriland.dottel.notifications.api.EvenementNotification;
+import com.afriland.dottel.utilisateurs.api.DestinataireNotificationDto;
+import com.afriland.dottel.utilisateurs.api.UtilisateurApi;
 
 import com.afriland.dottel.referentiel.exception.DateDebutGrilleAnterieureException;
 import com.afriland.dottel.referentiel.exception.DecisionGrilleInvalideException;
@@ -44,6 +47,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -70,6 +74,9 @@ class GrilleTarifaireServiceTest {
     private FonctionEligibleRepository fonctionEligibleRepository;
 
     @Mock
+    private UtilisateurApi utilisateurApi;
+
+    @Mock
     private ApplicationEventPublisher eventPublisher;
 
     private GrilleTarifaireService grilleTarifaireService;
@@ -81,7 +88,21 @@ class GrilleTarifaireServiceTest {
         // reviendrait a ne jamais tester la regle que ce sprint ajoute.
         grilleTarifaireService = new GrilleTarifaireService(
                 grilleTarifaireRepository, fonctionEligibleRepository,
-                new SeparationTachesGrilleService(), eventPublisher);
+                new SeparationTachesGrilleService(), utilisateurApi, eventPublisher);
+    }
+
+    /**
+     * Notifications reellement publiees (Sprint MM.13). Le service publie sur
+     * le meme ApplicationEventPublisher que les EvenementAudit : filtrer par
+     * type evite d'asserter sur les seconds en croyant lire les premieres.
+     */
+    private List<EvenementNotification> notificationsPubliees() {
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        verify(eventPublisher, atLeastOnce()).publishEvent(captor.capture());
+        return captor.getAllValues().stream()
+                .filter(EvenementNotification.class::isInstance)
+                .map(EvenementNotification.class::cast)
+                .toList();
     }
 
     private FonctionEligible creerFonctionEligible(Long id, String code) {
@@ -409,6 +430,94 @@ class GrilleTarifaireServiceTest {
         // REJET aussi, pas seulement a la validation.
         assertThat(grille.getIdDecideurCrh()).isEqualTo(CRH.getId());
         assertThat(grille.getIdValidateur()).isNull();
+    }
+
+    // Sprint MM.13 : REJETEE est TERMINAL pour une grille. Sans notification,
+    // l'ARH ne sait pas que sa revision tarifaire est bloquee et ne la relance
+    // jamais -- c'est le seul vrai trou metier du workflow des grilles.
+    @Test
+    void rejeterCrh_notifieLArhCreateurAvecMotifEtOrigine() {
+        GrilleTarifaire grille = creerGrilleEnAttenteCrh(2L, 1L, 45000);
+        DecisionGrilleTarifaireRequestDto requete = DecisionGrilleTarifaireRequestDto.builder()
+                .decision("REJETER").motifRejet("Montant hors enveloppe validée par la direction").build();
+        DestinataireNotificationDto arhCreateur =
+                new DestinataireNotificationDto("jp.mbarga@afrilandfirstbank.cm", RoleEnum.ARH);
+
+        when(grilleTarifaireRepository.findById(2L)).thenReturn(Optional.of(grille));
+        when(fonctionEligibleRepository.findById(1L))
+                .thenReturn(Optional.of(creerFonctionEligible(1L, "GFC")));
+        when(utilisateurApi.destinataireParId(ARH_CREATEUR.getId())).thenReturn(arhCreateur);
+
+        grilleTarifaireService.validerOuRejeter(2L, requete, CRH);
+
+        assertThat(notificationsPubliees()).singleElement()
+                .satisfies(notification -> {
+                    assertThat(notification.destinataire()).isEqualTo(arhCreateur);
+                    assertThat(notification.message())
+                            .contains("GFC")
+                            .contains("45000")
+                            .contains("CRH")
+                            .contains("Montant hors enveloppe validée par la direction");
+                });
+    }
+
+    @Test
+    void rejeterDrh_notifieLArhCreateurAvecOrigineDrh() {
+        GrilleTarifaire grille = creerGrilleEnAttenteDrh(3L, 1L, 48000);
+        DecisionGrilleTarifaireRequestDto requete = DecisionGrilleTarifaireRequestDto.builder()
+                .decision("REJETER").motifRejet("Enveloppe budgétaire dépassée").build();
+        DestinataireNotificationDto arhCreateur =
+                new DestinataireNotificationDto("jp.mbarga@afrilandfirstbank.cm", RoleEnum.ARH);
+
+        when(grilleTarifaireRepository.findById(3L)).thenReturn(Optional.of(grille));
+        when(fonctionEligibleRepository.findById(1L))
+                .thenReturn(Optional.of(creerFonctionEligible(1L, "GFC")));
+        when(utilisateurApi.destinataireParId(ARH_CREATEUR.getId())).thenReturn(arhCreateur);
+
+        grilleTarifaireService.validerOuRejeter(3L, requete, DRH);
+
+        assertThat(notificationsPubliees()).singleElement()
+                .satisfies(notification -> assertThat(notification.message())
+                        .contains("DRH").contains("Enveloppe budgétaire dépassée"));
+    }
+
+    // Piege signale au Sprint MM.13 : grille_tarifaire.id_createur est NULLABLE
+    // (CLAUDE.md section 4) -- les grilles initiales inserees par Flyway V2
+    // n'ont pas de createur reel. Personne a notifier, et surtout aucune raison
+    // de faire echouer le rejet pour autant.
+    @Test
+    void rejeterGrilleSansCreateur_neNotifiePersonneEtNEchouePas() {
+        GrilleTarifaire grilleFlyway = creerGrilleEnAttenteCrh(4L, 1L, 35000);
+        grilleFlyway.setIdCreateur(null);
+        DecisionGrilleTarifaireRequestDto requete = DecisionGrilleTarifaireRequestDto.builder()
+                .decision("REJETER").motifRejet("Grille de reference obsolete").build();
+
+        when(grilleTarifaireRepository.findById(4L)).thenReturn(Optional.of(grilleFlyway));
+        when(fonctionEligibleRepository.findById(1L))
+                .thenReturn(Optional.of(creerFonctionEligible(1L, "GFC")));
+
+        GrilleTarifaireResponseDto resultat = grilleTarifaireService.validerOuRejeter(4L, requete, CRH);
+
+        assertThat(resultat.getStatutValidation()).isEqualTo(StatutGrilleEnum.REJETEE);
+        assertThat(notificationsPubliees()).isEmpty();
+        verify(utilisateurApi, never()).destinataireParId(any());
+    }
+
+    // Symetrique : une grille VALIDEE ne declenche aucune notification -- le
+    // perimetre arbitre pour ce sprint ne couvre que le rejet.
+    @Test
+    void validerCrh_neNotifiePersonne() {
+        GrilleTarifaire grille = creerGrilleEnAttenteCrh(5L, 1L, 45000);
+        DecisionGrilleTarifaireRequestDto requete = DecisionGrilleTarifaireRequestDto.builder()
+                .decision("VALIDER").build();
+
+        when(grilleTarifaireRepository.findById(5L)).thenReturn(Optional.of(grille));
+        when(fonctionEligibleRepository.findById(1L))
+                .thenReturn(Optional.of(creerFonctionEligible(1L, "GFC")));
+
+        grilleTarifaireService.validerOuRejeter(5L, requete, CRH);
+
+        assertThat(notificationsPubliees()).isEmpty();
     }
 
     @Test

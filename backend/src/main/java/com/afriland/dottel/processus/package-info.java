@@ -17,6 +17,8 @@
  *  - utilisateurs :: entity  -- DETTE TRACEE, voir
  *    utilisateurs/model/entity/package-info.java (prerequis MM.8).
  *  - audit :: api            -- EvenementAudit publie (MM.4).
+ *  - notifications :: api    -- EvenementNotification publie (MM.13), depuis
+ *    l'extraction de NotificationService dans son propre module.
  */
 @org.springframework.modulith.ApplicationModule(
         allowedDependencies = {
@@ -25,7 +27,8 @@
                 "utilisateurs :: api",
                 "utilisateurs :: enums",
                 "utilisateurs :: entity",
-                "audit :: api"
+                "audit :: api",
+                "notifications :: api"
         }
 )
 package com.afriland.dottel.processus;

@@ -1,5 +1,8 @@
 package com.afriland.dottel.referentiel.service;
 import com.afriland.dottel.audit.api.EvenementAudit;
+import com.afriland.dottel.notifications.api.EvenementNotification;
+import com.afriland.dottel.utilisateurs.api.DestinataireNotificationDto;
+import com.afriland.dottel.utilisateurs.api.UtilisateurApi;
 
 import com.afriland.dottel.referentiel.exception.DateDebutGrilleAnterieureException;
 import com.afriland.dottel.referentiel.exception.DecisionGrilleInvalideException;
@@ -44,6 +47,7 @@ public class GrilleTarifaireService {
     private final GrilleTarifaireRepository grilleTarifaireRepository;
     private final FonctionEligibleRepository fonctionEligibleRepository;
     private final SeparationTachesGrilleService separationTachesGrilleService;
+    private final UtilisateurApi utilisateurApi;
     private final ApplicationEventPublisher eventPublisher;
 
     // Sprint MM.12 : statuts d'attente du workflow a trois acteurs. Une seule
@@ -222,6 +226,7 @@ public class GrilleTarifaireService {
         grilleTarifaireRepository.save(grille);
 
         publierDecisionAudit(grille, acteur, "DECISION_GRILLE_TARIFAIRE_CRH", avant);
+        notifierRejetAlArhCreateur(grille, "CRH");
 
         return versDto(grille, codeFonctionDe(grille));
     }
@@ -271,8 +276,41 @@ public class GrilleTarifaireService {
         grilleTarifaireRepository.save(grille);
 
         publierDecisionAudit(grille, acteur, "DECISION_GRILLE_TARIFAIRE_DRH", avant);
+        notifierRejetAlArhCreateur(grille, "DRH");
 
         return versDto(grille, codeFonctionDe(grille));
+    }
+
+    /**
+     * Notifie l'ARH createur qu'une grille qu'il a soumise vient d'etre
+     * rejetee (Sprint MM.13, perimetre arbitre avec l'utilisateur).
+     *
+     * <p>Seul le REJET est notifie : c'est le seul vrai trou metier. REJETEE
+     * est TERMINAL pour une grille -- sans notification, la revision tarifaire
+     * reste bloquee sans que personne ne le sache. La soumission ARH et la
+     * validation CRH ne comblent aucun trou : le CRH et la DRH disposent deja
+     * d'un ecran dedie qu'ils consultent.</p>
+     *
+     * <p>id_createur est NULLABLE (CLAUDE.md section 4) : les grilles initiales
+     * inserees par Flyway V2 n'ont pas de createur reel. Personne a notifier
+     * dans ce cas -- et aucune raison de faire echouer le rejet pour autant.</p>
+     */
+    private void notifierRejetAlArhCreateur(GrilleTarifaire grille, String origineRejet) {
+        if (grille.getStatutValidation() != StatutGrilleEnum.REJETEE || grille.getIdCreateur() == null) {
+            return;
+        }
+
+        FonctionEligible fonctionEligible = fonctionEligibleRepository.findById(grille.getIdFonctionEligible())
+                .orElse(null);
+        String codeFonction = fonctionEligible != null ? fonctionEligible.getCode() : "inconnue";
+        String libelleFonction = fonctionEligible != null ? fonctionEligible.getLibelle() : "inconnue";
+
+        DestinataireNotificationDto arhCreateur = utilisateurApi.destinataireParId(grille.getIdCreateur());
+        eventPublisher.publishEvent(new EvenementNotification(arhCreateur, "Grille tarifaire rejetee",
+                "La grille tarifaire que vous avez soumise pour la fonction " + codeFonction
+                        + " (" + libelleFonction + "), d'un montant de " + grille.getMontantFcfa()
+                        + " FCFA, a ete rejetee par le " + origineRejet
+                        + ". Motif : " + grille.getMotifRejet()));
     }
 
     // RG-07 : tout rejet exige un motif textuel non vide, quel que soit l'acteur.

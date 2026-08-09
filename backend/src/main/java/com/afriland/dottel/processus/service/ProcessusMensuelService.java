@@ -10,6 +10,7 @@ import com.afriland.dottel.utilisateurs.api.DestinataireNotificationDto;
 import com.afriland.dottel.utilisateurs.api.UtilisateurApi;
 import com.afriland.dottel.utilisateurs.api.AuthenticatedUserService;
 import com.afriland.dottel.audit.api.EvenementAudit;
+import com.afriland.dottel.notifications.api.EvenementNotification;
 
 import com.afriland.dottel.processus.exception.MotifRejetObligatoireException;
 import com.afriland.dottel.processus.exception.PeriodeProcessusFutureException;
@@ -99,7 +100,6 @@ public class ProcessusMensuelService {
     private final AuthenticatedUserService authenticatedUserService;
     private final DocumentService documentService;
     private final SignatureService signatureService;
-    private final NotificationService notificationService;
     private final SeparationTachesService separationTachesService;
     private final EvenementClotureService evenementClotureService;
 
@@ -527,10 +527,14 @@ public class ProcessusMensuelService {
         processus.setStatut(StatutEnum.EN_ATTENTE_CRH);
         processusMensuelRepository.save(processus);
 
+        // Sprint MM.13 : evenement applicatif plutot qu'appel direct. L'envoi a
+        // lieu APRES commit (NotificationEventListener) -- sans cela, un
+        // rollback ulterieur de cette methode laisserait partir un mail
+        // annoncant une validation qui n'a jamais eu lieu.
         for (DestinataireNotificationDto destinataireCrh : utilisateurApi.destinatairesParRole(RoleEnum.CRH)) {
-            notificationService.notifier(destinataireCrh, "Etat mensuel a valider",
+            eventPublisher.publishEvent(new EvenementNotification(destinataireCrh, "Etat mensuel a valider",
                     "L'etat mensuel " + processus.getMoisPaiement() + "/" + processus.getAnneePaiement()
-                            + " a ete valide par l'ARH et attend votre validation.");
+                            + " a ete valide par l'ARH et attend votre validation."));
         }
 
         Map<String, Object> avant = new LinkedHashMap<>();
@@ -728,9 +732,9 @@ public class ProcessusMensuelService {
         processusMensuelRepository.save(processus);
 
         for (DestinataireNotificationDto destinataireDrh : utilisateurApi.destinatairesParRole(RoleEnum.DRH)) {
-            notificationService.notifier(destinataireDrh, "Etat mensuel a valider",
+            eventPublisher.publishEvent(new EvenementNotification(destinataireDrh, "Etat mensuel a valider",
                     "L'etat mensuel " + processus.getMoisPaiement() + "/" + processus.getAnneePaiement()
-                            + " a ete valide par le CRH et attend votre validation.");
+                            + " a ete valide par le CRH et attend votre validation."));
         }
 
         Map<String, Object> avant = new LinkedHashMap<>();
@@ -764,10 +768,12 @@ public class ProcessusMensuelService {
     // a part entiere, qui declenche en plus la publication Kafka -- utile pour
     // tracer separement "le DRH a valide" de "le processus est desormais clos
     // et l'evenement comptable a ete emis").
-    // Pas de NotificationService ici : contrairement aux branches ARH/CRH qui
-    // notifient le role suivant dans le circuit DOTTEL, il n'y a personne a
-    // notifier en interne apres la cloture -- l'evenement Kafka tient ce role
-    // vis-a-vis du module comptable.
+    // Notification a l'ARH createur (Sprint MM.13). Le commentaire precedent
+    // justifiait l'absence de notification par "l'evenement Kafka tient ce
+    // role" : il confondait notifier la COMPTABILITE (Kafka, module externe)
+    // et notifier l'ARH. Ce dernier etait prevenu quand son processus etait
+    // RETOURNE, jamais quand il etait accepte et paye -- alors que c'est lui
+    // qui repond aux questions des beneficiaires.
     private ValiderProcessusResponseDto validerBrancheDrh(ProcessusMensuel processus, String commentaire) {
         Utilisateur utilisateurCourant = authenticatedUserService.utilisateurCourant();
 
@@ -797,6 +803,12 @@ public class ProcessusMensuelService {
 
         long montantTotal = ligneEtatMensuelRepository.sumMontantAppliqueByIdProcessus(processus.getId());
         evenementClotureService.publier(processus, montantTotal);
+
+        DestinataireNotificationDto arhCreateur = utilisateurApi.destinataireParId(processus.getIdCreateur());
+        eventPublisher.publishEvent(new EvenementNotification(arhCreateur, "Etat mensuel cloture",
+                "L'etat mensuel " + processus.getMoisPaiement() + "/" + processus.getAnneePaiement()
+                        + " a ete valide par la DRH et cloture, pour un montant total de "
+                        + montantTotal + " FCFA."));
 
         Map<String, Object> avantValidation = new LinkedHashMap<>();
         avantValidation.put("statut", statutAvant.name());
@@ -895,9 +907,9 @@ public class ProcessusMensuelService {
         // UtilisateurApi.destinataireParId() leve UtilisateurIntrouvableException
         // si l'ARH createur n'existe plus -- meme exception, meme 404 qu'avant.
         DestinataireNotificationDto arhCreateur = utilisateurApi.destinataireParId(processus.getIdCreateur());
-        notificationService.notifier(arhCreateur, "Etat mensuel retourne pour correction",
+        eventPublisher.publishEvent(new EvenementNotification(arhCreateur, "Etat mensuel retourne pour correction",
                 "L'etat mensuel " + processus.getMoisPaiement() + "/" + processus.getAnneePaiement()
-                        + " vous a ete retourne. Motif : " + motif);
+                        + " vous a ete retourne. Motif : " + motif));
 
         Map<String, Object> avant = new LinkedHashMap<>();
         avant.put("statut", statutAvant.name());

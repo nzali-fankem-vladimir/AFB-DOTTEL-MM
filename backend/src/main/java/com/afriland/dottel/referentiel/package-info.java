@@ -24,6 +24,14 @@
  *    AuthenticatedUserService.utilisateurCourant()), voir
  *    utilisateurs/model/entity/package-info.java (prerequis MM.8).
  *  - audit :: api         -- EvenementAudit publie (MM.4).
+ *  - notifications :: api -- EvenementNotification publie au rejet d'une
+ *    grille tarifaire, vers l'ARH createur (Sprint MM.13). C'est ce second
+ *    consommateur qui a justifie l'extraction de NotificationService hors du
+ *    module processus : notifier depuis referentiel vers un service vivant
+ *    dans processus aurait cree un cycle referentiel -> processus. Le module
+ *    notifications ne declarant aucune dependance sortante autre que
+ *    utilisateurs::api (lui-meme sans dependance sortante), aucun cycle n'est
+ *    possible par ce chemin.
  *
  * NB : la dependance vers beneficiaires::api, combinee a la dependance
  * inverse de beneficiaires vers referentiel::api (eligibilite/grille), forme
@@ -38,7 +46,8 @@
                 "utilisateurs :: api",
                 "utilisateurs :: enums",
                 "utilisateurs :: entity",
-                "audit :: api"
+                "audit :: api",
+                "notifications :: api"
         }
 )
 package com.afriland.dottel.referentiel;

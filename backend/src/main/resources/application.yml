@@ -15,6 +15,22 @@ spring:
     locations: classpath:db/migration
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  mail:
+    # Canal Outlook PROVISOIRE (Sprint MM.13). Les parametres reels (serveur,
+    # port, identifiants) ne sont pas connus : point en attente DSI. Aucune
+    # valeur sensible en dur, meme regle que DB_PASSWORD et
+    # DOTTEL_KEYCLOAK_ISSUER_URI (CLAUDE.md sections 17.6 et 18.10). Ces
+    # valeurs ne sont lues que lorsque dottel.notifications.enabled vaut true.
+    host: ${DOTTEL_MAIL_HOST:}
+    port: ${DOTTEL_MAIL_PORT:587}
+    username: ${DOTTEL_MAIL_USERNAME:}
+    password: ${DOTTEL_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
   security:
     oauth2:
       resourceserver:
@@ -49,6 +65,22 @@ management:
   endpoint:
     health:
       show-details: always
+  health:
+    # Sprint MM.13 : spring-boot-starter-mail fait auto-enregistrer un
+    # MailHealthIndicator qui ouvre une connexion SMTP a chaque appel de
+    # /actuator/health. Desactive INCONDITIONNELLEMENT, pour la meme raison
+    # que l'echec d'envoi est avale par NotificationEventListener (decision
+    # N-2) : une notification est un CONFORT, jamais une condition de
+    # fonctionnement du module.
+    #
+    # /actuator/health sert de liveness/readiness probe Kubernetes (CLAUDE.md
+    # section 14). Laisser cet indicateur actif ferait passer le endpoint a
+    # DOWN (503) sur un simple serveur mail injoignable : Kubernetes
+    # retirerait alors du trafic des pods parfaitement capables de traiter le
+    # workflow de dotation. Ce serait exactement le comportement que N-1/N-2
+    # cherchent a empecher, deplace au niveau de l'infrastructure.
+    mail:
+      enabled: false
 
 logging:
   level:
@@ -63,6 +95,14 @@ app:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:3000}
 
 dottel:
+  notifications:
+    # DESACTIVE PAR DEFAUT (Sprint MM.13) : sans ce drapeau a true, c'est
+    # NotificationServiceStub qui s'active et se contente de journaliser --
+    # le developpement local n'exige donc aucun serveur mail.
+    enabled: ${DOTTEL_NOTIFICATIONS_ENABLED:false}
+    # Adresse d'expedition reelle a confirmer par la DSI en meme temps que les
+    # parametres spring.mail ci-dessus.
+    expediteur: ${DOTTEL_NOTIFICATIONS_EXPEDITEUR:dottel-noreply@afrilandfirstbank.cm}
   kafka:
     # Topic de publication de l'evenement de cloture (Sprint 5.3). DOTTEL est
     # producer uniquement, la comptabilite (hors perimetre DOTTEL) l'ecoute.

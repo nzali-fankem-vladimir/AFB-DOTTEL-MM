@@ -108,6 +108,14 @@
     	<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
 		</dependency>
 
+		<!-- Notifications Outlook PROVISOIRES par SMTP (Sprint MM.13).
+		     Canal retenu plutot que l'API Microsoft Graph, qui exigerait un
+		     enregistrement d'application Azure, soit un point DSI de plus. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
+		</dependency>
+
 		<!-- Kafka (evenement de cloture, producer uniquement, Sprint 5.3) -->
 		<dependency>
 			<groupId>org.springframework.kafka</groupId>

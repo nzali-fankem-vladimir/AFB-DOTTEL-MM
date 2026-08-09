@@ -1,6 +1,7 @@
 package com.afriland.dottel.beneficiaires.service;
 
 import com.afriland.dottel.beneficiaires.api.BeneficiaireApi;
+import com.afriland.dottel.beneficiaires.api.BeneficiaireClotureDto;
 import com.afriland.dottel.beneficiaires.api.BeneficiaireDocumentDto;
 import com.afriland.dottel.beneficiaires.api.BeneficiaireDotationDto;
 import com.afriland.dottel.beneficiaires.api.BeneficiaireIdentiteDto;
@@ -71,6 +72,18 @@ class BeneficiaireApiImpl implements BeneficiaireApi {
     public Map<Long, BeneficiaireDocumentDto> donneesDocumentParId(Collection<Long> idsBeneficiaires) {
         return beneficiaireRepository.findAllById(idsBeneficiaires).stream()
                 .collect(Collectors.toMap(Beneficiaire::getId, beneficiaire -> new BeneficiaireDocumentDto(
+                        beneficiaire.getId(),
+                        beneficiaire.getNomPrenoms(),
+                        beneficiaire.getCodeUnite(),
+                        beneficiaire.getCodeAgence(),
+                        beneficiaire.getNumCompteCourant(),
+                        beneficiaire.getChapitre())));
+    }
+
+    @Override
+    public Map<Long, BeneficiaireClotureDto> donneesClotureParId(Collection<Long> idsBeneficiaires) {
+        return beneficiaireRepository.findAllById(idsBeneficiaires).stream()
+                .collect(Collectors.toMap(Beneficiaire::getId, beneficiaire -> new BeneficiaireClotureDto(
                         beneficiaire.getId(),
                         beneficiaire.getNomPrenoms(),
                         beneficiaire.getCodeUnite(),

@@ -9,6 +9,7 @@ import com.afriland.dottel.utilisateurs.api.DestinataireNotificationDto;
 import com.afriland.dottel.utilisateurs.api.UtilisateurApi;
 import com.afriland.dottel.utilisateurs.api.AuthenticatedUserService;
 import com.afriland.dottel.audit.api.EvenementAudit;
+import com.afriland.dottel.notifications.api.EvenementNotification;
 
 import com.afriland.dottel.processus.exception.MotifRejetObligatoireException;
 import com.afriland.dottel.processus.exception.PeriodeProcessusFutureException;
@@ -128,9 +129,6 @@ class ProcessusMensuelServiceTest {
     private SignatureService signatureService;
 
     @Mock
-    private NotificationService notificationService;
-
-    @Mock
     private SeparationTachesService separationTachesService;
 
     @Mock
@@ -138,6 +136,32 @@ class ProcessusMensuelServiceTest {
 
     @InjectMocks
     private ProcessusMensuelService processusMensuelService;
+
+    /**
+     * Notifications reellement publiees, dans l'ordre (Sprint MM.13).
+     *
+     * <p>Depuis l'extraction du module notifications, le service ne dépend
+     * plus de NotificationService : il publie un EvenementNotification sur le
+     * meme ApplicationEventPublisher que les EvenementAudit. Ce filtre par
+     * type permet d'asserter sur les seules notifications sans se laisser
+     * perturber par les evenements d'audit qui les accompagnent.</p>
+     */
+    private List<EvenementNotification> notificationsPubliees() {
+        return evenementsPublies(EvenementNotification.class);
+    }
+
+    private List<EvenementAudit> auditsPublies() {
+        return evenementsPublies(EvenementAudit.class);
+    }
+
+    private <T> List<T> evenementsPublies(Class<T> type) {
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        verify(eventPublisher, atLeastOnce()).publishEvent(captor.capture());
+        return captor.getAllValues().stream()
+                .filter(type::isInstance)
+                .map(type::cast)
+                .toList();
+    }
 
     @Test
     void lister_casNominal_retourneLesProcessusTriesRecentDabord() {
@@ -1666,7 +1690,7 @@ class ProcessusMensuelServiceTest {
     }
 
     @Test
-    void valider_appelleNotificationService_uneFoisParDestinataireCRH() {
+    void valider_publieUneNotification_parDestinataireCRH() {
         ProcessusMensuel processus = ProcessusMensuel.builder().id(910L).moisPaiement(8).anneePaiement(2026)
                 .statut(StatutEnum.EN_COURS_ARH).build();
         Utilisateur arhConnecte = Utilisateur.builder().id(11L).matricule("2202").nom("ESSAMA").prenom("Marie-Claire").build();
@@ -1687,9 +1711,9 @@ class ProcessusMensuelServiceTest {
 
         processusMensuelService.valider(910L, null, false);
 
-        verify(notificationService).notifier(eq(crh1), any(), any());
-        verify(notificationService).notifier(eq(crh2), any(), any());
-        verify(notificationService, times(2)).notifier(any(), any(), any());
+        assertThat(notificationsPubliees())
+                .extracting(EvenementNotification::destinataire)
+                .containsExactly(crh1, crh2);
     }
 
     @Test
@@ -1782,7 +1806,6 @@ class ProcessusMensuelServiceTest {
         verify(documentService, never()).genererInitiale(any(), any(), any(), any());
         verify(etapeWorkflowRepository, never()).save(any());
         verify(processusMensuelRepository, never()).save(any(ProcessusMensuel.class));
-        verify(notificationService, never()).notifier(any(), any(), any());
         verify(eventPublisher, never()).publishEvent(any());
         assertThat(processus.getStatut()).isEqualTo(StatutEnum.RETOURNE);
     }
@@ -1858,9 +1881,9 @@ class ProcessusMensuelServiceTest {
 
         processusMensuelService.valider(932L, null, false);
 
-        verify(notificationService).notifier(eq(drh1), any(), any());
-        verify(notificationService).notifier(eq(drh2), any(), any());
-        verify(notificationService, times(2)).notifier(any(), any(), any());
+        assertThat(notificationsPubliees())
+                .extracting(EvenementNotification::destinataire)
+                .containsExactly(drh1, drh2);
     }
 
     @Test
@@ -1952,9 +1975,7 @@ class ProcessusMensuelServiceTest {
         assertThat(etape.getNomEtape()).isEqualTo(NomEtapeEnum.VALIDATION_DRH);
         assertThat(etape.getStatutEtape()).isEqualTo(StatutEtapeEnum.VALIDEE);
 
-        ArgumentCaptor<EvenementAudit> evenementCaptor = ArgumentCaptor.forClass(EvenementAudit.class);
-        verify(eventPublisher, times(2)).publishEvent(evenementCaptor.capture());
-        List<EvenementAudit> evenements = evenementCaptor.getAllValues();
+        List<EvenementAudit> evenements = auditsPublies();
 
         EvenementAudit evenementValidation = evenements.stream()
                 .filter(e -> "VALIDATION_PROCESSUS_DRH".equals(e.action())).findFirst().orElseThrow();
@@ -1968,6 +1989,39 @@ class ProcessusMensuelServiceTest {
         assertThat(evenementCloture.entiteCible()).isEqualTo("processus_mensuel");
         assertThat(evenementCloture.idEntite()).isEqualTo(950L);
         assertThat(evenementCloture.avant()).isNull();
+    }
+
+    // Sprint MM.13, decision 2 : l'ARH createur etait prevenu quand son
+    // processus etait RETOURNE, jamais quand il etait accepte et paye. Le
+    // commentaire qui justifiait cette absence confondait notifier la
+    // comptabilite (evenement Kafka) et notifier l'ARH.
+    @Test
+    void valider_brancheDRH_notifieLArhCreateurDeLaCloture() {
+        ProcessusMensuel processus = ProcessusMensuel.builder().id(951L).moisPaiement(7).anneePaiement(2026)
+                .statut(StatutEnum.EN_ATTENTE_DRH).idCreateur(12L).build();
+        Utilisateur drhConnecte = Utilisateur.builder().id(40L).matricule("4001").nom("BELINGA").prenom("Alice")
+                .role(RoleEnum.DRH).actif(true).build();
+        DestinataireNotificationDto arhCreateur =
+                new DestinataireNotificationDto("c.eyenga@afrilandfirstbank.cm", RoleEnum.ARH);
+
+        PieceJointe pieceJointeExistante = PieceJointe.builder().id(708L).idProcessus(951L).nombreSignatures(2).build();
+
+        when(processusMensuelRepository.findById(951L)).thenReturn(Optional.of(processus));
+        when(authenticatedUserService.utilisateurCourant()).thenReturn(drhConnecte);
+        when(pieceJointeRepository.findByIdProcessus(951L)).thenReturn(Optional.of(pieceJointeExistante));
+        when(documentService.ajouterSignature(pieceJointeExistante, drhConnecte, NomEtapeEnum.VALIDATION_DRH))
+                .thenReturn(pieceJointeExistante);
+        when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(ligneEtatMensuelRepository.sumMontantAppliqueByIdProcessus(951L)).thenReturn(90000L);
+        when(utilisateurApi.destinataireParId(12L)).thenReturn(arhCreateur);
+
+        processusMensuelService.valider(951L, "Valide, autorise au paiement", false);
+
+        assertThat(notificationsPubliees()).singleElement()
+                .satisfies(notification -> {
+                    assertThat(notification.destinataire()).isEqualTo(arhCreateur);
+                    assertThat(notification.message()).contains("7/2026").contains("90000");
+                });
     }
 
     @Test
@@ -2224,7 +2278,6 @@ class ProcessusMensuelServiceTest {
         verify(documentService, never()).invaliderSignatureCrh(any(), any(), any());
         verify(etapeWorkflowRepository, never()).save(any());
         verify(processusMensuelRepository, never()).save(any(ProcessusMensuel.class));
-        verify(notificationService, never()).notifier(any(), any(), any());
         verify(eventPublisher, never()).publishEvent(any());
     }
 
@@ -2242,7 +2295,7 @@ class ProcessusMensuelServiceTest {
 
         verify(etapeWorkflowRepository, never()).save(any());
         verify(processusMensuelRepository, never()).save(any(ProcessusMensuel.class));
-        verify(notificationService, never()).notifier(any(), any(), any());
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
@@ -2258,7 +2311,7 @@ class ProcessusMensuelServiceTest {
                 .isInstanceOf(ProcessusMensuelNonModifiableException.class);
 
         verify(etapeWorkflowRepository, never()).save(any());
-        verify(notificationService, never()).notifier(any(), any(), any());
+        verify(eventPublisher, never()).publishEvent(any());
     }
 
     @Test
@@ -2283,9 +2336,11 @@ class ProcessusMensuelServiceTest {
 
         processusMensuelService.retourner(974L, requete);
 
-        ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
-        verify(notificationService).notifier(eq(arhCreateur), any(), messageCaptor.capture());
-        assertThat(messageCaptor.getValue()).contains("Beneficiaire TCHINDA Paul exclu a tort");
+        assertThat(notificationsPubliees()).singleElement()
+                .satisfies(notification -> {
+                    assertThat(notification.destinataire()).isEqualTo(arhCreateur);
+                    assertThat(notification.message()).contains("Beneficiaire TCHINDA Paul exclu a tort");
+                });
     }
 
     @Test

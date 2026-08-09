@@ -75,4 +75,17 @@ public interface BeneficiaireApi {
      * simplement absent de la Map, comme identitesParId().
      */
     Map<Long, BeneficiaireDocumentDto> donneesDocumentParId(Collection<Long> idsBeneficiaires);
+
+    /**
+     * Donnees des beneficiaires demandes, pour l'evenement de cloture publie
+     * vers le module comptable (Sprint MM.13).
+     *
+     * Recuperation PAR LOT, comme donneesDocumentParId() : EvenementClotureService
+     * traite toutes les lignes incluses d'un processus, un appel par ligne
+     * serait un N+1.
+     *
+     * Contrat distinct de donneesDocumentParId() malgre des champs aujourd'hui
+     * identiques -- voir BeneficiaireClotureDto pour le motif.
+     */
+    Map<Long, BeneficiaireClotureDto> donneesClotureParId(Collection<Long> idsBeneficiaires);
 }
