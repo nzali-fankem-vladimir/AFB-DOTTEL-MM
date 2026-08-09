@@ -20,6 +20,8 @@ import com.afriland.dottel.beneficiaires.exception.MatriculeDejaEnroleException;
 import com.afriland.dottel.beneficiaires.exception.MatriculeInconnuException;
 import com.afriland.dottel.utilisateurs.exception.MatriculeUtilisateurDejaUtiliseException;
 import com.afriland.dottel.processus.exception.MotifRejetObligatoireException;
+import com.afriland.dottel.processus.exception.PeriodeProcessusFutureException;
+import com.afriland.dottel.processus.exception.ProcessusOriginalIntrouvableException;
 import com.afriland.dottel.beneficiaires.exception.NonEligibleException;
 import com.afriland.dottel.beneficiaires.exception.UniteInconnueException;
 import com.afriland.dottel.processus.exception.ProcessusMensuelExisteDejaException;
@@ -263,6 +265,33 @@ public class GlobalExceptionHandler {
         corps.put("erreur", exception.getMessage());
 
         return ResponseEntity.status(HttpStatus.CONFLICT).body(corps);
+    }
+
+    // Sprint MM.11 : periode future demandee au declenchement. 400 et non 409
+    // -- le 409 est reserve aux conflits d'unicite (RG-03, RG-12) dans ce
+    // projet ; une periode future est une donnee invalide, pas un conflit.
+    @ExceptionHandler(PeriodeProcessusFutureException.class)
+    public ResponseEntity<Map<String, Object>> gererPeriodeProcessusFuture(PeriodeProcessusFutureException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.BAD_REQUEST.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(corps);
+    }
+
+    // Sprint MM.11 : rattrapage demande sur une periode sans processus normal
+    // CLOTURE. 400 -- meme raisonnement que PeriodeProcessusFutureException :
+    // ce n'est pas un conflit d'unicite (409), c'est une donnee de requete
+    // invalide au regard de l'etat actuel du systeme.
+    @ExceptionHandler(ProcessusOriginalIntrouvableException.class)
+    public ResponseEntity<Map<String, Object>> gererProcessusOriginalIntrouvable(ProcessusOriginalIntrouvableException exception) {
+        Map<String, Object> corps = new LinkedHashMap<>();
+        corps.put("horodatage", LocalDateTime.now());
+        corps.put("statut", HttpStatus.BAD_REQUEST.value());
+        corps.put("erreur", exception.getMessage());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(corps);
     }
 
     @ExceptionHandler(ProcessusMensuelIntrouvableException.class)

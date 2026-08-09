@@ -24,4 +24,5 @@ public class ProcessusMensuelResponseDto {
     private LocalDateTime dateCreation;
     private Integer nombreBeneficiaires;
     private List<BeneficiaireExcluDto> beneficiairesExclus;
+    private Boolean rattrapage;
 }

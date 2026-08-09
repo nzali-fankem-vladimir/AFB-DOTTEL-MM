@@ -11,8 +11,10 @@ import com.afriland.dottel.utilisateurs.api.AuthenticatedUserService;
 import com.afriland.dottel.audit.api.EvenementAudit;
 
 import com.afriland.dottel.processus.exception.MotifRejetObligatoireException;
+import com.afriland.dottel.processus.exception.PeriodeProcessusFutureException;
 import com.afriland.dottel.processus.exception.PieceJointeIntrouvableException;
 import com.afriland.dottel.processus.exception.ProcessusMensuelExisteDejaException;
+import com.afriland.dottel.processus.exception.ProcessusOriginalIntrouvableException;
 import com.afriland.dottel.processus.exception.ProcessusMensuelIntrouvableException;
 import com.afriland.dottel.processus.exception.ProcessusMensuelNonModifiableException;
 import com.afriland.dottel.processus.model.dto.processus.AjustementLigneEtatDto;
@@ -53,12 +55,15 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -69,6 +74,11 @@ public class ProcessusMensuelService {
     // grade du beneficiaire, pas du referentiel, et n'intervient qu'a
     // l'ajustement -- jamais au declenchement.
     private static final String MOTIF_GRADE_NON_ELIGIBLE = "Grade non éligible pour une fonction de corps de contrôle";
+
+    // Sprint MM.11 : motif d'exclusion propre au rattrapage. Distinct des
+    // motifs d'ineligibilite (RG-01/RG-02) : ce beneficiaire est eligible,
+    // mais a deja recu sa dotation pour cette periode via le processus normal.
+    private static final String MOTIF_DEJA_PAYE_RATTRAPAGE = "Déjà payé pour cette période";
 
     private final ProcessusMensuelRepository processusMensuelRepository;
     private final BeneficiaireApi beneficiaireApi;
@@ -91,10 +101,47 @@ public class ProcessusMensuelService {
     public ProcessusMensuelResponseDto declencher(DeclencherProcessusRequestDto requeteDeclenchement) {
         Integer moisPaiement = requeteDeclenchement.getMoisPaiement();
         Integer anneePaiement = requeteDeclenchement.getAnneePaiement();
+        boolean rattrapage = Boolean.TRUE.equals(requeteDeclenchement.getRattrapage());
 
-        if (processusMensuelRepository.existsByMoisPaiementAndAnneePaiement(moisPaiement, anneePaiement)) {
+        // RG-12 (evoluee Sprint MM.11) : l'unicite mois/annee ne s'applique
+        // qu'aux processus normaux -- plusieurs rattrapages peuvent coexister
+        // sur la meme periode (contrainte partielle idx_processus_mensuel_normal_unique,
+        // migration V6).
+        if (!rattrapage && processusMensuelRepository
+                .existsByMoisPaiementAndAnneePaiementAndRattrapageFalse(moisPaiement, anneePaiement)) {
             throw new ProcessusMensuelExisteDejaException(
                     "Un processus mensuel existe déjà pour " + moisPaiement + "/" + anneePaiement);
+        }
+
+        // Restriction de periode (Sprint MM.11) : mois courant ou anterieur
+        // autorises, jamais un mois futur. YearMonth gere nativement le
+        // franchissement d'annee (ex. decembre vs janvier de l'annee suivante).
+        YearMonth periodeDemandee = YearMonth.of(anneePaiement, moisPaiement);
+        if (periodeDemandee.isAfter(YearMonth.now())) {
+            throw new PeriodeProcessusFutureException(
+                    "La periode " + moisPaiement + "/" + anneePaiement + " est future : le declenchement n'est possible que pour le mois courant ou un mois anterieur");
+        }
+
+        // Un rattrapage exige un processus NORMAL deja CLOTURE pour la meme
+        // periode -- sinon il n'y a rien a rattraper (ce serait un
+        // declenchement normal deguise). L'integrite de ce processus original
+        // n'est ensuite plus jamais touchee : ni lu au-dela de ses lignes
+        // INCLUSES, ni modifie.
+        ProcessusMensuel processusOriginal = null;
+        Set<Long> beneficiairesDejaPayes = Set.of();
+        if (rattrapage) {
+            processusOriginal = processusMensuelRepository
+                    .findByMoisPaiementAndAnneePaiementAndRattrapageFalse(moisPaiement, anneePaiement)
+                    .filter(p -> p.getStatut() == StatutEnum.CLOTURE)
+                    .orElseThrow(() -> new ProcessusOriginalIntrouvableException(
+                            "Aucun processus normal clôturé n'existe pour " + moisPaiement + "/" + anneePaiement
+                                    + " : rattrapage impossible"));
+
+            beneficiairesDejaPayes = ligneEtatMensuelRepository
+                    .findByIdProcessusAndInclusDansEtatTrue(processusOriginal.getId())
+                    .stream()
+                    .map(LigneEtatMensuel::getIdBeneficiaire)
+                    .collect(Collectors.toSet());
         }
 
         Utilisateur utilisateurCourant = authenticatedUserService.utilisateurCourant();
@@ -105,6 +152,8 @@ public class ProcessusMensuelService {
                 .statut(StatutEnum.EN_COURS_ARH)
                 .dateCreation(LocalDateTime.now())
                 .idCreateur(utilisateurCourant.getId())
+                .rattrapage(rattrapage)
+                .idProcessusOriginal(rattrapage ? processusOriginal.getId() : null)
                 .build();
         processus = processusMensuelRepository.save(processus);
 
@@ -116,6 +165,15 @@ public class ProcessusMensuelService {
             ResolutionGrilleDto resolution = grilleTarifaireApi.resoudrePourFonction(beneficiaire.fonction());
 
             String motifExclusion = resolution.motifExclusion();
+            // Decision A2 (2026-08-03) : au rattrapage, tout bénéficiaire actif
+            // est affiché ; ceux deja payes lors du processus normal (ligne
+            // inclusDansEtat=true) sont exclus par defaut, qu'ils aient ou non
+            // de ligne dans ce dernier -- absence de ligne, ligne a false
+            // automatique ou manuelle comptent tous comme "non paye" (decision
+            // utilisateur du 2026-08-09).
+            if (motifExclusion == null && rattrapage && beneficiairesDejaPayes.contains(beneficiaire.id())) {
+                motifExclusion = MOTIF_DEJA_PAYE_RATTRAPAGE;
+            }
             boolean inclusDansEtat = motifExclusion == null;
             int montantApplique = resolution.montantFcfa() != null ? resolution.montantFcfa() : 0;
 
@@ -146,8 +204,16 @@ public class ProcessusMensuelService {
         apres.put("statut", processus.getStatut().name());
         apres.put("nombreBeneficiairesInclus", nombreBeneficiairesInclus);
         apres.put("nombreBeneficiairesExclus", beneficiairesExclus.size());
+        apres.put("rattrapage", rattrapage);
+        if (rattrapage) {
+            apres.put("idProcessusOriginal", processusOriginal.getId());
+        }
 
-        eventPublisher.publishEvent(new EvenementAudit(utilisateurCourant.getId(), "DECLENCHEMENT_PROCESSUS", "processus_mensuel",
+        // Action d'audit distincte du declenchement normal (RG-09, Sprint
+        // MM.11) : un rattrapage doit etre tracable comme tel sans avoir a
+        // inspecter le detail_json.
+        String actionAudit = rattrapage ? "DECLENCHEMENT_PROCESSUS_RATTRAPAGE" : "DECLENCHEMENT_PROCESSUS";
+        eventPublisher.publishEvent(new EvenementAudit(utilisateurCourant.getId(), actionAudit, "processus_mensuel",
                 processus.getId(), null, apres));
 
         return ProcessusMensuelResponseDto.builder()
@@ -158,6 +224,7 @@ public class ProcessusMensuelService {
                 .dateCreation(processus.getDateCreation())
                 .nombreBeneficiaires(nombreBeneficiairesInclus)
                 .beneficiairesExclus(beneficiairesExclus)
+                .rattrapage(rattrapage)
                 .build();
     }
 
@@ -185,6 +252,7 @@ public class ProcessusMensuelService {
                         .anneePaiement(p.getAnneePaiement())
                         .statut(p.getStatut())
                         .dateCreation(p.getDateCreation())
+                        .rattrapage(p.getRattrapage())
                         .build())
                 .toList();
     }
@@ -233,6 +301,8 @@ public class ProcessusMensuelService {
                 .origineRetour(derniereEtapeRetournee != null
                         ? (derniereEtapeRetournee.getNomEtape() == NomEtapeEnum.VALIDATION_CRH ? "CRH" : "DRH")
                         : null)
+                .rattrapage(processus.getRattrapage())
+                .idProcessusOriginal(processus.getIdProcessusOriginal())
                 .build();
     }
 
@@ -287,7 +357,7 @@ public class ProcessusMensuelService {
         List<ResultatAjustementDto> resultats = new ArrayList<>();
 
         for (AjustementLigneEtatDto ajustement : requeteAjustement.getAjustements()) {
-            resultats.add(appliquerAjustement(idProcessus, ajustement, utilisateurCourant));
+            resultats.add(appliquerAjustement(processus, ajustement, utilisateurCourant));
         }
 
         return PatchProcessusResponseDto.builder()
@@ -630,8 +700,9 @@ public class ProcessusMensuelService {
                 .build();
     }
 
-    private ResultatAjustementDto appliquerAjustement(Long idProcessus, AjustementLigneEtatDto ajustement,
+    private ResultatAjustementDto appliquerAjustement(ProcessusMensuel processus, AjustementLigneEtatDto ajustement,
                                                         Utilisateur utilisateurCourant) {
+        Long idProcessus = processus.getId();
         Long idBeneficiaire = ajustement.getIdBeneficiaire();
         Optional<LigneEtatMensuel> ligneExistante = ligneEtatMensuelRepository
                 .findByIdProcessusAndIdBeneficiaire(idProcessus, idBeneficiaire);
@@ -653,6 +724,24 @@ public class ProcessusMensuelService {
         boolean reintegration = Boolean.TRUE.equals(ajustement.getInclusDansEtat())
                 && !Boolean.TRUE.equals(ligne.getInclusDansEtat());
         String fonctionCible = fonctionModifiee ? ajustement.getFonctionRetenue() : ligne.getFonctionRetenue();
+
+        // Garde-fou (constat manuel post-MM.11) : reintegrer un beneficiaire
+        // deja paye pour cette periode via le processus normal causerait un
+        // double paiement. A la difference de l'ineligibilite (RG-01/RG-02),
+        // rien ne revalidait ce cas a l'ajustement -- seul le pre-cochage
+        // initial du declenchement le reprenait, librement contournable par
+        // l'ARH. Verifie avant toute autre revalidation, et bloque meme un
+        // changement de fonction simultane (fonctionModifiee) : peu importe la
+        // fonction retenue, ce beneficiaire a deja recu sa dotation du mois.
+        if (reintegration && Boolean.TRUE.equals(processus.getRattrapage()) && processus.getIdProcessusOriginal() != null) {
+            boolean dejaPayeOriginal = ligneEtatMensuelRepository
+                    .findByIdProcessusAndIdBeneficiaire(processus.getIdProcessusOriginal(), idBeneficiaire)
+                    .map(LigneEtatMensuel::getInclusDansEtat)
+                    .orElse(false);
+            if (dejaPayeOriginal) {
+                return rejeter(idBeneficiaire, MOTIF_DEJA_PAYE_RATTRAPAGE);
+            }
+        }
 
         if (fonctionModifiee || reintegration) {
             ResolutionGrilleDto resolution = grilleTarifaireApi.resoudrePourFonction(fonctionCible);

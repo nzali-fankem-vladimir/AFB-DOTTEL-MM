@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +34,12 @@ class AuditServiceImpl implements AuditService {
                 pageableTrie);
 
         return page.map(this::versDto);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> listerActionsDistinctes() {
+        return auditLogRepository.findDistinctActions();
     }
 
     private AuditLogResponseDto versDto(AuditLog auditLog) {

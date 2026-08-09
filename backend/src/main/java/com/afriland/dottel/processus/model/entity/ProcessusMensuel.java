@@ -48,4 +48,18 @@ public class ProcessusMensuel {
 
     @Column(name = "id_createur", nullable = false)
     private Long idCreateur;
+
+    // Sprint MM.11 : RG-12 evolue (voir CLAUDE.md section 7). false pour tout
+    // processus normal, true pour un rattrapage. @Builder.Default indispensable
+    // ici : sans lui, @Builder laisserait le champ a null pour tout appelant
+    // qui ne le renseigne pas explicitement (tous les processus normaux
+    // existants avant ce sprint).
+    @Builder.Default
+    @Column(name = "rattrapage", nullable = false)
+    private Boolean rattrapage = false;
+
+    // Trace, pour un rattrapage, le processus normal CLOTURE dont il decoule.
+    // Null pour un processus normal.
+    @Column(name = "id_processus_original")
+    private Long idProcessusOriginal;
 }

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, RotateCcw } from 'lucide-react';
 import apiClient from '../../api/apiClient';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../../components/ui/Card';
@@ -9,6 +9,7 @@ import { Select } from '../../components/ui/Select';
 import { Button } from '../../components/ui/Button';
 import { Alert, AlertDescription } from '../../components/ui/Alert';
 import { LienRetour } from '../../components/ui/LienRetour';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { getPeriodeLabel } from '../../utils/formatters';
 
 const MOIS = [
@@ -18,21 +19,77 @@ const MOIS = [
   { valeur: 10, libelle: 'Octobre' }, { valeur: 11, libelle: 'Novembre' }, { valeur: 12, libelle: 'Décembre' },
 ];
 
-const ANNEE_COURANTE = new Date().getFullYear();
-const ANNEES = [ANNEE_COURANTE - 1, ANNEE_COURANTE, ANNEE_COURANTE + 1];
+const AUJOURDHUI = new Date();
+const ANNEE_COURANTE = AUJOURDHUI.getFullYear();
+const MOIS_COURANT = AUJOURDHUI.getMonth() + 1;
+
+// Sprint MM.11 : pas de limite basse (le rattrapage autorise de remonter
+// loin dans le passe), seulement une limite haute -- le mois courant.
+// 5 ans en arriere suffit largement en pratique pour un incident a rattraper.
+const ANNEES = Array.from({ length: 6 }, (_, i) => ANNEE_COURANTE - i);
 
 export default function DeclencherProcessusPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const retourListe = location.state?.retour ?? '/processus';
-  const [moisPaiement, setMoisPaiement] = useState(new Date().getMonth() + 1);
+  const [moisPaiement, setMoisPaiement] = useState(MOIS_COURANT);
   const [anneePaiement, setAnneePaiement] = useState(ANNEE_COURANTE);
   const [enCours, setEnCours] = useState(false);
   const [erreur, setErreur] = useState(null);
   const [resultat, setResultat] = useState(null);
+  const [demandeConfirmation, setDemandeConfirmation] = useState(false);
+  const [modeRattrapage, setModeRattrapage] = useState(false);
+  const [verificationRattrapageEnCours, setVerificationRattrapageEnCours] = useState(false);
 
-  const declencher = async (event) => {
-    event.preventDefault();
+  // Sprint MM.11 : detection automatique du mode rattrapage. Des qu'un mois
+  // deja traite par un processus NORMAL clos est selectionne, la page bascule
+  // sans action supplementaire de l'ARH -- aucun nouvel endpoint necessaire,
+  // GET /processus (deja utilise par la liste des processus) suffit.
+  useEffect(() => {
+    let ignore = false;
+    setVerificationRattrapageEnCours(true);
+    apiClient
+      .get('/processus', { params: { statut: 'CLOTURE', anneePaiement: Number(anneePaiement) } })
+      .then(({ data }) => {
+        if (ignore) return;
+        const processusNormalExistant = data.some(
+          (p) => Number(p.moisPaiement) === Number(moisPaiement) && !p.rattrapage,
+        );
+        setModeRattrapage(processusNormalExistant);
+      })
+      .catch(() => {
+        if (!ignore) setModeRattrapage(false);
+      })
+      .finally(() => {
+        if (!ignore) setVerificationRattrapageEnCours(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [moisPaiement, anneePaiement]);
+
+  // Le selecteur ne doit structurellement jamais proposer un mois futur :
+  // si l'annee choisie est l'annee courante, on tronque la liste des mois
+  // au mois courant inclus. Pour une annee anterieure, les 12 mois restent
+  // disponibles (pas de limite basse, cf. section 1.1 du guide MM.11).
+  const moisDisponibles = useMemo(
+    () => (anneePaiement === ANNEE_COURANTE ? MOIS.filter((m) => m.valeur <= MOIS_COURANT) : MOIS),
+    [anneePaiement],
+  );
+
+  const changerAnnee = (nouvelleAnnee) => {
+    const annee = Number(nouvelleAnnee);
+    setAnneePaiement(annee);
+    if (annee === ANNEE_COURANTE && Number(moisPaiement) > MOIS_COURANT) {
+      setMoisPaiement(MOIS_COURANT);
+    }
+  };
+
+  const periodeAnterieureAuMoisCourant =
+    Number(anneePaiement) < ANNEE_COURANTE ||
+    (Number(anneePaiement) === ANNEE_COURANTE && Number(moisPaiement) < MOIS_COURANT);
+
+  const executerDeclenchement = async () => {
     setErreur(null);
     setResultat(null);
     setEnCours(true);
@@ -40,17 +97,32 @@ export default function DeclencherProcessusPage() {
       const { data } = await apiClient.post('/processus/declencher', {
         moisPaiement: Number(moisPaiement),
         anneePaiement: Number(anneePaiement),
+        rattrapage: modeRattrapage,
       });
       setResultat(data);
     } catch (err) {
       if (err.response?.status === 409) {
         setErreur(`Un processus mensuel existe déjà pour ${getPeriodeLabel(Number(moisPaiement), Number(anneePaiement))}.`);
+      } else if (err.response?.status === 400) {
+        // Filet de securite : l'UI empeche deja structurellement une periode
+        // future, mais le backend reste la source de verite (ex. appel API
+        // direct hors de cette page).
+        setErreur(err.response.data?.erreur ?? 'La période sélectionnée est invalide.');
       } else {
         setErreur('Une erreur est survenue lors du déclenchement du processus. Veuillez réessayer.');
       }
     } finally {
       setEnCours(false);
     }
+  };
+
+  const declencher = (event) => {
+    event.preventDefault();
+    if (periodeAnterieureAuMoisCourant) {
+      setDemandeConfirmation(true);
+      return;
+    }
+    executerDeclenchement();
   };
 
   return (
@@ -71,6 +143,17 @@ export default function DeclencherProcessusPage() {
                 </Alert>
               )}
 
+              {modeRattrapage && (
+                <Alert variant="warning">
+                  <RotateCcw className="h-4 w-4" />
+                  <AlertDescription>
+                    Cette période a déjà été traitée. Le déclenchement se fera en{' '}
+                    <strong>mode rattrapage</strong> : seuls les bénéficiaires non payés seront
+                    pré-cochés, l'état d'origine reste inchangé.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               <div className="flex gap-4">
                 <div className="flex flex-1 flex-col gap-1.5">
                   <Label htmlFor="declencher-mois">Mois</Label>
@@ -80,7 +163,7 @@ export default function DeclencherProcessusPage() {
                     onChange={(e) => setMoisPaiement(e.target.value)}
                     disabled={enCours}
                   >
-                    {MOIS.map((m) => (
+                    {moisDisponibles.map((m) => (
                       <option key={m.valeur} value={m.valeur}>
                         {m.libelle}
                       </option>
@@ -93,7 +176,7 @@ export default function DeclencherProcessusPage() {
                   <Select
                     id="declencher-annee"
                     value={anneePaiement}
-                    onChange={(e) => setAnneePaiement(e.target.value)}
+                    onChange={(e) => changerAnnee(e.target.value)}
                     disabled={enCours}
                   >
                     {ANNEES.map((a) => (
@@ -106,8 +189,12 @@ export default function DeclencherProcessusPage() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button type="submit" disabled={enCours}>
-                {enCours ? 'Déclenchement en cours…' : 'Déclencher'}
+              <Button type="submit" disabled={enCours || verificationRattrapageEnCours}>
+                {enCours
+                  ? 'Déclenchement en cours…'
+                  : modeRattrapage
+                    ? 'Déclencher le rattrapage'
+                    : 'Déclencher'}
               </Button>
             </CardFooter>
           </form>
@@ -118,12 +205,13 @@ export default function DeclencherProcessusPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-emerald-700">
                 <CheckCircle2 className="h-5 w-5" />
-                Processus déclenché
+                {resultat.rattrapage ? 'Rattrapage déclenché' : 'Processus déclenché'}
               </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-3">
               <p className="text-sm text-neutral-700">
-                {getPeriodeLabel(resultat.moisPaiement, resultat.anneePaiement)} —{' '}
+                {getPeriodeLabel(resultat.moisPaiement, resultat.anneePaiement)}
+                {resultat.rattrapage && ' (rattrapage)'} —{' '}
                 <strong>{resultat.nombreBeneficiaires}</strong> bénéficiaire
                 {resultat.nombreBeneficiaires > 1 ? 's' : ''} inclus dans l'état mensuel.
               </p>
@@ -161,6 +249,19 @@ export default function DeclencherProcessusPage() {
           </Card>
         )}
       </div>
+
+      {demandeConfirmation && (
+        <ConfirmDialog
+          titre="Période antérieure au mois actuel"
+          message={`La période sélectionnée (${getPeriodeLabel(Number(moisPaiement), Number(anneePaiement))}) est antérieure au mois actuel. Voulez-vous continuer ?`}
+          libelleConfirmer="Déclencher"
+          onAnnuler={() => setDemandeConfirmation(false)}
+          onConfirmer={async () => {
+            await executerDeclenchement();
+            setDemandeConfirmation(false);
+          }}
+        />
+      )}
     </>
   );
 }

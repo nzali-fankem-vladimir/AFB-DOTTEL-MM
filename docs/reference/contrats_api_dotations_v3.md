@@ -4,15 +4,16 @@ Module : Digitalisation des Dotations Téléphoniques Mensuelles
 
 *Projet AFRILAND HORIZON 2030*
 
-| **Référence** | **AFB_API_DOTTEL_V3.4_2026** |
+| **Référence** | **AFB_API_DOTTEL_V3.5_2026** |
 | --- | --- |
-| Version | 3.4 |
+| Version | 3.5 |
 | Date | Août 2026 |
-| Nombre d'endpoints documentés | 36 endpoints répartis en 8 groupes (+ 1 sous-groupe) |
+| Nombre d'endpoints documentés | 41 endpoints répartis en 8 groupes (+ 1 sous-groupe) |
 | Version 3.1 | Alignement complet sur l'implémentation réelle : correction des réponses login/PATCH bénéficiaire, ajout de PATCH /processus/{id} (absent de la V3.0), correction de l'erreur RG-04 (400, pas 500), ajout d'un statut d'implémentation par endpoint. |
 | Version 3.2 | Ajout de GET /fonctions-eligibles et de PATCH /beneficiaires/{id}/reactiver (Sprint 6F.5), absents de la V3.1 — le premier alimente en frontend les filtres et formulaires liés à la fonction sans liste en dur, le second comble une lacune : aucun endpoint ne permettait de revenir sur une désactivation. |
 | Version 3.3 | Sprint 6F.7bis : comble deux écarts face au cahier des charges (section II.1.7). Ajout de POST /grilles-tarifaires/{id}/desactiver (retrait volontaire d'une grille ACTIVE sans remplacement, absent du cycle de vie initial qui ne couvrait que le remplacement automatique). `fonction_eligible` passe d'un référentiel figé par migration Flyway à un référentiel géré par l'application : ajout de GET /fonctions-eligibles/toutes, POST /fonctions-eligibles, PATCH /fonctions-eligibles/{code}, PATCH /fonctions-eligibles/{code}/desactiver et PATCH /fonctions-eligibles/{code}/reactiver. Rôle ADMIN ajouté à GET /fonctions-eligibles (nécessaire au filtre de `GrillesListPage` côté ADMIN, oublié à la V3.2). |
 | Version 3.4 | Sprint MM.10 (référentiel unité/agence). Ajout de GET /beneficiaires/unites-rattachement : liste unité↔code_unite exposée par le stub EHR, alimente le select du modal de modification bénéficiaire (l'ARH ne saisit plus le code unité à la main, résolu côté backend à la validation du PATCH). Introduction de la colonne `code_agence` (5 chiffres, agence de domiciliation du compte courant — distincte de `code_unite`, 4 chiffres, unité d'affectation professionnelle), non exposée en lecture dans les DTO bénéficiaire mais portée par le flux d'enrôlement EHR et l'import Excel (8ᵉ colonne CODE_AGENCE). |
+| Version 3.5 | Sprint MM.11 (période de déclenchement et rattrapage). POST /processus/declencher refuse désormais toute période postérieure au mois courant (400) et accepte un champ `rattrapage` pour redéclencher un mois déjà clos, réservé aux bénéficiaires non payés (RG-12 évoluée — voir CLAUDE.md section 7 : l'unicité mois/année ne s'applique plus qu'aux processus normaux). `rattrapage` et `idProcessusOriginal` ajoutés aux réponses de GET /processus, GET /processus/{id} et POST /processus/declencher. Ajout de GET /reporting/audit/actions (liste dynamique, dérivée des valeurs réellement présentes en base, pour le filtre "Action" du journal d'audit — évite qu'une liste figée côté frontend se désynchronise à chaque nouvelle action). **Correction de statut au passage** : le Groupe 6 Reporting, marqué "non implémenté" depuis la V3.0, est en réalité construit et consommé par le frontend depuis le Sprint 6F — corrigé ici car GET /reporting/audit/actions vient s'y ajouter. |
 
 Chaque endpoint porte désormais une étiquette de statut :
 - **Implémenté** : construit, testé, commité.
@@ -519,16 +520,21 @@ Déclenche un nouveau cycle mensuel pour tous les bénéficiaires actifs.
 
 **Rôles autorisés : ARH**
 
+**Sprint MM.11** : deux évolutions.
+1. **Restriction de période** — la période demandée ne doit jamais être postérieure au mois courant (`YearMonth`, franchissement d'année géré nativement). Une période antérieure ou égale au mois courant reste toujours acceptée, sans limite basse.
+2. **Rattrapage** — champ `rattrapage` (booléen, défaut `false`) dans le corps de la requête. À `true`, redéclenche un mois déjà traité : un processus normal `CLOTURE` doit exister pour la même période (sinon 400), tous les bénéficiaires actifs sont listés, ceux déjà payés dans le processus normal original en sont exclus (motif `"Déjà payé pour cette période"`), les autres sont inclus. Le processus normal original n'est jamais modifié. RG-12 évolue en conséquence : l'unicité mois/année ne s'applique plus qu'aux processus normaux (`rattrapage = false`) — plusieurs rattrapages peuvent coexister sur la même période (voir CLAUDE.md section 7).
+
 Corps de la requête :
 
 ```json
 {
   "moisPaiement": 7,
-  "anneePaiement": 2026
+  "anneePaiement": 2026,
+  "rattrapage": false
 }
 ```
 
-Réponse succès (le champ `beneficiairesExclus` a été ajouté par rapport à la V3.0, qui l'omettait) :
+Réponse succès (le champ `beneficiairesExclus` a été ajouté par rapport à la V3.0, qui l'omettait ; `rattrapage` ajouté en V3.5) :
 
 ```json
 {
@@ -540,16 +546,18 @@ Réponse succès (le champ `beneficiairesExclus` a été ajouté par rapport à 
   "nombreBeneficiaires": 48,
   "beneficiairesExclus": [
     {"idBeneficiaire": 12, "matricule": "6497", "motif": "Grille tarifaire introuvable"}
-  ]
+  ],
+  "rattrapage": false
 }
 ```
 
-`nombreBeneficiaires` ne compte que les lignes avec `inclus_dans_etat=true` (les exclus n'y figurent pas, mais restent listés dans `beneficiairesExclus` avec leur motif — grille introuvable, ou fonction désactivée depuis l'enrôlement).
+`nombreBeneficiaires` ne compte que les lignes avec `inclus_dans_etat=true` (les exclus n'y figurent pas, mais restent listés dans `beneficiairesExclus` avec leur motif — grille introuvable, fonction désactivée depuis l'enrôlement, ou déjà payé en mode rattrapage).
 
 | **Code HTTP** | **Description** |
 | --- | --- |
 | 201 | Processus déclenché. |
-| 409 | Processus déjà existant pour cette période (RG-12, distincte de RG-03 — corrige la V3.0 qui référençait cette règle de façon ambiguë). |
+| 400 | Période future (Sprint MM.11), ou rattrapage demandé sans processus normal `CLOTURE` pour cette période. |
+| 409 | Processus **normal** déjà existant pour cette période (RG-12, distincte de RG-03 — corrige la V3.0 qui référençait cette règle de façon ambiguë). Ne bloque jamais un rattrapage. |
 
 ### GET /processus — Implémenté
 
@@ -569,10 +577,13 @@ Réponse succès :
 [
   {
     "id": 14, "moisPaiement": 11, "anneePaiement": 2026,
-    "statut": "RETOURNE", "dateCreation": "2026-07-24T20:46:47.624242"
+    "statut": "RETOURNE", "dateCreation": "2026-07-24T20:46:47.624242",
+    "rattrapage": false
   }
 ]
 ```
+
+`rattrapage` (Sprint MM.11) : distingue un processus normal d'un rattrapage. Alimente la détection frontend qui bascule `DeclencherProcessusPage` en mode rattrapage dès qu'un mois déjà traité par un processus normal `CLOTURE` est sélectionné.
 
 | **Code HTTP** | **Description** |
 | --- | --- |
@@ -603,9 +614,13 @@ Structure de réponse (correction du nom de champ : `inclusDansEtat`, pas `inclu
     }
   ],
   "motifRetour": "Ecart mensuel injustifie sur un beneficiaire",
-  "origineRetour": "DRH"
+  "origineRetour": "DRH",
+  "rattrapage": false,
+  "idProcessusOriginal": null
 }
 ```
+
+`rattrapage` et `idProcessusOriginal` (Sprint MM.11) : pour un rattrapage, `idProcessusOriginal` référence le processus normal `CLOTURE` dont il découle (`null` pour un processus normal).
 
 `motifRetour` et `origineRetour` (Sprint 6F.7, RG-07) : renseignés uniquement
 si le processus a déjà été retourné au moins une fois — `null`/`null` sinon
@@ -708,19 +723,117 @@ Téléchargement du PDF de l'état mensuel. Prévu avec le reste du groupe Workf
 
 # 6. Groupe Reporting — /reporting
 
-**Groupe entièrement non implémenté à ce jour.** Prévu au Sprint 6 (tableau de bord, historique, journal d'audit consultable). Les endpoints ci-dessous restent des cibles de conception, pas des contrats figés.
+**Correction V3.5** : ce groupe était documenté "non implémenté" depuis la V3.0. En réalité, construit et consommé par le frontend (`DashboardPage`, `HistoriquePage`, `AuditPage`) depuis le Sprint 6F — corrigé ici à l'occasion de l'ajout de GET /reporting/audit/actions (Sprint MM.11).
 
-### GET /reporting/dashboard — Planifié (Sprint 6)
+### GET /reporting/dashboard — Implémenté
 
-**Rôles autorisés prévus : ARH, DRH**
+Indicateurs agrégés pour la page d'accueil ARH/DRH.
 
-### GET /reporting/historique — Planifié (Sprint 6)
+**Rôles autorisés : ARH, DRH**
 
-**Rôles autorisés prévus : DRH**
+Réponse succès :
 
-### GET /reporting/audit — Planifié (Sprint 6)
+```json
+{
+  "nombreBeneficiairesActifs": 312,
+  "montantTotalMensuel": 14520000,
+  "processusEnCours": {"id": 21, "statut": "EN_ATTENTE_CRH"},
+  "processusClotureesCetteAnnee": 9
+}
+```
 
-**Rôles autorisés prévus : DRH**
+`processusEnCours` vaut `null` si aucun processus n'est en cours (tous clôturés ou aucun déclenché).
+
+| **Code HTTP** | **Description** |
+| --- | --- |
+| 200 | Indicateurs retournés. |
+
+### GET /reporting/historique — Implémenté
+
+Historique des processus clôturés, agrégé par mois.
+
+**Rôles autorisés : DRH**
+
+Paramètre de requête (facultatif) : `annee` (ex. `2026`).
+
+Réponse succès :
+
+```json
+{
+  "lignes": [
+    {
+      "moisPaiement": 7, "anneePaiement": 2026, "statut": "CLOTURE",
+      "montantTotal": 1840000, "nombreBeneficiaires": 46
+    }
+  ]
+}
+```
+
+| **Code HTTP** | **Description** |
+| --- | --- |
+| 200 | Historique retourné (liste vide si aucun processus clôturé). |
+
+### GET /reporting/historique/export — Implémenté
+
+Export Excel (`.xlsx`) du même historique, mêmes filtres.
+
+**Rôles autorisés : DRH**
+
+| **Code HTTP** | **Description** |
+| --- | --- |
+| 200 | Classeur Excel retourné (`Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`). |
+
+### GET /reporting/audit — Implémenté
+
+Journal d'audit paginé, avec filtres combinables.
+
+**Rôles autorisés : DRH**
+
+Paramètres de requête (tous facultatifs) : `idUtilisateur`, `action`, `entiteCible`, `dateDebut`, `dateFin` (ISO 8601), `page` (défaut `0`), `taille` (défaut `20`).
+
+Réponse succès :
+
+```json
+{
+  "contenu": [
+    {
+      "id": 501, "idUtilisateur": 10, "action": "DECLENCHEMENT_PROCESSUS_RATTRAPAGE",
+      "entiteCible": "processus_mensuel", "idEntite": 33,
+      "dateAction": "2026-08-09T01:30:00", "adresseIp": null,
+      "detailJson": "{\"avant\":null,\"apres\":{\"rattrapage\":true,\"idProcessusOriginal\":30}}"
+    }
+  ],
+  "total": 214,
+  "page": 0,
+  "taille": 20
+}
+```
+
+| **Code HTTP** | **Description** |
+| --- | --- |
+| 200 | Page de résultats retournée. |
+
+### GET /reporting/audit/actions — Implémenté (ajouté au Sprint MM.11)
+
+**Nouvel endpoint.** Alimente dynamiquement le filtre "Action" de `AuditPage` : liste triée des valeurs `action` réellement présentes en base (`SELECT DISTINCT`), et non une liste figée maintenue à la main côté frontend. Les codes d'action sont des chaînes libres déposées par chaque module au fil de `AuditService.enregistrer()` (aucun enum de référence — CLAUDE.md section 6 fixe la liste des énumérations du projet à 5, aucune ne couvre ce cas). Conséquence : une action qui n'a encore jamais eu lieu n'apparaît pas dans la liste (rien à filtrer de toute façon).
+
+**Rôles autorisés : DRH**
+
+Réponse succès :
+
+```json
+[
+  "AJUSTEMENT_LIGNE_ETAT_MENSUEL",
+  "CLOTURE_PROCESSUS",
+  "DECLENCHEMENT_PROCESSUS",
+  "DECLENCHEMENT_PROCESSUS_RATTRAPAGE",
+  "VALIDATION_PROCESSUS_ARH"
+]
+```
+
+| **Code HTTP** | **Description** |
+| --- | --- |
+| 200 | Liste retournée (peut être vide si `audit_log` est vide). |
 
 # 7. Groupe Grilles tarifaires — /grilles-tarifaires
 

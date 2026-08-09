@@ -23,4 +23,6 @@ public class ProcessusDetailResponseDto {
     private List<LigneEtatMensuelDetailDto> lignesEtatMensuel;
     private String motifRetour;
     private String origineRetour;
+    private Boolean rattrapage;
+    private Long idProcessusOriginal;
 }

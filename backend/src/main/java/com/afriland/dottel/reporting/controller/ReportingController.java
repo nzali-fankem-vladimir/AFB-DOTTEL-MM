@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 @RestController
 @RequestMapping("/reporting")
@@ -78,5 +79,13 @@ public class ReportingController {
         Page<AuditLogResponseDto> resultat =
                 auditService.rechercher(idUtilisateur, action, entiteCible, dateDebut, dateFin, pageable);
         return ResponseEntity.ok(AuditLogPageResponseDto.depuis(resultat));
+    }
+
+    // Sprint MM.11 : alimente le filtre "Action" du journal d'audit sans liste
+    // figee cote frontend -- derive des valeurs reellement presentes en base.
+    @GetMapping("/audit/actions")
+    @PreAuthorize("hasRole('DRH')")
+    public ResponseEntity<List<String>> actionsAudit() {
+        return ResponseEntity.ok(auditService.listerActionsDistinctes());
     }
 }

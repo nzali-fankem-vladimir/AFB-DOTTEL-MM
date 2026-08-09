@@ -53,8 +53,11 @@ public class EcartMensuelService {
             anneePrecedente = anneePrecedente - 1;
         }
 
+        // Sprint MM.11 : compare toujours contre le processus NORMAL du mois
+        // precedent -- un rattrapage n'entre jamais dans la comparaison M-1
+        // du PDF, qui reflete le cycle de paiement standard.
         Optional<ProcessusMensuel> processusPrecedent = processusMensuelRepository
-                .findByMoisPaiementAndAnneePaiement(moisPrecedent, anneePrecedente);
+                .findByMoisPaiementAndAnneePaiementAndRattrapageFalse(moisPrecedent, anneePrecedente);
         if (processusPrecedent.isEmpty()) {
             return Optional.empty();
         }

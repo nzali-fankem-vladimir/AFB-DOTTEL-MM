@@ -289,15 +289,27 @@ RG-11 : IMPORT EXCEL. L'import de bénéficiaires via fichier Excel
         rejetées et listées dans le rapport d'import. Les lignes
         valides sont insérées même si d'autres lignes sont rejetées.
 
-RG-12 : UNICITÉ DU PROCESSUS MENSUEL. Un seul processus mensuel peut
-        exister pour une combinaison mois/année donnée. Contrainte
-        UNIQUE(mois_paiement, annee_paiement) en base (script V1).
-        Toute tentative de créer un second processus pour la même
-        période retourne 409 Conflict. Cette règle est distincte de
-        RG-03 (unicité du matricule bénéficiaire) — ne pas confondre
-        les deux malgré la mention "RG-03 étendu" trouvée dans un
-        document antérieur (user stories V3), qui référençait cette
-        contrainte par erreur avant que RG-12 ne soit créée.
+RG-12 : UNICITÉ DU PROCESSUS MENSUEL NORMAL. Un seul processus mensuel
+        normal (rattrapage = false) peut exister pour une combinaison
+        mois/année donnée. Contrainte UNIQUE(mois_paiement,
+        annee_paiement) WHERE rattrapage = false en base (script V1,
+        étendue en migration ultérieure pour le rattrapage — voir
+        MM.11). Toute tentative de créer un second processus normal
+        pour la même période retourne 409 Conflict. Cette règle est
+        distincte de RG-03 (unicité du matricule bénéficiaire) — ne
+        pas confondre les deux malgré la mention "RG-03 étendu" trouvée
+        dans un document antérieur (user stories V3), qui référençait
+        cette contrainte par erreur avant que RG-12 ne soit créée.
+
+        Un processus de rattrapage (rattrapage = true) peut en revanche
+        être déclenché sur une période déjà traitée par un processus
+        normal CLOTURE, dans le cadre strict d'une réclamation pour
+        bénéficiaires non payés (voir MM.11). Plusieurs rattrapages
+        successifs sur la même période sont autorisés — la contrainte
+        d'unicité ne s'applique qu'aux processus normaux. Un rattrapage
+        ne modifie jamais le processus normal dont il découle : statut,
+        lignes d'état, pièce jointe et événement Kafka déjà publié
+        restent inchangés.
 
 ---
 

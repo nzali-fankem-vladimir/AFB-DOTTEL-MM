@@ -21,4 +21,5 @@ public class ProcessusListItemDto {
     private Integer anneePaiement;
     private StatutEnum statut;
     private LocalDateTime dateCreation;
+    private Boolean rattrapage;
 }

@@ -10,10 +10,12 @@ import com.afriland.dottel.utilisateurs.api.AuthenticatedUserService;
 import com.afriland.dottel.audit.api.EvenementAudit;
 
 import com.afriland.dottel.processus.exception.MotifRejetObligatoireException;
+import com.afriland.dottel.processus.exception.PeriodeProcessusFutureException;
 import com.afriland.dottel.processus.exception.PieceJointeIntrouvableException;
 import com.afriland.dottel.processus.exception.ProcessusMensuelExisteDejaException;
 import com.afriland.dottel.processus.exception.ProcessusMensuelIntrouvableException;
 import com.afriland.dottel.processus.exception.ProcessusMensuelNonModifiableException;
+import com.afriland.dottel.processus.exception.ProcessusOriginalIntrouvableException;
 import com.afriland.dottel.processus.exception.RoleEtapeNonAutoriseException;
 import com.afriland.dottel.processus.exception.SeparationTachesViolationException;
 import com.afriland.dottel.processus.model.dto.processus.AjustementLigneEtatDto;
@@ -52,6 +54,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.nio.file.Path;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -201,9 +204,13 @@ class ProcessusMensuelServiceTest {
 
     @Test
     void declencher_casNominal_creeLeProcessusEtLesLignes() {
+        YearMonth periode = YearMonth.now().minusMonths(1);
+        int mois = periode.getMonthValue();
+        int annee = periode.getYear();
+
         DeclencherProcessusRequestDto requete = new DeclencherProcessusRequestDto();
-        requete.setMoisPaiement(7);
-        requete.setAnneePaiement(2026);
+        requete.setMoisPaiement(mois);
+        requete.setAnneePaiement(annee);
 
         Utilisateur arhConnecte = Utilisateur.builder().id(10L).matricule("2201").build();
 
@@ -214,7 +221,7 @@ class ProcessusMensuelServiceTest {
 
 
 
-        when(processusMensuelRepository.existsByMoisPaiementAndAnneePaiement(7, 2026)).thenReturn(false);
+        when(processusMensuelRepository.existsByMoisPaiementAndAnneePaiementAndRattrapageFalse(mois, annee)).thenReturn(false);
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> {
             ProcessusMensuel processus = invocation.getArgument(0);
@@ -231,8 +238,8 @@ class ProcessusMensuelServiceTest {
         ProcessusMensuelResponseDto reponse = processusMensuelService.declencher(requete);
 
         assertThat(reponse.getId()).isEqualTo(900L);
-        assertThat(reponse.getMoisPaiement()).isEqualTo(7);
-        assertThat(reponse.getAnneePaiement()).isEqualTo(2026);
+        assertThat(reponse.getMoisPaiement()).isEqualTo(mois);
+        assertThat(reponse.getAnneePaiement()).isEqualTo(annee);
         assertThat(reponse.getStatut()).isEqualTo(StatutEnum.EN_COURS_ARH);
         assertThat(reponse.getNombreBeneficiaires()).isEqualTo(2);
         assertThat(reponse.getBeneficiairesExclus()).isEmpty();
@@ -256,11 +263,15 @@ class ProcessusMensuelServiceTest {
 
     @Test
     void declencher_moisAnneeDejaExistant_leve409() {
-        DeclencherProcessusRequestDto requete = new DeclencherProcessusRequestDto();
-        requete.setMoisPaiement(7);
-        requete.setAnneePaiement(2026);
+        YearMonth periode = YearMonth.now().minusMonths(2);
+        int mois = periode.getMonthValue();
+        int annee = periode.getYear();
 
-        when(processusMensuelRepository.existsByMoisPaiementAndAnneePaiement(7, 2026)).thenReturn(true);
+        DeclencherProcessusRequestDto requete = new DeclencherProcessusRequestDto();
+        requete.setMoisPaiement(mois);
+        requete.setAnneePaiement(annee);
+
+        when(processusMensuelRepository.existsByMoisPaiementAndAnneePaiementAndRattrapageFalse(mois, annee)).thenReturn(true);
 
         assertThatThrownBy(() -> processusMensuelService.declencher(requete))
                 .isInstanceOf(ProcessusMensuelExisteDejaException.class);
@@ -269,15 +280,117 @@ class ProcessusMensuelServiceTest {
         verify(beneficiaireApi, never()).listerActifsPourDotation();
     }
 
+    // Sprint MM.11 : restriction de periode. La verification RG-12 (unicite)
+    // passe avant, donc existsByMoisPaiementAndAnneePaiementAndRattrapageFalse doit repondre
+    // false pour isoler le rejet sur la seule periode future.
     @Test
-    void declencher_aucunBeneficiaireActif_creeProcessusVide() {
+    void declencher_periodeFuture_leve400() {
+        YearMonth periode = YearMonth.now().plusMonths(1);
+        int mois = periode.getMonthValue();
+        int annee = periode.getYear();
+
         DeclencherProcessusRequestDto requete = new DeclencherProcessusRequestDto();
-        requete.setMoisPaiement(8);
-        requete.setAnneePaiement(2026);
+        requete.setMoisPaiement(mois);
+        requete.setAnneePaiement(annee);
+
+        when(processusMensuelRepository.existsByMoisPaiementAndAnneePaiementAndRattrapageFalse(mois, annee)).thenReturn(false);
+
+        assertThatThrownBy(() -> processusMensuelService.declencher(requete))
+                .isInstanceOf(PeriodeProcessusFutureException.class);
+
+        verify(processusMensuelRepository, never()).save(any());
+        verify(beneficiaireApi, never()).listerActifsPourDotation();
+    }
+
+    // Franchissement d'annee (ex. janvier de l'annee suivante vu depuis
+    // decembre) : verifie que YearMonth compare bien annee ET mois, pas
+    // seulement le mois isolement.
+    @Test
+    void declencher_periodeFutureFranchissantAnnee_leve400() {
+        YearMonth periode = YearMonth.now().plusYears(1).withMonth(1);
+
+        DeclencherProcessusRequestDto requete = new DeclencherProcessusRequestDto();
+        requete.setMoisPaiement(periode.getMonthValue());
+        requete.setAnneePaiement(periode.getYear());
+
+        when(processusMensuelRepository.existsByMoisPaiementAndAnneePaiementAndRattrapageFalse(periode.getMonthValue(), periode.getYear()))
+                .thenReturn(false);
+
+        assertThatThrownBy(() -> processusMensuelService.declencher(requete))
+                .isInstanceOf(PeriodeProcessusFutureException.class);
+
+        verify(processusMensuelRepository, never()).save(any());
+    }
+
+    @Test
+    void declencher_periodeAnterieureAuMoisCourant_estAcceptee() {
+        YearMonth periode = YearMonth.now().minusMonths(6);
+        int mois = periode.getMonthValue();
+        int annee = periode.getYear();
+
+        DeclencherProcessusRequestDto requete = new DeclencherProcessusRequestDto();
+        requete.setMoisPaiement(mois);
+        requete.setAnneePaiement(annee);
 
         Utilisateur arhConnecte = Utilisateur.builder().id(10L).matricule("2201").build();
 
-        when(processusMensuelRepository.existsByMoisPaiementAndAnneePaiement(8, 2026)).thenReturn(false);
+        when(processusMensuelRepository.existsByMoisPaiementAndAnneePaiementAndRattrapageFalse(mois, annee)).thenReturn(false);
+        when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
+        when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> {
+            ProcessusMensuel processus = invocation.getArgument(0);
+            processus.setId(903L);
+            return processus;
+        });
+        when(beneficiaireApi.listerActifsPourDotation()).thenReturn(List.of());
+
+        ProcessusMensuelResponseDto reponse = processusMensuelService.declencher(requete);
+
+        assertThat(reponse.getId()).isEqualTo(903L);
+        assertThat(reponse.getMoisPaiement()).isEqualTo(mois);
+        assertThat(reponse.getAnneePaiement()).isEqualTo(annee);
+    }
+
+    @Test
+    void declencher_periodeEgaleAuMoisCourant_estAcceptee() {
+        YearMonth periode = YearMonth.now();
+        int mois = periode.getMonthValue();
+        int annee = periode.getYear();
+
+        DeclencherProcessusRequestDto requete = new DeclencherProcessusRequestDto();
+        requete.setMoisPaiement(mois);
+        requete.setAnneePaiement(annee);
+
+        Utilisateur arhConnecte = Utilisateur.builder().id(10L).matricule("2201").build();
+
+        when(processusMensuelRepository.existsByMoisPaiementAndAnneePaiementAndRattrapageFalse(mois, annee)).thenReturn(false);
+        when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
+        when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> {
+            ProcessusMensuel processus = invocation.getArgument(0);
+            processus.setId(904L);
+            return processus;
+        });
+        when(beneficiaireApi.listerActifsPourDotation()).thenReturn(List.of());
+
+        ProcessusMensuelResponseDto reponse = processusMensuelService.declencher(requete);
+
+        assertThat(reponse.getId()).isEqualTo(904L);
+        assertThat(reponse.getMoisPaiement()).isEqualTo(mois);
+        assertThat(reponse.getAnneePaiement()).isEqualTo(annee);
+    }
+
+    @Test
+    void declencher_aucunBeneficiaireActif_creeProcessusVide() {
+        YearMonth periode = YearMonth.now();
+        int mois = periode.getMonthValue();
+        int annee = periode.getYear();
+
+        DeclencherProcessusRequestDto requete = new DeclencherProcessusRequestDto();
+        requete.setMoisPaiement(mois);
+        requete.setAnneePaiement(annee);
+
+        Utilisateur arhConnecte = Utilisateur.builder().id(10L).matricule("2201").build();
+
+        when(processusMensuelRepository.existsByMoisPaiementAndAnneePaiementAndRattrapageFalse(mois, annee)).thenReturn(false);
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> {
             ProcessusMensuel processus = invocation.getArgument(0);
@@ -306,17 +419,20 @@ class ProcessusMensuelServiceTest {
 
     @Test
     void declencher_beneficiaireSansGrilleActive_appliqueLaDecisionEtape3() {
+        YearMonth periode = YearMonth.now().minusMonths(3);
+        int mois = periode.getMonthValue();
+        int annee = periode.getYear();
+
         DeclencherProcessusRequestDto requete = new DeclencherProcessusRequestDto();
-        requete.setMoisPaiement(9);
-        requete.setAnneePaiement(2026);
+        requete.setMoisPaiement(mois);
+        requete.setAnneePaiement(annee);
 
         Utilisateur arhConnecte = Utilisateur.builder().id(10L).matricule("2201").build();
 
         BeneficiaireDotationDto tchinda =
                 new BeneficiaireDotationDto(503L, "6633", "TCHINDA Paul", "JURISTE");
 
-
-        when(processusMensuelRepository.existsByMoisPaiementAndAnneePaiement(9, 2026)).thenReturn(false);
+        when(processusMensuelRepository.existsByMoisPaiementAndAnneePaiementAndRattrapageFalse(mois, annee)).thenReturn(false);
         when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
         when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> {
             ProcessusMensuel processus = invocation.getArgument(0);
@@ -342,6 +458,230 @@ class ProcessusMensuelServiceTest {
         assertThat(ligneSauvegardee.getInclusDansEtat()).isFalse();
         assertThat(ligneSauvegardee.getMontantApplique()).isZero();
         assertThat(ligneSauvegardee.getFonctionRetenue()).isEqualTo("JURISTE");
+    }
+
+    // ------------------------------------------------------------------
+    // Sprint MM.11 : rattrapage d'un mois passe (RG-12 evolue)
+    // ------------------------------------------------------------------
+
+    // Decision A2 (2026-08-03) et decision utilisateur du 2026-08-09 : au
+    // rattrapage, tout beneficiaire actif est affiche. NKOLO n'a aucune ligne
+    // dans le processus original (nouvel enrole apres coup, cf. cas discute
+    // avec l'utilisateur) -> non paye -> inclus. ESSAMA a une ligne a
+    // inclusDansEtat=true dans l'original -> deja paye -> exclu avec motif
+    // dedie, meme si sa fonction reste eligible aujourd'hui.
+    @Test
+    void declencher_rattrapage_preCocheNonPayesEtExclutDejaPayes() {
+        YearMonth periode = YearMonth.now().minusMonths(2);
+        int mois = periode.getMonthValue();
+        int annee = periode.getYear();
+
+        DeclencherProcessusRequestDto requete = new DeclencherProcessusRequestDto();
+        requete.setMoisPaiement(mois);
+        requete.setAnneePaiement(annee);
+        requete.setRattrapage(true);
+
+        Utilisateur arhConnecte = Utilisateur.builder().id(10L).matricule("2201").build();
+
+        ProcessusMensuel processusOriginal = ProcessusMensuel.builder()
+                .id(800L).moisPaiement(mois).anneePaiement(annee).statut(StatutEnum.CLOTURE).rattrapage(false).build();
+
+        BeneficiaireDotationDto nkolo =
+                new BeneficiaireDotationDto(501L, "3164", "NKOLO Emmanuel", "DA");
+        BeneficiaireDotationDto essama =
+                new BeneficiaireDotationDto(502L, "5522", "ESSAMA Solange", "CHEF_DEPARTEMENT");
+
+        LigneEtatMensuel ligneEssamaPayee = LigneEtatMensuel.builder()
+                .idProcessus(800L).idBeneficiaire(502L).inclusDansEtat(true).montantApplique(40000)
+                .fonctionRetenue("CHEF_DEPARTEMENT").build();
+
+        when(processusMensuelRepository.findByMoisPaiementAndAnneePaiementAndRattrapageFalse(mois, annee))
+                .thenReturn(Optional.of(processusOriginal));
+        when(ligneEtatMensuelRepository.findByIdProcessusAndInclusDansEtatTrue(800L))
+                .thenReturn(List.of(ligneEssamaPayee));
+        when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
+        when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> {
+            ProcessusMensuel processus = invocation.getArgument(0);
+            processus.setId(810L);
+            return processus;
+        });
+        when(beneficiaireApi.listerActifsPourDotation()).thenReturn(List.of(nkolo, essama));
+        when(grilleTarifaireApi.resoudrePourFonction("DA")).thenReturn(ResolutionGrilleDto.resolue(50000));
+        when(grilleTarifaireApi.resoudrePourFonction("CHEF_DEPARTEMENT")).thenReturn(ResolutionGrilleDto.resolue(40000));
+        when(ligneEtatMensuelRepository.save(any(LigneEtatMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ProcessusMensuelResponseDto reponse = processusMensuelService.declencher(requete);
+
+        assertThat(reponse.getNombreBeneficiaires()).isEqualTo(1);
+        assertThat(reponse.getBeneficiairesExclus()).hasSize(1);
+        assertThat(reponse.getBeneficiairesExclus().get(0).getMatricule()).isEqualTo("5522");
+        assertThat(reponse.getBeneficiairesExclus().get(0).getMotif()).isEqualTo("Déjà payé pour cette période");
+
+        ArgumentCaptor<LigneEtatMensuel> ligneCaptor = ArgumentCaptor.forClass(LigneEtatMensuel.class);
+        verify(ligneEtatMensuelRepository, org.mockito.Mockito.times(2)).save(ligneCaptor.capture());
+        List<LigneEtatMensuel> lignes = ligneCaptor.getAllValues();
+        LigneEtatMensuel ligneNkolo = lignes.stream().filter(l -> l.getIdBeneficiaire().equals(501L)).findFirst().orElseThrow();
+        LigneEtatMensuel ligneEssama = lignes.stream().filter(l -> l.getIdBeneficiaire().equals(502L)).findFirst().orElseThrow();
+        assertThat(ligneNkolo.getInclusDansEtat()).isTrue();
+        assertThat(ligneEssama.getInclusDansEtat()).isFalse();
+
+        ArgumentCaptor<ProcessusMensuel> processusCaptor = ArgumentCaptor.forClass(ProcessusMensuel.class);
+        verify(processusMensuelRepository).save(processusCaptor.capture());
+        assertThat(processusCaptor.getValue().getRattrapage()).isTrue();
+        assertThat(processusCaptor.getValue().getIdProcessusOriginal()).isEqualTo(800L);
+    }
+
+    // L'integrite du processus original ne doit jamais etre alteree : ce test
+    // verifie qu'aucune ecriture n'est jamais adressee a son id (800L), ni sur
+    // ProcessusMensuel, ni sur EtapeWorkflow, ni sur PieceJointe -- seul le
+    // nouveau processus de rattrapage (810L) est modifie.
+    @Test
+    void declencher_rattrapage_processusOriginalJamaisAltere() {
+        YearMonth periode = YearMonth.now().minusMonths(2);
+        int mois = periode.getMonthValue();
+        int annee = periode.getYear();
+
+        DeclencherProcessusRequestDto requete = new DeclencherProcessusRequestDto();
+        requete.setMoisPaiement(mois);
+        requete.setAnneePaiement(annee);
+        requete.setRattrapage(true);
+
+        Utilisateur arhConnecte = Utilisateur.builder().id(10L).matricule("2201").build();
+
+        ProcessusMensuel processusOriginal = ProcessusMensuel.builder()
+                .id(800L).moisPaiement(mois).anneePaiement(annee).statut(StatutEnum.CLOTURE).rattrapage(false).build();
+
+        BeneficiaireDotationDto nkolo =
+                new BeneficiaireDotationDto(501L, "3164", "NKOLO Emmanuel", "DA");
+
+        when(processusMensuelRepository.findByMoisPaiementAndAnneePaiementAndRattrapageFalse(mois, annee))
+                .thenReturn(Optional.of(processusOriginal));
+        when(ligneEtatMensuelRepository.findByIdProcessusAndInclusDansEtatTrue(800L)).thenReturn(List.of());
+        when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
+        when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> {
+            ProcessusMensuel processus = invocation.getArgument(0);
+            processus.setId(810L);
+            return processus;
+        });
+        when(beneficiaireApi.listerActifsPourDotation()).thenReturn(List.of(nkolo));
+        when(grilleTarifaireApi.resoudrePourFonction("DA")).thenReturn(ResolutionGrilleDto.resolue(50000));
+        when(ligneEtatMensuelRepository.save(any(LigneEtatMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        processusMensuelService.declencher(requete);
+
+        verify(processusMensuelRepository, org.mockito.Mockito.times(1)).save(any());
+        verify(etapeWorkflowRepository, never()).save(any());
+        verify(pieceJointeRepository, never()).save(any());
+        assertThat(processusOriginal.getStatut()).isEqualTo(StatutEnum.CLOTURE);
+    }
+
+    @Test
+    void declencher_rattrapage_sansProcessusNormalCloture_leve400() {
+        YearMonth periode = YearMonth.now().minusMonths(2);
+        int mois = periode.getMonthValue();
+        int annee = periode.getYear();
+
+        DeclencherProcessusRequestDto requete = new DeclencherProcessusRequestDto();
+        requete.setMoisPaiement(mois);
+        requete.setAnneePaiement(annee);
+        requete.setRattrapage(true);
+
+        when(processusMensuelRepository.findByMoisPaiementAndAnneePaiementAndRattrapageFalse(mois, annee))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> processusMensuelService.declencher(requete))
+                .isInstanceOf(ProcessusOriginalIntrouvableException.class);
+
+        verify(processusMensuelRepository, never()).save(any());
+    }
+
+    // Un processus normal existe mais n'est pas encore CLOTURE (cycle ARH/CRH/DRH
+    // en cours) : le rattrapage doit etre refuse, il n'y a rien a rattraper --
+    // le circuit normal doit d'abord aller a son terme.
+    @Test
+    void declencher_rattrapage_processusNormalNonCloture_leve400() {
+        YearMonth periode = YearMonth.now().minusMonths(2);
+        int mois = periode.getMonthValue();
+        int annee = periode.getYear();
+
+        DeclencherProcessusRequestDto requete = new DeclencherProcessusRequestDto();
+        requete.setMoisPaiement(mois);
+        requete.setAnneePaiement(annee);
+        requete.setRattrapage(true);
+
+        ProcessusMensuel processusEnCours = ProcessusMensuel.builder()
+                .id(801L).moisPaiement(mois).anneePaiement(annee).statut(StatutEnum.EN_ATTENTE_CRH).rattrapage(false).build();
+
+        when(processusMensuelRepository.findByMoisPaiementAndAnneePaiementAndRattrapageFalse(mois, annee))
+                .thenReturn(Optional.of(processusEnCours));
+
+        assertThatThrownBy(() -> processusMensuelService.declencher(requete))
+                .isInstanceOf(ProcessusOriginalIntrouvableException.class);
+
+        verify(processusMensuelRepository, never()).save(any());
+    }
+
+    // Non-regression RG-12 : le controle d'unicite normal n'est jamais
+    // contourne par accident pour un declenchement rattrapage=false, y
+    // compris quand un rattrapage existe deja pour la meme periode (le
+    // repository, filtre AndRattrapageFalse, ne le voit pas).
+    @Test
+    void declencher_normalApresRattrapageExistant_leve409() {
+        YearMonth periode = YearMonth.now().minusMonths(2);
+        int mois = periode.getMonthValue();
+        int annee = periode.getYear();
+
+        DeclencherProcessusRequestDto requete = new DeclencherProcessusRequestDto();
+        requete.setMoisPaiement(mois);
+        requete.setAnneePaiement(annee);
+        requete.setRattrapage(false);
+
+        when(processusMensuelRepository.existsByMoisPaiementAndAnneePaiementAndRattrapageFalse(mois, annee))
+                .thenReturn(true);
+
+        assertThatThrownBy(() -> processusMensuelService.declencher(requete))
+                .isInstanceOf(ProcessusMensuelExisteDejaException.class);
+
+        verify(processusMensuelRepository, never()).save(any());
+    }
+
+    // RG-09 : le rattrapage doit etre trace distinctement d'un declenchement
+    // normal dans audit_log, sans avoir a inspecter le detail_json.
+    @Test
+    void declencher_rattrapage_traceActionAuditDistincte() {
+        YearMonth periode = YearMonth.now().minusMonths(2);
+        int mois = periode.getMonthValue();
+        int annee = periode.getYear();
+
+        DeclencherProcessusRequestDto requete = new DeclencherProcessusRequestDto();
+        requete.setMoisPaiement(mois);
+        requete.setAnneePaiement(annee);
+        requete.setRattrapage(true);
+
+        Utilisateur arhConnecte = Utilisateur.builder().id(10L).matricule("2201").build();
+
+        ProcessusMensuel processusOriginal = ProcessusMensuel.builder()
+                .id(800L).moisPaiement(mois).anneePaiement(annee).statut(StatutEnum.CLOTURE).rattrapage(false).build();
+
+        when(processusMensuelRepository.findByMoisPaiementAndAnneePaiementAndRattrapageFalse(mois, annee))
+                .thenReturn(Optional.of(processusOriginal));
+        when(ligneEtatMensuelRepository.findByIdProcessusAndInclusDansEtatTrue(800L)).thenReturn(List.of());
+        when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
+        when(processusMensuelRepository.save(any(ProcessusMensuel.class))).thenAnswer(invocation -> {
+            ProcessusMensuel processus = invocation.getArgument(0);
+            processus.setId(810L);
+            return processus;
+        });
+        when(beneficiaireApi.listerActifsPourDotation()).thenReturn(List.of());
+
+        processusMensuelService.declencher(requete);
+
+        ArgumentCaptor<EvenementAudit> evenementCaptor = ArgumentCaptor.forClass(EvenementAudit.class);
+        verify(eventPublisher).publishEvent(evenementCaptor.capture());
+        EvenementAudit evenement = evenementCaptor.getValue();
+        assertThat(evenement.action()).isEqualTo("DECLENCHEMENT_PROCESSUS_RATTRAPAGE");
+        assertThat(evenement.apres()).containsEntry("rattrapage", true);
+        assertThat(evenement.apres()).containsEntry("idProcessusOriginal", 800L);
     }
 
     @Test
@@ -444,6 +784,82 @@ class ProcessusMensuelServiceTest {
         assertThat(evenement2002.action()).isEqualTo("AJUSTEMENT_LIGNE_ETAT_MENSUEL");
         assertThat(evenement2002.entiteCible()).isEqualTo("ligne_etat_mensuel");
         assertThat(evenement2002.idEntite()).isEqualTo(2002L);
+    }
+
+    // Garde-fou ajoute suite a un constat manuel : reintegrer un beneficiaire
+    // deja paye dans le processus normal original doit etre bloque, meme si
+    // sa fonction reste parfaitement eligible -- sinon double paiement.
+    @Test
+    void ajuster_reintegrerBeneficiaireDejaPayeRattrapage_appliqueFalseAvecMotifRejet() {
+        ProcessusMensuel processusRattrapage = ProcessusMensuel.builder()
+                .id(910L).statut(StatutEnum.EN_COURS_ARH).rattrapage(true).idProcessusOriginal(800L).build();
+        Utilisateur arhConnecte = Utilisateur.builder().id(10L).matricule("2201").build();
+
+        LigneEtatMensuel ligneRattrapage = LigneEtatMensuel.builder()
+                .id(3002L).idProcessus(910L).idBeneficiaire(502L).montantApplique(0)
+                .inclusDansEtat(false).fonctionRetenue("CHEF_DEPARTEMENT").build();
+        LigneEtatMensuel ligneOriginalePayee = LigneEtatMensuel.builder()
+                .id(2002L).idProcessus(800L).idBeneficiaire(502L).montantApplique(40000)
+                .inclusDansEtat(true).fonctionRetenue("CHEF_DEPARTEMENT").build();
+
+        AjustementLigneEtatDto ajustement = new AjustementLigneEtatDto();
+        ajustement.setIdBeneficiaire(502L);
+        ajustement.setInclusDansEtat(true);
+
+        PatchProcessusRequestDto requete = new PatchProcessusRequestDto();
+        requete.setAjustements(List.of(ajustement));
+
+        when(processusMensuelRepository.findById(910L)).thenReturn(Optional.of(processusRattrapage));
+        when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
+        when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(910L, 502L)).thenReturn(Optional.of(ligneRattrapage));
+        when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(800L, 502L)).thenReturn(Optional.of(ligneOriginalePayee));
+
+        PatchProcessusResponseDto reponse = processusMensuelService.ajuster(910L, requete);
+
+        ResultatAjustementDto resultat = reponse.getResultats().get(0);
+        assertThat(resultat.getApplique()).isFalse();
+        assertThat(resultat.getMotifRejet()).isEqualTo("Déjà payé pour cette période");
+
+        verify(grilleTarifaireApi, never()).resoudrePourFonction(any());
+        verify(ligneEtatMensuelRepository, never()).save(any());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+    // Le garde-fou ne doit bloquer que les beneficiaires reellement deja
+    // payes : un beneficiaire exclu du rattrapage pour une autre raison
+    // (jamais paye dans l'original) doit pouvoir etre reintegre normalement.
+    @Test
+    void ajuster_reintegrerBeneficiaireNonPayeDansRattrapage_appliqueLaReintegration() {
+        ProcessusMensuel processusRattrapage = ProcessusMensuel.builder()
+                .id(910L).statut(StatutEnum.EN_COURS_ARH).rattrapage(true).idProcessusOriginal(800L).build();
+        Utilisateur arhConnecte = Utilisateur.builder().id(10L).matricule("2201").build();
+
+        LigneEtatMensuel ligneRattrapage = LigneEtatMensuel.builder()
+                .id(3003L).idProcessus(910L).idBeneficiaire(503L).montantApplique(0)
+                .inclusDansEtat(false).fonctionRetenue("JURISTE").build();
+
+        AjustementLigneEtatDto ajustement = new AjustementLigneEtatDto();
+        ajustement.setIdBeneficiaire(503L);
+        ajustement.setInclusDansEtat(true);
+
+        PatchProcessusRequestDto requete = new PatchProcessusRequestDto();
+        requete.setAjustements(List.of(ajustement));
+
+        when(processusMensuelRepository.findById(910L)).thenReturn(Optional.of(processusRattrapage));
+        when(authenticatedUserService.utilisateurCourant()).thenReturn(arhConnecte);
+        when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(910L, 503L)).thenReturn(Optional.of(ligneRattrapage));
+        // Aucune ligne dans l'original (503 n'existait pas encore, ou n'a jamais ete inclus) :
+        // findByIdProcessusAndIdBeneficiaire(800L, 503L) retourne Optional.empty() par defaut (mock non stubbe).
+        when(grilleTarifaireApi.resoudrePourFonction("JURISTE")).thenReturn(ResolutionGrilleDto.resolue(35000));
+        when(beneficiaireApi.gradeDe(503L)).thenReturn(Optional.empty());
+        when(eligibiliteService.verifierEligibilite("JURISTE", null)).thenReturn(true);
+        when(ligneEtatMensuelRepository.save(any(LigneEtatMensuel.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PatchProcessusResponseDto reponse = processusMensuelService.ajuster(910L, requete);
+
+        ResultatAjustementDto resultat = reponse.getResultats().get(0);
+        assertThat(resultat.getApplique()).isTrue();
+        assertThat(resultat.getMotifRejet()).isNull();
     }
 
     @Test

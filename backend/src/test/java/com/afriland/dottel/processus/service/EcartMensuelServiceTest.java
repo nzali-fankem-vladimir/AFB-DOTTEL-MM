@@ -36,7 +36,7 @@ class EcartMensuelServiceTest {
         LigneEtatMensuel ligneCourante = LigneEtatMensuel.builder()
                 .idBeneficiaire(10L).fonctionRetenue("GFC").montantApplique(40000).build();
 
-        when(processusMensuelRepository.findByMoisPaiementAndAnneePaiement(2, 2026))
+        when(processusMensuelRepository.findByMoisPaiementAndAnneePaiementAndRattrapageFalse(2, 2026))
                 .thenReturn(Optional.empty());
 
         Integer ecart = ecartMensuelService.calculerEcart(processus, ligneCourante);
@@ -54,7 +54,7 @@ class EcartMensuelServiceTest {
         LigneEtatMensuel lignePrecedente = LigneEtatMensuel.builder()
                 .idBeneficiaire(10L).fonctionRetenue("GFC").montantApplique(40000).build();
 
-        when(processusMensuelRepository.findByMoisPaiementAndAnneePaiement(2, 2026))
+        when(processusMensuelRepository.findByMoisPaiementAndAnneePaiementAndRattrapageFalse(2, 2026))
                 .thenReturn(Optional.of(processusPrecedent));
         when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(1L, 10L))
                 .thenReturn(Optional.of(lignePrecedente));
@@ -75,7 +75,7 @@ class EcartMensuelServiceTest {
         LigneEtatMensuel lignePrecedente = LigneEtatMensuel.builder()
                 .idBeneficiaire(10L).fonctionRetenue("GFC").montantApplique(40000).build();
 
-        when(processusMensuelRepository.findByMoisPaiementAndAnneePaiement(12, 2025))
+        when(processusMensuelRepository.findByMoisPaiementAndAnneePaiementAndRattrapageFalse(12, 2025))
                 .thenReturn(Optional.of(processusPrecedent));
         when(ligneEtatMensuelRepository.findByIdProcessusAndIdBeneficiaire(1L, 10L))
                 .thenReturn(Optional.of(lignePrecedente));

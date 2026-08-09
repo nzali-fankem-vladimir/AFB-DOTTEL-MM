@@ -12,19 +12,6 @@ import { formatDateHeure } from '../../utils/formatters';
 
 const TAILLE_PAGE = 20;
 
-// Codes fixes releves dans les appels AuditService.enregistrer() a travers
-// les services metier -- pas d'endpoint de reference dedie pour ces valeurs.
-const ACTIONS = [
-  'AJUSTEMENT_LIGNE_ETAT_MENSUEL', 'CHANGEMENT_ROLE_UTILISATEUR', 'CHANGEMENT_STATUT_UTILISATEUR',
-  'CLOTURE_PROCESSUS', 'CONNEXION', 'CONNEXION_ECHOUEE', 'CREATION_FONCTION_ELIGIBLE',
-  'CREATION_GRILLE_TARIFAIRE', 'CREATION_UTILISATEUR', 'DECISION_GRILLE_TARIFAIRE',
-  'DECLENCHEMENT_PROCESSUS', 'DESACTIVATION_BENEFICIAIRE', 'DESACTIVATION_FONCTION_ELIGIBLE',
-  'DESACTIVATION_GRILLE_TARIFAIRE', 'ENROLEMENT', 'IMPORT_BENEFICIAIRE',
-  'MODIFICATION_BENEFICIAIRE', 'MODIFICATION_FONCTION_ELIGIBLE', 'MODIFICATION_GRILLE_TARIFAIRE',
-  'REACTIVATION_BENEFICIAIRE', 'REACTIVATION_FONCTION_ELIGIBLE', 'RETOUR_PROCESSUS',
-  'VALIDATION_PROCESSUS_ARH', 'VALIDATION_PROCESSUS_CRH', 'VALIDATION_PROCESSUS_DRH',
-];
-
 const ENTITES_CIBLES = ['beneficiaires', 'fonction_eligible', 'grille_tarifaire', 'processus_mensuel', 'utilisateurs'];
 
 function DetailAuditModal({ action, detailJson, onFermer }) {
@@ -93,6 +80,7 @@ export default function AuditPage() {
   const [page, setPage] = useState(0);
 
   const [utilisateurs, setUtilisateurs] = useState([]);
+  const [actions, setActions] = useState([]);
   const [lignes, setLignes] = useState([]);
   const [total, setTotal] = useState(0);
   const [chargement, setChargement] = useState(true);
@@ -100,6 +88,10 @@ export default function AuditPage() {
 
   useEffect(() => {
     apiClient.get('/admin/utilisateurs').then(({ data }) => setUtilisateurs(data.contenu));
+    // Sprint MM.11 : liste derivee des actions reellement presentes en base
+    // (GET /reporting/audit/actions) plutot qu'une liste figee cote frontend,
+    // qui se desynchronisait a chaque nouvelle action ajoutee par un service.
+    apiClient.get('/reporting/audit/actions').then(({ data }) => setActions(data));
   }, []);
 
   const nomsUtilisateurs = useMemo(
@@ -185,7 +177,7 @@ export default function AuditPage() {
             <Label htmlFor="filtre-action">Action</Label>
             <Select id="filtre-action" value={action} onChange={(e) => setAction(e.target.value)}>
               <option value="">Toutes</option>
-              {ACTIONS.map((a) => (
+              {actions.map((a) => (
                 <option key={a} value={a}>
                   {a}
                 </option>
