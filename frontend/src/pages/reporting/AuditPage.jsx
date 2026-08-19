@@ -131,7 +131,12 @@ export default function AuditPage() {
   }, [idUtilisateur, action, entiteCible, dateDebut, dateFin, page]);
 
   const colonnes = [
-    { cle: 'dateAction', entete: 'Date', rendu: (ligne) => formatDateHeure(ligne.dateAction) },
+    {
+      cle: 'dateAction',
+      entete: 'Date',
+      className: 'tabular-nums',
+      rendu: (ligne) => formatDateHeure(ligne.dateAction),
+    },
     {
       cle: 'idUtilisateur',
       entete: 'Utilisateur',

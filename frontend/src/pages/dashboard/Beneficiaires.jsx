@@ -29,6 +29,7 @@ function colonnes(libellesFonctions) {
     {
       cle: 'montantCourant',
       entete: 'Montant courant',
+      className: 'tabular-nums',
       rendu: (beneficiaire) => formatMontantFCFA(beneficiaire.montantCourant),
     },
     { cle: 'uniteRattachement', entete: 'Unité' },

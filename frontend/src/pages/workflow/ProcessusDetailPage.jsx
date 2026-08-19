@@ -56,6 +56,7 @@ const colonnesLignes = [
   {
     cle: 'montantApplique',
     entete: 'Montant appliqué',
+    className: 'tabular-nums',
     rendu: (ligne) => formatMontantFCFA(ligne.montantApplique),
   },
   {

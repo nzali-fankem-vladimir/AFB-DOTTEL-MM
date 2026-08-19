@@ -1,6 +1,62 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   POLICE -- Source Sans 3 (Adobe), SIL Open Font License 1.1.
+   Voir ./assets/fonts/LICENSE-source-sans-3.txt
+
+   EMBARQUEE dans le bundle, jamais chargee depuis un CDN : un poste bancaire
+   interne peut ne pas avoir d'acces sortant, et une police absente ferait
+   retomber l'interface sur la pile systeme sans prevenir.
+
+   Quatre graisses seulement, celles reellement employees dans le code :
+     400 corps de texte   500 font-medium (x34)
+     600 font-semibold (x12)   700 font-bold (x3) et <strong> (x7)
+
+   Ses chiffres sont a chasse fixe NATIVEMENT : les colonnes de montants FCFA
+   s'alignent verticalement sans dependre d'une classe utilitaire.
+   --------------------------------------------------------------------------- */
+@font-face {
+  font-family: "Source Sans 3";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./assets/fonts/source-sans-3-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Source Sans 3";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./assets/fonts/source-sans-3-latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Source Sans 3";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("./assets/fonts/source-sans-3-latin-600-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Source Sans 3";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./assets/fonts/source-sans-3-latin-700-normal.woff2") format("woff2");
+}
+
 @theme {
+  /* TYPOGRAPHIE -- pile de repli conservee : si un woff2 manque, l'interface
+     reste lisible au lieu de tomber sur une serif. */
+  --font-sans: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+
+  /* Sur-titres en capitales espacees (PageHeader, Sidebar). La classe
+     text-xxs etait deja employee dans le code mais n'etait declaree nulle
+     part : elle etait donc SANS EFFET. Seul token non-couleur que l'analyse
+     d'occurrences justifie -- les rayons, ombres et espacements suivent
+     l'echelle Tailwind sans dispersion. */
+  --text-xxs: 0.625rem;
+  --text-xxs--line-height: 0.875rem;
+
   /* PRIMARY -- Rouge institutionnel AFB E30613 (charte DOTTEL, section 15 CLAUDE.md) */
   --color-primary-50: #fef1f1;
   --color-primary-100: #fddada;

@@ -4,11 +4,15 @@
 # couleur trouvee dans le code est signalee comme hors charte.
 #
 # Deliberement ABSENTS de ce frontmatter :
-#   - typography : aucune police n'est encore choisie (defaut F3 du plan).
-#     Le choix appartient au sprint D.1. Declarer une police ici la figerait
-#     avant la decision. Les controles de police restent donc eteints.
 #   - rounded : la charte AFB n'impose aucune echelle de rayons. A declarer
 #     en D.2, une fois l'echelle des composants arretee.
+#
+# typography : la FAMILLE est arretee en D.1 (Source Sans 3, cf. ci-dessous).
+#     Les TAILLES ne sont volontairement pas declarees : la hierarchie
+#     typographique appartient a D.2/D.3, la figer ici serait premature.
+typography:
+  body:
+    fontFamily: "Source Sans 3, ui-sans-serif, system-ui, sans-serif"
 colors:
   primary-50: "#fef1f1"
   primary-100: "#fddada"
@@ -101,10 +105,17 @@ différenciante » est hors périmètre par construction.
 La charte contraint l'**identité**, pas le **soin**. Tout ce qui suit
 est ouvert et constitue le vrai périmètre du chantier D.1 à D.4 :
 
-- **Choix de la police.** La charte dit « sans-serif sobre » et ne nomme
-  aucune police ; aucune n'est déclarée aujourd'hui. Contraintes :
-  sans-serif sobre, lisible en français avec accents et capitales
-  accentuées, licence compatible avec un usage bancaire interne.
+- **Choix de la police — TRANCHÉ en D.1 : Source Sans 3** (Adobe,
+  SIL OFL 1.1), embarquée en woff2 dans `frontend/src/assets/fonts/`,
+  déclarée via `--font-sans` dans `@theme`. Retenue sur trois mesures
+  faites sur les fichiers réels : chiffres à chasse fixe nativement
+  (alignement des colonnes de montants FCFA garanti sans classe CSS),
+  18,3 % d'em de dégagement au-dessus des accents capitales (les
+  en-têtes de `DataTable` sont en capitales accentuées), et couverture
+  complète des diacritiques français. Quatre graisses seulement
+  (400/500/600/700), celles réellement employées. Ce choix est
+  désormais **acquis** : il ne se rediscute pas en D.2-D.4. Ce qui
+  reste ouvert, ce sont les tailles et les graisses par rôle.
 - **Rythme vertical, espacements, densité.**
 - **Hiérarchie typographique** : tailles, graisses, contrastes de
   niveau à l'intérieur d'une page.

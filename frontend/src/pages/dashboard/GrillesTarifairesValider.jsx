@@ -22,11 +22,13 @@ const colonnes = [
   {
     cle: 'montantFcfa',
     entete: 'Montant proposé',
+    className: 'tabular-nums',
     rendu: (grille) => formatMontantFCFA(grille.montantFcfa),
   },
   {
     cle: 'dateDebut',
     entete: 'Date début',
+    className: 'tabular-nums',
     rendu: (grille) => formatDate(grille.dateDebut),
   },
 ];

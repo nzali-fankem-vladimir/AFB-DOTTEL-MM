@@ -105,7 +105,11 @@ export function Sidebar() {
       )}
     >
       <div className={cn('flex items-center py-6', reduite ? 'justify-center px-2' : 'gap-2 px-5')}>
-        <Logo size="sm" className="brightness-0 invert" />
+        {reduite ? (
+          <Logo variant="embleme" className="h-8 w-auto brightness-0 invert" />
+        ) : (
+          <Logo size="sm" className="brightness-0 invert" />
+        )}
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3">

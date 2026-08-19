@@ -15,11 +15,13 @@ const colonnes = [
   {
     cle: 'montantFcfa',
     entete: 'Montant',
+    className: 'tabular-nums',
     rendu: (grille) => formatMontantFCFA(grille.montantFcfa),
   },
   {
     cle: 'periode',
     entete: 'Période',
+    className: 'tabular-nums',
     rendu: (grille) =>
       `${formatDate(grille.dateDebut)} — ${grille.dateFin ? formatDate(grille.dateFin) : 'en cours'}`,
   },

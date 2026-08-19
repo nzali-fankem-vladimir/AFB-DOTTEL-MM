@@ -30,6 +30,7 @@ const colonnes = [
   {
     cle: 'dateCreation',
     entete: 'Date de création',
+    className: 'tabular-nums',
     rendu: (processus) => formatDateHeure(processus.dateCreation),
   },
 ];

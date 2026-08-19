@@ -27,11 +27,13 @@ const colonnes = [
   {
     cle: 'nombreBeneficiaires',
     entete: 'Bénéficiaires',
+    className: 'tabular-nums',
     rendu: (ligne) => ligne.nombreBeneficiaires,
   },
   {
     cle: 'montantTotal',
     entete: 'Montant total',
+    className: 'tabular-nums',
     rendu: (ligne) => formatMontantFCFA(ligne.montantTotal),
   },
 ];
