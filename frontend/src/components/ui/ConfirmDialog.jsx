@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from './Card';
 import { Button } from './Button';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 // `contenu` (Sprint MM.12) : alternative facultative a `message` pour les
 // confirmations qui ne tiennent pas dans une phrase -- typiquement le
@@ -17,6 +18,8 @@ export function ConfirmDialog({
   onAnnuler,
 }) {
   const [enCours, setEnCours] = useState(false);
+  const titreId = useId();
+  const containerRef = useFocusTrap(enCours ? undefined : onAnnuler);
 
   const confirmer = async () => {
     setEnCours(true);
@@ -28,10 +31,20 @@ export function ConfirmDialog({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div
+      ref={containerRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titreId}
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={(event) => {
+        if (event.target === event.currentTarget && !enCours) onAnnuler?.();
+      }}
+    >
       <Card className={`w-full ${largeur}`}>
         <CardHeader>
-          <CardTitle>{titre}</CardTitle>
+          <CardTitle id={titreId}>{titre}</CardTitle>
         </CardHeader>
         <CardContent>
           {contenu ?? <p className="text-sm text-neutral-700">{message}</p>}

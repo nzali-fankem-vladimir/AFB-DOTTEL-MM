@@ -10,7 +10,7 @@ export function LienRetour({ to, label }) {
     <div className="px-8 pt-4">
       <Link
         to={to}
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-neutral-500 transition-colors hover:text-neutral-900"
+        className="-mx-1 -my-1 inline-flex items-center gap-1.5 rounded px-1 py-1 text-sm font-medium text-neutral-500 transition-colors hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2"
       >
         <ArrowLeft className="h-4 w-4" />
         {label}

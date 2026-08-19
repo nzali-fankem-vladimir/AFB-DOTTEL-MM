@@ -1,16 +1,31 @@
+import { useId } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from './Card';
 import { Button } from './Button';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 // Modale de lecture seule partagee entre le motif de rejet d'une grille
 // tarifaire (RG-10) et le motif de retour d'un processus mensuel (RG-07) :
 // meme besoin d'afficher un texte libre fige, avec origine optionnelle
 // (CRH/DRH) pour le cas processus.
 export function VoirMotifModal({ titre, origine, motif, onFermer }) {
+  const titreId = useId();
+  const containerRef = useFocusTrap(onFermer);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div
+      ref={containerRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titreId}
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onFermer?.();
+      }}
+    >
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>{titre}</CardTitle>
+          <CardTitle id={titreId}>{titre}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {origine && (

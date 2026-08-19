@@ -91,6 +91,15 @@ export function Sidebar() {
   }, []);
 
   useEffect(() => {
+    if (!isMenuOpen) return undefined;
+    const handleEchap = (event) => {
+      if (event.key === 'Escape') setIsMenuOpen(false);
+    };
+    document.addEventListener('keydown', handleEchap);
+    return () => document.removeEventListener('keydown', handleEchap);
+  }, [isMenuOpen]);
+
+  useEffect(() => {
     localStorage.setItem(CLE_SIDEBAR_REDUITE, String(reduite));
   }, [reduite]);
 
@@ -123,7 +132,7 @@ export function Sidebar() {
             to={link.href}
             title={reduite ? link.label : undefined}
             className={cn(
-              'flex items-center gap-3 rounded px-3 py-2.5 text-sm font-medium transition-colors',
+              'flex items-center gap-3 rounded px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950',
               reduite && 'justify-center px-0',
               link.href === hrefActif
                 ? 'bg-primary-500 text-white'
@@ -142,7 +151,7 @@ export function Sidebar() {
           onClick={() => setReduite((valeur) => !valeur)}
           title={reduite ? 'Agrandir la barre latérale' : 'Réduire la barre latérale'}
           className={cn(
-            'mb-2 flex w-full items-center gap-2 rounded px-2 py-2 text-xs font-medium text-neutral-400 hover:bg-neutral-900 hover:text-white',
+            'mb-2 flex w-full items-center gap-2 rounded px-2 py-2 text-xs font-medium text-neutral-400 hover:bg-neutral-900 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950',
             reduite && 'justify-center'
           )}
         >
@@ -156,7 +165,7 @@ export function Sidebar() {
             onClick={() => setIsMenuOpen((open) => !open)}
             title={reduite ? (user?.nom ?? 'Utilisateur') : undefined}
             className={cn(
-              'flex w-full items-center gap-3 rounded px-2 py-2 text-left hover:bg-neutral-900',
+              'flex w-full items-center gap-3 rounded px-2 py-2 text-left hover:bg-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950',
               reduite && 'justify-center'
             )}
           >
@@ -194,7 +203,7 @@ export function Sidebar() {
               <button
                 type="button"
                 onClick={logout}
-                className="flex w-full items-center gap-3 px-3 py-2.5 text-sm font-medium text-primary-300 hover:bg-neutral-800"
+                className="flex w-full items-center gap-3 px-3 py-2.5 text-sm font-medium text-primary-300 hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white"
               >
                 <LogOut className="h-4 w-4" />
                 Déconnexion

@@ -8,10 +8,7 @@ export function PageHeader({ surTitre, titre }) {
           </p>
           <h1 className="text-2xl font-bold text-neutral-900">{titre}</h1>
         </div>
-        <div
-          className="hidden h-10 w-1 rounded-full sm:block"
-          style={{ background: 'linear-gradient(180deg, #E30613, transparent)' }}
-        />
+        <div className="hidden h-10 w-1 rounded-full bg-linear-to-b from-primary-500 to-transparent sm:block" />
       </div>
     </section>
   );
