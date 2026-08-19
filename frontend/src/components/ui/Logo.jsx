@@ -2,6 +2,12 @@ import logoAfriland from '../../assets/logo afriland.png';
 import logoAfrilandEmbleme from '../../assets/logo-afriland-embleme.png';
 import { cn } from '../../utils/cn';
 
+// ATTENTION -- l'echelle n'est PAS croissante : `sm` (h-15) est plus grand que
+// `lg` (h-12). Ce n'est pas un oubli a corriger. `sm` n'a qu'un seul appelant,
+// le logotype complet de la sidebar (Sidebar.jsx), et la presence du logo AFB
+// en tete de navigation releve du FIGE de la charte (DESIGN.md). Ramener `sm`
+// sous `md`/`lg` par souci de coherence de nommage retrecirait le logo de
+// marque : signale au Sprint D.3, deliberement laisse en l'etat.
 const SIZES = {
   sm: 'h-15',
   md: 'h-9',

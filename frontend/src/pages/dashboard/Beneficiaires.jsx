@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Download } from 'lucide-react';
+import { AlertTriangle, Download } from 'lucide-react';
 import apiClient from '../../api/apiClient';
 import { useAuth } from '../../contexts/AuthContext';
 import { PageHeader } from '../../components/layout/PageHeader';
@@ -14,7 +14,8 @@ import { formatMontantFCFA } from '../../utils/formatters';
 import { ModifierBeneficiaireModal } from './ModifierBeneficiaireModal';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { Alert, AlertDescription } from '../../components/ui/Alert';
-import { definirParametre } from '../../utils/searchParams';
+import { MessageListeVide } from '../../components/ui/MessageListeVide';
+import { definirParametre, effacerParametres } from '../../utils/searchParams';
 
 const TAILLE_PAGE = 20;
 
@@ -68,6 +69,7 @@ export default function Beneficiaires() {
   const [donnees, setDonnees] = useState([]);
   const [total, setTotal] = useState(0);
   const [chargement, setChargement] = useState(true);
+  const [erreurChargement, setErreurChargement] = useState(false);
   const [rafraichissement, setRafraichissement] = useState(0);
   const [beneficiaireAModifier, setBeneficiaireAModifier] = useState(null);
   const [beneficiaireADesactiver, setBeneficiaireADesactiver] = useState(null);
@@ -120,6 +122,7 @@ export default function Beneficiaires() {
   useEffect(() => {
     let annule = false;
     setChargement(true);
+    setErreurChargement(false);
     apiClient
       .get('/beneficiaires', {
         params: {
@@ -135,6 +138,14 @@ export default function Beneficiaires() {
         if (annule) return;
         setDonnees(data.contenu);
         setTotal(data.total);
+      })
+      .catch(() => {
+        // Sans ce catch, un echec reseau retombait sur une liste vide, donc sur
+        // le meme message qu'une base reellement vide.
+        if (annule) return;
+        setDonnees([]);
+        setTotal(0);
+        setErreurChargement(true);
       })
       .finally(() => {
         if (!annule) setChargement(false);
@@ -203,6 +214,17 @@ export default function Beneficiaires() {
     [page, total, setSearchParams]
   );
 
+  const filtresActifs = Boolean(fonction || unite || recherche || actif);
+  // Les deux champs libres sont pilotes par un etat local (debounce 300 ms) :
+  // vider seulement l'URL laisserait le texte affiche dans les champs.
+  const effacerFiltres = () => {
+    setUniteSaisie('');
+    setRechercheSaisie('');
+    setSearchParams((precedent) =>
+      effacerParametres(precedent, 'fonction', 'recherche', 'unite', 'actif', 'page')
+    );
+  };
+
   return (
     <>
       <PageHeader surTitre="ARH" titre="Bénéficiaires" />
@@ -263,14 +285,24 @@ export default function Beneficiaires() {
             </div>
           </div>
 
-          <Button variant="outline" onClick={exporter} disabled={exportEnCours}>
-            <Download className="h-4 w-4" />
+          <Button variant="outline" onClick={exporter} isLoading={exportEnCours}>
+            {!exportEnCours && <Download className="h-4 w-4" />}
             {exportEnCours ? 'Export en cours…' : 'Exporter (Excel)'}
           </Button>
         </div>
 
+        {erreurChargement && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Impossible de charger les bénéficiaires. Vérifiez votre connexion, puis réessayez.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {erreurReactivation && (
           <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
             <AlertDescription>{erreurReactivation}</AlertDescription>
           </Alert>
         )}
@@ -281,6 +313,18 @@ export default function Beneficiaires() {
           cleLigne={(beneficiaire) => beneficiaire.id}
           chargement={chargement}
           pagination={pagination}
+          messageVide={
+            erreurChargement ? (
+              'Les bénéficiaires n’ont pas pu être chargés.'
+            ) : filtresActifs ? (
+              <MessageListeVide
+                message="Aucun bénéficiaire ne correspond à ces filtres."
+                onEffacerFiltres={effacerFiltres}
+              />
+            ) : (
+              'Aucun bénéficiaire n’est enrôlé pour le moment.'
+            )
+          }
           actions={!peutModifier ? undefined : (beneficiaire) => (
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => setBeneficiaireAModifier(beneficiaire)}>

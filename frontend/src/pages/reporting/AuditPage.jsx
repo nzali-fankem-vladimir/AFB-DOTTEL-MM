@@ -1,13 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Eye } from 'lucide-react';
+import { useEffect, useId, useMemo, useState } from 'react';
+import { AlertTriangle, Eye } from 'lucide-react';
 import apiClient from '../../api/apiClient';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { DataTable } from '../../components/ui/DataTable';
+import { Alert, AlertDescription } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Label } from '../../components/ui/Label';
+import { MessageListeVide } from '../../components/ui/MessageListeVide';
 import { Select } from '../../components/ui/Select';
 import { Input } from '../../components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../../components/ui/Card';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { formatDateHeure } from '../../utils/formatters';
 
 const TAILLE_PAGE = 20;
@@ -15,6 +18,9 @@ const TAILLE_PAGE = 20;
 const ENTITES_CIBLES = ['beneficiaires', 'fonction_eligible', 'grille_tarifaire', 'processus_mensuel', 'utilisateurs'];
 
 function DetailAuditModal({ action, detailJson, onFermer }) {
+  // Derniere modale du projet a ne pas avoir le piege de focus de D.2.
+  const titreId = useId();
+  const containerRef = useFocusTrap(onFermer);
   let delta = null;
   try {
     const parse = JSON.parse(detailJson ?? '');
@@ -28,35 +34,51 @@ function DetailAuditModal({ action, detailJson, onFermer }) {
   const cles = delta ? [...new Set([...Object.keys(delta.avant), ...Object.keys(delta.apres)])] : [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div
+      ref={containerRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titreId}
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onFermer?.();
+      }}
+    >
       <Card className="w-full max-w-lg">
         <CardHeader>
-          <CardTitle>Détail de l'action</CardTitle>
+          <CardTitle id={titreId}>Détail de l'action</CardTitle>
         </CardHeader>
         <CardContent>
           {delta ? (
+            /* En-tete aligne sur DataTable (neutral-700) : c'etait le seul
+               tableau du projet a utiliser neutral-500, sous le seuil AA. */
             <div className="overflow-hidden rounded-lg border border-neutral-200">
               <table className="w-full text-left text-sm">
-                <thead className="bg-neutral-100 text-xs uppercase text-neutral-500">
+                <thead className="bg-neutral-100 text-xs uppercase text-neutral-700">
                   <tr>
-                    <th className="px-4 py-2 font-medium">Champ</th>
-                    <th className="px-4 py-2 font-medium">Avant</th>
-                    <th className="px-4 py-2 font-medium">Après</th>
+                    <th scope="col" className="px-4 py-2 font-medium">Champ</th>
+                    <th scope="col" className="px-4 py-2 font-medium">Avant</th>
+                    <th scope="col" className="px-4 py-2 font-medium">Après</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-200">
                   {cles.map((cle) => (
                     <tr key={cle}>
                       <td className="px-4 py-2 font-medium text-neutral-700">{cle}</td>
-                      <td className="px-4 py-2 text-neutral-500">{String(delta.avant[cle] ?? '—')}</td>
-                      <td className="px-4 py-2 text-neutral-900">{String(delta.apres[cle] ?? '—')}</td>
+                      {/* L'ancienne valeur reste lisible (neutral-600, pas
+                          neutral-500) : c'est la moitie de l'information. */}
+                      <td className="px-4 py-2 text-neutral-600">{String(delta.avant[cle] ?? '—')}</td>
+                      <td className="px-4 py-2 font-medium text-neutral-900">
+                        {String(delta.apres[cle] ?? '—')}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           ) : (
-            <p className="text-sm italic text-neutral-500">
+            <p className="text-sm italic text-neutral-600">
               Aucun détail avant/après pour l'action {action}.
             </p>
           )}
@@ -84,6 +106,7 @@ export default function AuditPage() {
   const [lignes, setLignes] = useState([]);
   const [total, setTotal] = useState(0);
   const [chargement, setChargement] = useState(true);
+  const [erreurChargement, setErreurChargement] = useState(false);
   const [ligneDetail, setLigneDetail] = useState(null);
 
   useEffect(() => {
@@ -104,6 +127,7 @@ export default function AuditPage() {
   useEffect(() => {
     let annule = false;
     setChargement(true);
+    setErreurChargement(false);
     apiClient
       .get('/reporting/audit', {
         params: {
@@ -122,6 +146,12 @@ export default function AuditPage() {
           setTotal(data.total);
         }
       })
+      .catch(() => {
+        if (annule) return;
+        setLignes([]);
+        setTotal(0);
+        setErreurChargement(true);
+      })
       .finally(() => {
         if (!annule) setChargement(false);
       });
@@ -133,7 +163,10 @@ export default function AuditPage() {
   const colonnes = [
     {
       cle: 'dateAction',
-      entete: 'Date',
+      // Le tri est fixe cote backend (Sort.Direction.DESC sur dateAction) et
+      // n'est pas reglable ici : l'en-tete le dit plutot que de laisser
+      // l'utilisateur le deduire.
+      entete: 'Date (plus récent d’abord)',
       className: 'tabular-nums',
       rendu: (ligne) => formatDateHeure(ligne.dateAction),
     },
@@ -161,10 +194,33 @@ export default function AuditPage() {
     [page, total]
   );
 
+  // Filtres locaux (cet ecran n'a jamais fait partie de la persistance par
+  // query params de MM.9) : on remet simplement les cinq etats a vide.
+  const filtresActifs = Boolean(idUtilisateur || action || entiteCible || dateDebut || dateFin);
+  const effacerFiltres = () => {
+    setIdUtilisateur('');
+    setAction('');
+    setEntiteCible('');
+    setDateDebut('');
+    setDateFin('');
+  };
+
   return (
     <>
       <PageHeader surTitre="DRH" titre="Journal d'audit" />
       <div className="flex flex-col gap-6 p-8">
+        {erreurChargement && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Impossible de charger le journal d'audit. Vérifiez votre connexion, puis réessayez.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Sprint D.3 -- cinq filtres alignes d'un seul tenant se balayaient
+            mal. Ils sont maintenant lus en deux temps : QUI a fait QUOI, puis
+            QUAND. Aucun comportement de filtre n'est modifie. */}
         <div className="flex flex-wrap items-end gap-4">
           <div className="flex w-56 flex-col gap-1.5">
             <Label htmlFor="filtre-utilisateur">Utilisateur</Label>
@@ -202,6 +258,8 @@ export default function AuditPage() {
             </Select>
           </div>
 
+          <div className="mx-1 hidden h-10 w-px self-end bg-neutral-200 lg:block" aria-hidden="true" />
+
           <div className="flex w-56 flex-col gap-1.5">
             <Label htmlFor="filtre-date-debut">Période — début</Label>
             <Input
@@ -229,6 +287,18 @@ export default function AuditPage() {
           cleLigne={(ligne) => ligne.id}
           chargement={chargement}
           pagination={pagination}
+          messageVide={
+            erreurChargement ? (
+              'Le journal d’audit n’a pas pu être chargé.'
+            ) : filtresActifs ? (
+              <MessageListeVide
+                message="Aucune action ne correspond à ces filtres."
+                onEffacerFiltres={effacerFiltres}
+              />
+            ) : (
+              'Aucune action enregistrée dans le journal.'
+            )
+          }
         />
       </div>
 

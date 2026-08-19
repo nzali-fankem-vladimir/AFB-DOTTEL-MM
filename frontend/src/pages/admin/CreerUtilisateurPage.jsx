@@ -61,7 +61,11 @@ export default function CreerUtilisateurPage() {
               l'audit Sprint 6F.9. La garantie reste le Bean Validation
               backend (@NotBlank/@NotNull sur CreerUtilisateurRequestDto). */}
           <form onSubmit={creer}>
-            <CardContent className="flex flex-col gap-4">
+            {/* Sprint D.3 -- six champs d'affilee se lisaient comme une liste
+                indifferenciee. Deux groupes : qui est la personne, puis
+                comment elle se connecte. Le rythme vertical distingue
+                l'interieur d'un groupe (gap-4) de l'espace entre groupes. */}
+            <CardContent className="flex flex-col gap-6">
               {erreur && (
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
@@ -69,81 +73,108 @@ export default function CreerUtilisateurPage() {
                 </Alert>
               )}
 
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="creer-matricule">Matricule</Label>
-                <Input
-                  id="creer-matricule"
-                  value={matricule}
-                  onChange={(e) => setMatricule(e.target.value)}
-                  placeholder="Ex. AFB-2026-0148"
-                  disabled={enCours}
-                  required
-                />
-              </div>
+              <div className="flex flex-col gap-4">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-600">
+                  Identité
+                </h3>
 
-              <div className="flex gap-4">
-                <div className="flex flex-1 flex-col gap-1.5">
-                  <Label htmlFor="creer-nom">Nom</Label>
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="creer-matricule" obligatoire>
+                    Matricule
+                  </Label>
                   <Input
-                    id="creer-nom"
-                    value={nom}
-                    onChange={(e) => setNom(e.target.value)}
-                    placeholder="Ex. NKOLO"
+                    id="creer-matricule"
+                    value={matricule}
+                    onChange={(e) => setMatricule(e.target.value)}
+                    placeholder="Ex. AFB-2026-0148"
                     disabled={enCours}
                     required
                   />
                 </div>
-                <div className="flex flex-1 flex-col gap-1.5">
-                  <Label htmlFor="creer-prenom">Prénom</Label>
+
+                <div className="flex gap-4">
+                  <div className="flex flex-1 flex-col gap-1.5">
+                    <Label htmlFor="creer-nom" obligatoire>
+                      Nom
+                    </Label>
+                    <Input
+                      id="creer-nom"
+                      value={nom}
+                      onChange={(e) => setNom(e.target.value)}
+                      placeholder="Ex. NKOLO"
+                      disabled={enCours}
+                      required
+                    />
+                  </div>
+                  <div className="flex flex-1 flex-col gap-1.5">
+                    <Label htmlFor="creer-prenom" obligatoire>
+                      Prénom
+                    </Label>
+                    <Input
+                      id="creer-prenom"
+                      value={prenom}
+                      onChange={(e) => setPrenom(e.target.value)}
+                      placeholder="Ex. Solange"
+                      disabled={enCours}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="creer-email" obligatoire>
+                    Email
+                  </Label>
                   <Input
-                    id="creer-prenom"
-                    value={prenom}
-                    onChange={(e) => setPrenom(e.target.value)}
-                    placeholder="Ex. Solange"
+                    id="creer-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Ex. solange.nkolo@afrilandfirstbank.com"
                     disabled={enCours}
                     required
                   />
                 </div>
               </div>
 
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="creer-email">Email</Label>
-                <Input
-                  id="creer-email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Ex. solange.nkolo@afrilandfirstbank.com"
-                  disabled={enCours}
-                  required
-                />
-              </div>
+              <div className="flex flex-col gap-4 border-t border-neutral-200 pt-6">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-600">
+                  Accès
+                </h3>
 
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="creer-role">Rôle</Label>
-                <Select id="creer-role" value={role} onChange={(e) => setRole(e.target.value)} disabled={enCours}>
-                  {ROLES.map((r) => (
-                    <option key={r} value={r}>
-                      {r}
-                    </option>
-                  ))}
-                </Select>
-              </div>
+                <div className="flex flex-col gap-1.5">
+                  {/* Pas d'asterisque : le selecteur est pre-rempli et ne peut
+                      pas etre laisse vide. */}
+                  <Label htmlFor="creer-role">Rôle</Label>
+                  <Select id="creer-role" value={role} onChange={(e) => setRole(e.target.value)} disabled={enCours}>
+                    {ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
 
-              <div className="flex flex-col gap-1.5">
-                <Label htmlFor="creer-mot-de-passe">Mot de passe provisoire</Label>
-                <Input
-                  id="creer-mot-de-passe"
-                  type="password"
-                  value={motDePasse}
-                  onChange={(e) => setMotDePasse(e.target.value)}
-                  disabled={enCours}
-                  required
-                />
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="creer-mot-de-passe" obligatoire>
+                    Mot de passe provisoire
+                  </Label>
+                  <Input
+                    id="creer-mot-de-passe"
+                    type="password"
+                    value={motDePasse}
+                    onChange={(e) => setMotDePasse(e.target.value)}
+                    disabled={enCours}
+                    required
+                  />
+                </div>
               </div>
             </CardContent>
-            <CardFooter>
-              <Button type="submit" disabled={enCours}>
+            <CardFooter className="gap-3">
+              <Button type="button" variant="outline" onClick={() => navigate(retourListe)} disabled={enCours}>
+                Annuler
+              </Button>
+              <Button type="submit" isLoading={enCours}>
                 {enCours ? 'Création en cours…' : 'Créer'}
               </Button>
             </CardFooter>

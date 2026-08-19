@@ -67,7 +67,9 @@ export default function CreerFonctionPage() {
               )}
 
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="creer-code">Code</Label>
+                <Label htmlFor="creer-code" obligatoire>
+                  Code
+                </Label>
                 <Input
                   id="creer-code"
                   value={code}
@@ -79,7 +81,9 @@ export default function CreerFonctionPage() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="creer-libelle">Libellé</Label>
+                <Label htmlFor="creer-libelle" obligatoire>
+                  Libellé
+                </Label>
                 <Input
                   id="creer-libelle"
                   value={libelle}
@@ -91,7 +95,9 @@ export default function CreerFonctionPage() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="creer-montant">Montant de la dotation (FCFA)</Label>
+                <Label htmlFor="creer-montant" obligatoire>
+                  Montant de la dotation (FCFA)
+                </Label>
                 <Input
                   id="creer-montant"
                   type="number"
@@ -104,7 +110,9 @@ export default function CreerFonctionPage() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="creer-date-debut">Date de début de la grille</Label>
+                <Label htmlFor="creer-date-debut" obligatoire>
+                  Date de début de la grille
+                </Label>
                 <Input
                   id="creer-date-debut"
                   type="date"
@@ -115,8 +123,16 @@ export default function CreerFonctionPage() {
                 />
               </div>
             </CardContent>
-            <CardFooter>
-              <Button type="submit" disabled={enCours}>
+            <CardFooter className="gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate('/admin/fonctions-eligibles')}
+                disabled={enCours}
+              >
+                Annuler
+              </Button>
+              <Button type="submit" isLoading={enCours}>
                 {enCours ? 'Création en cours…' : 'Créer'}
               </Button>
             </CardFooter>

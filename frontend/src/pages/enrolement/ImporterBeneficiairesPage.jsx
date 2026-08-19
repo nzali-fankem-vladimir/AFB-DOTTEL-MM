@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { FileSpreadsheet, Upload, X } from 'lucide-react';
+import { AlertTriangle, Check, FileSpreadsheet, Upload, X } from 'lucide-react';
 import apiClient from '../../api/apiClient';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
@@ -81,6 +81,7 @@ export default function ImporterBeneficiairesPage() {
           <CardContent className="flex flex-col gap-4">
             {erreur && (
               <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>{erreur}</AlertDescription>
               </Alert>
             )}
@@ -134,35 +135,72 @@ export default function ImporterBeneficiairesPage() {
             )}
 
             {fichier && (
-              <Button onClick={importer} disabled={enCours} className="self-start">
+              <Button onClick={importer} isLoading={enCours} className="self-start">
                 {enCours ? 'Import en cours…' : 'Importer'}
               </Button>
             )}
 
             {rapport && (
               <div className="flex flex-col gap-4 border-t border-neutral-200 pt-4">
-                <p className="text-sm">
-                  <span className="font-semibold text-neutral-900">{rapport.inseres}</span>{' '}
-                  <span className="text-neutral-500">insérés</span>
-                  {' · '}
-                  <span className="font-semibold text-neutral-900">{rapport.rejetes}</span>{' '}
-                  <span className="text-neutral-500">rejetés</span>
-                </p>
+                {/* Sprint D.3 -- RG-11 : les lignes valides sont inserees MEME
+                    si d'autres sont rejetees. Les deux chiffres etaient
+                    stylises a l'identique et le tableau d'erreurs, seul
+                    element encadre, tirait l'oeil : un import a moitie rejete
+                    se lisait comme un echec complet. Le resultat est desormais
+                    enonce en toutes lettres avant le detail des rejets. */}
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                  <p className="flex items-center gap-2 text-sm">
+                    <Check className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
+                    <span>
+                      <strong className="tabular-nums text-neutral-900">{rapport.inseres}</strong>{' '}
+                      bénéficiaire{rapport.inseres > 1 ? 's' : ''} enregistré
+                      {rapport.inseres > 1 ? 's' : ''}
+                    </span>
+                  </p>
+                  <p className="flex items-center gap-2 text-sm">
+                    <X className="h-4 w-4 shrink-0 text-primary-500" aria-hidden="true" />
+                    <span>
+                      <strong className="tabular-nums text-neutral-900">{rapport.rejetes}</strong>{' '}
+                      ligne{rapport.rejetes > 1 ? 's' : ''} rejetée{rapport.rejetes > 1 ? 's' : ''}
+                    </span>
+                  </p>
+                </div>
+
+                {rapport.inseres > 0 && rapport.rejetes > 0 && (
+                  <Alert>
+                    <Check className="h-4 w-4 text-emerald-600" />
+                    <AlertDescription>
+                      Import <strong>partiellement</strong> effectué : les {rapport.inseres}{' '}
+                      lignes valides ont bien été enregistrées. Seules les lignes listées ci-dessous
+                      ont été écartées — corrigez-les puis réimportez uniquement celles-ci.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {rapport.inseres === 0 && rapport.rejetes > 0 && (
+                  <Alert variant="warning">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      Aucune ligne n'a pu être enregistrée. Corrigez les motifs ci-dessous puis
+                      relancez l'import.
+                    </AlertDescription>
+                  </Alert>
+                )}
 
                 {rapport.erreurs?.length > 0 && (
                   <div className="overflow-hidden rounded border border-neutral-200">
                     <table className="w-full text-left text-sm">
-                      <thead className="bg-neutral-100 text-xs uppercase text-neutral-500">
+                      <thead className="bg-neutral-100 text-xs uppercase text-neutral-700">
                         <tr>
-                          <th className="px-4 py-2">Ligne</th>
-                          <th className="px-4 py-2">Matricule</th>
-                          <th className="px-4 py-2">Motif</th>
+                          <th scope="col" className="px-4 py-2">Ligne</th>
+                          <th scope="col" className="px-4 py-2">Matricule</th>
+                          <th scope="col" className="px-4 py-2">Motif</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-neutral-200">
                         {rapport.erreurs.map((erreurLigne) => (
                           <tr key={`${erreurLigne.ligne}-${erreurLigne.matricule}`}>
-                            <td className="px-4 py-2 text-neutral-700">{erreurLigne.ligne}</td>
+                            <td className="px-4 py-2 tabular-nums text-neutral-700">{erreurLigne.ligne}</td>
                             <td className="px-4 py-2 text-neutral-700">{erreurLigne.matricule}</td>
                             <td className="px-4 py-2 text-neutral-700">{erreurLigne.motif}</td>
                           </tr>

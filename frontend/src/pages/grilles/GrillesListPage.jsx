@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus, History, MessageSquareWarning, PowerOff } from 'lucide-react';
+import { AlertTriangle, Plus, History, MessageSquareWarning, PowerOff } from 'lucide-react';
 import apiClient from '../../api/apiClient';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { DataTable } from '../../components/ui/DataTable';
@@ -9,12 +9,13 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { Label } from '../../components/ui/Label';
+import { MessageListeVide } from '../../components/ui/MessageListeVide';
 import { Select } from '../../components/ui/Select';
 import { VoirMotifModal } from '../../components/ui/VoirMotifModal';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatMontantFCFA, formatDate } from '../../utils/formatters';
 import { getStatutGrilleInfo } from '../../utils/statutGrille';
-import { definirParametre, construireRetour } from '../../utils/searchParams';
+import { definirParametre, construireRetour, effacerParametres } from '../../utils/searchParams';
 import { ModifierGrilleModal } from './ModifierGrilleModal';
 
 const colonnes = [
@@ -56,6 +57,7 @@ export default function GrillesListPage() {
   const [fonctionsEligibles, setFonctionsEligibles] = useState([]);
   const [donnees, setDonnees] = useState([]);
   const [chargement, setChargement] = useState(true);
+  const [erreurChargement, setErreurChargement] = useState(false);
   const [rafraichissement, setRafraichissement] = useState(0);
   const [grilleAModifier, setGrilleAModifier] = useState(null);
   const [grilleMotifAVoir, setGrilleMotifAVoir] = useState(null);
@@ -74,6 +76,7 @@ export default function GrillesListPage() {
   useEffect(() => {
     let annule = false;
     setChargement(true);
+    setErreurChargement(false);
     const statutBackend = statut === 'ACTIVE_COURANTE' || statut === 'ACTIVE_CLOTUREE' ? 'ACTIVE' : statut;
     apiClient
       .get('/grilles-tarifaires', {
@@ -89,6 +92,11 @@ export default function GrillesListPage() {
         if (statut === 'ACTIVE_CLOTUREE') contenu = contenu.filter((g) => g.dateFin);
         setDonnees(contenu);
       })
+      .catch(() => {
+        if (annule) return;
+        setDonnees([]);
+        setErreurChargement(true);
+      })
       .finally(() => {
         if (!annule) setChargement(false);
       });
@@ -97,13 +105,20 @@ export default function GrillesListPage() {
     };
   }, [fonction, statut, rafraichissement]);
 
+  const filtresActifs = Boolean(fonction || statut);
+  const effacerFiltres = () =>
+    setSearchParams((precedent) => effacerParametres(precedent, 'fonction', 'statut'));
+
   return (
     <>
       <PageHeader surTitre="Référentiel" titre="Grilles tarifaires" />
       <div className="flex flex-col gap-6 p-8">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-wrap items-end gap-4">
-            <div className="flex w-56 flex-col gap-1.5">
+            {/* Largeurs alignees sur Beneficiaires, ecran de reference du
+                groupe : un selecteur de fonction fait w-48, un selecteur de
+                statut w-40. */}
+            <div className="flex w-48 flex-col gap-1.5">
               <Label htmlFor="filtre-fonction">Fonction</Label>
               <Select
                 id="filtre-fonction"
@@ -121,6 +136,10 @@ export default function GrillesListPage() {
               </Select>
             </div>
 
+            {/* Reste en w-48 et non en w-40 comme le statut de Beneficiaires :
+                les libelles sont ici bien plus longs ("Active (courante)"), et
+                un selecteur qui rogne son propre contenu serait un alignement
+                paye trop cher. */}
             <div className="flex w-48 flex-col gap-1.5">
               <Label htmlFor="filtre-statut">Statut</Label>
               <Select
@@ -155,8 +174,18 @@ export default function GrillesListPage() {
           )}
         </div>
 
+        {erreurChargement && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Impossible de charger les grilles tarifaires. Vérifiez votre connexion, puis réessayez.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {erreurDesactivation && (
           <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
             <AlertDescription>{erreurDesactivation}</AlertDescription>
           </Alert>
         )}
@@ -166,6 +195,18 @@ export default function GrillesListPage() {
           donnees={donnees}
           cleLigne={(grille) => grille.id}
           chargement={chargement}
+          messageVide={
+            erreurChargement ? (
+              'Les grilles tarifaires n’ont pas pu être chargées.'
+            ) : filtresActifs ? (
+              <MessageListeVide
+                message="Aucune grille ne correspond à ces filtres."
+                onEffacerFiltres={effacerFiltres}
+              />
+            ) : (
+              'Aucune grille tarifaire enregistrée pour le moment.'
+            )
+          }
           actions={(grille) => (
             <div className="flex gap-2">
               {/* Sprint MM.12 : le montant est gele des que le CRH a statue --

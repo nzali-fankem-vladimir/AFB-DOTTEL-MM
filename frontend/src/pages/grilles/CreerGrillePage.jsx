@@ -94,7 +94,9 @@ export default function CreerGrillePage() {
               )}
 
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="creer-fonction">Fonction</Label>
+                <Label htmlFor="creer-fonction" obligatoire>
+                  Fonction
+                </Label>
                 <Select
                   id="creer-fonction"
                   value={codeFonction}
@@ -111,7 +113,9 @@ export default function CreerGrillePage() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="creer-montant">Montant (FCFA)</Label>
+                <Label htmlFor="creer-montant" obligatoire>
+                  Montant (FCFA)
+                </Label>
                 <Input
                   id="creer-montant"
                   type="number"
@@ -124,7 +128,9 @@ export default function CreerGrillePage() {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="creer-date-debut">Date de début</Label>
+                <Label htmlFor="creer-date-debut" obligatoire>
+                  Date de début
+                </Label>
                 <Input
                   id="creer-date-debut"
                   type="date"
@@ -135,10 +141,18 @@ export default function CreerGrillePage() {
                 />
               </div>
             </CardContent>
-            <CardFooter>
-              <Button type="submit" disabled={enCours}>
+            {/* Sprint D.3 -- "Annuler" au meme endroit et dans le meme ordre
+                que dans les quatre modales du groupe : un utilisateur qui
+                apprend un formulaire doit connaitre les six autres. Le
+                LienRetour du haut reste, il ne remplace pas une action de
+                sortie posee a cote de l'action principale. */}
+            <CardFooter className="gap-3">
+              <Button type="button" variant="outline" onClick={() => navigate(retourListe)} disabled={enCours}>
+                Annuler
+              </Button>
+              <Button type="submit" isLoading={enCours}>
                 {/* Sprint MM.12 : le premier etage du workflow est desormais le CRH. */}
-                {enCours ? 'Création en cours…' : 'Soumettre au CRH'}
+                {enCours ? 'Soumission en cours…' : 'Soumettre au CRH'}
               </Button>
             </CardFooter>
           </form>
@@ -155,6 +169,9 @@ export default function CreerGrillePage() {
             + `dès que le CRH a statué. Confirmer ?`
           }
           libelleConfirmer="Soumettre"
+          /* Soumettre fait entrer la grille dans le circuit, ca ne defait
+             rien : bouton primaire. */
+          variantConfirmer="default"
           onAnnuler={() => setConfirmationOuverte(false)}
           onConfirmer={creer}
         />

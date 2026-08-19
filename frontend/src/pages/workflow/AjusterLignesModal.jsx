@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useMemo, useState } from 'react';
 import { AlertTriangle, Check, X } from 'lucide-react';
 import apiClient from '../../api/apiClient';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../../components/ui/Card';
@@ -7,6 +7,7 @@ import { Select } from '../../components/ui/Select';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Alert, AlertDescription } from '../../components/ui/Alert';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { cn } from '../../utils/cn';
 
 export function AjusterLignesModal({ idProcessus, lignes, onFerme, onSucces }) {
@@ -23,6 +24,11 @@ export function AjusterLignesModal({ idProcessus, lignes, onFerme, onSucces }) {
   const [erreur, setErreur] = useState(null);
   const [resultats, setResultats] = useState(null);
   const [recherche, setRecherche] = useState('');
+  const titreId = useId();
+  // Une fois les resultats affiches, la seule sortie est "Fermer" (qui
+  // rafraichit la liste) : Echap doit passer par onSucces, pas par onFerme,
+  // sinon l'ecran resterait sur des donnees perimees.
+  const containerRef = useFocusTrap(enCours ? undefined : resultats ? onSucces : onFerme);
 
   useEffect(() => {
     apiClient.get('/fonctions-eligibles').then(({ data }) => setFonctionsEligibles(data));
@@ -46,6 +52,13 @@ export function AjusterLignesModal({ idProcessus, lignes, onFerme, onSucces }) {
   const toutesIncluses =
     lignesFiltrees.length > 0 &&
     lignesFiltrees.every((ligne) => valeurs[ligne.idBeneficiaire].inclusDansEtat);
+
+  // Sprint D.3 -- le filtre de recherche ne restreint QUE l'affichage : la
+  // soumission itere sur `lignes` (liste complete), et le toggle groupe n'agit
+  // que sur les lignes visibles. Ces deux subtilites etaient invisibles a
+  // l'ecran ; elles sont maintenant dites, pas devinees.
+  const filtreActif = recherche.trim().length > 0;
+  const nombreInclus = lignes.filter((ligne) => valeurs[ligne.idBeneficiaire]?.inclusDansEtat).length;
 
   const modifierInclusion = (idBeneficiaire, inclusDansEtat) => {
     setValeurs((precedent) => ({
@@ -104,7 +117,19 @@ export function AjusterLignesModal({ idProcessus, lignes, onFerme, onSucces }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div
+      ref={containerRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titreId}
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={(event) => {
+        if (event.target !== event.currentTarget || enCours) return;
+        if (resultats) onSucces();
+        else onFerme();
+      }}
+    >
       {/* Hauteur du modal plafonnee a 85vh, repartie en trois : en-tete et
           pied de taille fixe (shrink-0, toujours visibles), zone de liste
           elastique au milieu. min-h-0 est indispensable sur les elements flex
@@ -113,7 +138,7 @@ export function AjusterLignesModal({ idProcessus, lignes, onFerme, onSucces }) {
           au lieu de scroller, et pousse les boutons hors de l'ecran. */}
       <Card className="flex max-h-[85vh] w-full max-w-3xl flex-col">
         <CardHeader className="shrink-0 flex-row items-center justify-between">
-          <CardTitle>Ajuster les lignes de l'état mensuel</CardTitle>
+          <CardTitle id={titreId}>Ajuster les lignes de l'état mensuel</CardTitle>
           {!resultats && (
             <Button
               type="button"
@@ -122,7 +147,11 @@ export function AjusterLignesModal({ idProcessus, lignes, onFerme, onSucces }) {
               onClick={() => definirInclusionGlobale(!toutesIncluses)}
               disabled={enCours || lignesFiltrees.length === 0}
             >
-              {toutesIncluses ? 'Tout désélectionner' : 'Tout sélectionner'}
+              {filtreActif
+                ? `${toutesIncluses ? 'Désélectionner' : 'Sélectionner'} les ${lignesFiltrees.length} affichés`
+                : toutesIncluses
+                  ? 'Tout désélectionner'
+                  : 'Tout sélectionner'}
             </Button>
           )}
         </CardHeader>
@@ -135,14 +164,22 @@ export function AjusterLignesModal({ idProcessus, lignes, onFerme, onSucces }) {
           )}
 
           {!resultats && (
-            <Input
-              className="shrink-0"
-              type="text"
-              placeholder="Rechercher par matricule ou nom…"
-              value={recherche}
-              onChange={(e) => setRecherche(e.target.value)}
-              disabled={enCours}
-            />
+            <div className="flex shrink-0 flex-col gap-1.5">
+              <Input
+                type="text"
+                placeholder="Rechercher par matricule ou nom…"
+                value={recherche}
+                onChange={(e) => setRecherche(e.target.value)}
+                disabled={enCours}
+              />
+              <p className="text-xs text-neutral-500">
+                <span className="font-medium tabular-nums text-neutral-700">{nombreInclus}</span> ligne
+                {nombreInclus > 1 ? 's' : ''} incluse{nombreInclus > 1 ? 's' : ''} sur{' '}
+                <span className="tabular-nums">{lignes.length}</span>.
+                {filtreActif &&
+                  " La recherche ne change que l'affichage : les lignes masquées sont soumises telles quelles."}
+              </p>
+            </div>
           )}
 
           {!resultats && (
@@ -160,7 +197,9 @@ export function AjusterLignesModal({ idProcessus, lignes, onFerme, onSucces }) {
                   {lignesFiltrees.length === 0 && (
                     <tr>
                       <td colSpan={4} className="px-4 py-6 text-center text-neutral-500">
-                        Aucun bénéficiaire ne correspond à la recherche.
+                        {filtreActif
+                          ? 'Aucun bénéficiaire ne correspond à la recherche.'
+                          : "Aucun bénéficiaire dans l'état mensuel."}
                       </td>
                     </tr>
                   )}
@@ -237,7 +276,7 @@ export function AjusterLignesModal({ idProcessus, lignes, onFerme, onSucces }) {
               <Button type="button" variant="outline" onClick={onFerme} disabled={enCours}>
                 Annuler
               </Button>
-              <Button onClick={soumettre} disabled={enCours}>
+              <Button onClick={soumettre} isLoading={enCours}>
                 {enCours ? 'Envoi en cours…' : 'Soumettre les ajustements'}
               </Button>
             </>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { AlertTriangle, Plus } from 'lucide-react';
 import apiClient from '../../api/apiClient';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { DataTable } from '../../components/ui/DataTable';
@@ -32,6 +32,7 @@ export default function FonctionsEligiblesListPage() {
   const navigate = useNavigate();
   const [donnees, setDonnees] = useState([]);
   const [chargement, setChargement] = useState(true);
+  const [erreurChargement, setErreurChargement] = useState(false);
   const [rafraichissement, setRafraichissement] = useState(0);
   const [fonctionADesactiver, setFonctionADesactiver] = useState(null);
   const [fonctionAModifier, setFonctionAModifier] = useState(null);
@@ -41,10 +42,16 @@ export default function FonctionsEligiblesListPage() {
   useEffect(() => {
     let annule = false;
     setChargement(true);
+    setErreurChargement(false);
     apiClient
       .get('/fonctions-eligibles/toutes')
       .then(({ data }) => {
         if (!annule) setDonnees(data);
+      })
+      .catch(() => {
+        if (annule) return;
+        setDonnees([]);
+        setErreurChargement(true);
       })
       .finally(() => {
         if (!annule) setChargement(false);
@@ -87,8 +94,18 @@ export default function FonctionsEligiblesListPage() {
           </Button>
         </div>
 
+        {erreurChargement && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Impossible de charger les fonctions éligibles. Vérifiez votre connexion, puis réessayez.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {erreur && (
           <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
             <AlertDescription>{erreur}</AlertDescription>
           </Alert>
         )}
@@ -98,6 +115,13 @@ export default function FonctionsEligiblesListPage() {
           donnees={donnees}
           cleLigne={(fonction) => fonction.code}
           chargement={chargement}
+          /* Cet ecran n'a pas de filtre : "vide" ne peut signifier qu'une
+             chose, il n'y a donc pas de second message a distinguer. */
+          messageVide={
+            erreurChargement
+              ? 'Les fonctions éligibles n’ont pas pu être chargées.'
+              : 'Aucune fonction éligible enregistrée pour le moment.'
+          }
           actions={(fonction) => (
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => setFonctionAModifier(fonction)}>

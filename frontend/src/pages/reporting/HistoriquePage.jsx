@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Download } from 'lucide-react';
+import { AlertTriangle, Download } from 'lucide-react';
 import apiClient from '../../api/apiClient';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { DataTable } from '../../components/ui/DataTable';
+import { Alert, AlertDescription } from '../../components/ui/Alert';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Label } from '../../components/ui/Label';
+import { MessageListeVide } from '../../components/ui/MessageListeVide';
 import { Select } from '../../components/ui/Select';
 import { formatMontantFCFA, getPeriodeLabel } from '../../utils/formatters';
 import { getStatutProcessusInfo } from '../../utils/statutProcessus';
@@ -13,7 +15,9 @@ import { getStatutProcessusInfo } from '../../utils/statutProcessus';
 const colonnes = [
   {
     cle: 'periode',
-    entete: 'Mois / Année',
+    // Tri fixe cote backend (...OrderByAnneePaiementDescMoisPaiementDesc) : on
+    // le dit plutot que de laisser l'utilisateur le supposer.
+    entete: 'Mois / Année (plus récent d’abord)',
     rendu: (ligne) => getPeriodeLabel(ligne.moisPaiement, ligne.anneePaiement),
   },
   {
@@ -43,6 +47,7 @@ export default function HistoriquePage() {
   const [anneesDisponibles, setAnneesDisponibles] = useState([]);
   const [lignes, setLignes] = useState([]);
   const [chargement, setChargement] = useState(true);
+  const [erreurChargement, setErreurChargement] = useState(false);
   const [exportEnCours, setExportEnCours] = useState(false);
 
   // Pas d'endpoint dedie pour les annees disponibles : derivees d'un premier
@@ -57,10 +62,16 @@ export default function HistoriquePage() {
   useEffect(() => {
     let annule = false;
     setChargement(true);
+    setErreurChargement(false);
     apiClient
       .get('/reporting/historique', { params: { annee: annee || undefined } })
       .then(({ data }) => {
         if (!annule) setLignes(data.lignes);
+      })
+      .catch(() => {
+        if (annule) return;
+        setLignes([]);
+        setErreurChargement(true);
       })
       .finally(() => {
         if (!annule) setChargement(false);
@@ -99,6 +110,15 @@ export default function HistoriquePage() {
     <>
       <PageHeader surTitre="DRH" titre="Historique annuel" />
       <div className="flex flex-col gap-6 p-8">
+        {erreurChargement && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Impossible de charger l'historique. Vérifiez votre connexion, puis réessayez.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex w-36 flex-col gap-1.5">
             <Label htmlFor="filtre-annee">Année</Label>
@@ -112,13 +132,30 @@ export default function HistoriquePage() {
             </Select>
           </div>
 
-          <Button variant="outline" onClick={exporter} disabled={exportEnCours}>
-            <Download className="h-4 w-4" />
+          <Button variant="outline" onClick={exporter} isLoading={exportEnCours}>
+            {!exportEnCours && <Download className="h-4 w-4" />}
             {exportEnCours ? 'Export en cours…' : 'Exporter (Excel)'}
           </Button>
         </div>
 
-        <DataTable colonnes={colonnes} donnees={lignes} cleLigne={(ligne) => `${ligne.anneePaiement}-${ligne.moisPaiement}`} chargement={chargement} />
+        <DataTable
+          colonnes={colonnes}
+          donnees={lignes}
+          cleLigne={(ligne) => `${ligne.anneePaiement}-${ligne.moisPaiement}`}
+          chargement={chargement}
+          messageVide={
+            erreurChargement ? (
+              'L’historique n’a pas pu être chargé.'
+            ) : annee ? (
+              <MessageListeVide
+                message={`Aucun processus clôturé pour l'année ${annee}.`}
+                onEffacerFiltres={() => setAnnee('')}
+              />
+            ) : (
+              'Aucun processus mensuel clôturé pour le moment.'
+            )
+          }
+        />
       </div>
     </>
   );

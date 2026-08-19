@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import apiClient from '../../api/apiClient';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../../components/ui/Card';
@@ -6,6 +6,7 @@ import { Label } from '../../components/ui/Label';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Alert, AlertDescription } from '../../components/ui/Alert';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 // Decision actee avec le metier (Sprint 6F.7bis, suite) : libelle est
 // toujours modifiable (donnee d'affichage pure). code ne l'est que si au plus
@@ -17,6 +18,8 @@ export function ModifierFonctionModal({ fonction, onFerme, onSucces }) {
   const [libelle, setLibelle] = useState(fonction.libelle);
   const [erreur, setErreur] = useState(null);
   const [enCours, setEnCours] = useState(false);
+  const titreId = useId();
+  const containerRef = useFocusTrap(enCours ? undefined : onFerme);
 
   const modifier = async (event) => {
     event.preventDefault();
@@ -43,10 +46,20 @@ export function ModifierFonctionModal({ fonction, onFerme, onSucces }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div
+      ref={containerRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titreId}
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={(event) => {
+        if (event.target === event.currentTarget && !enCours) onFerme?.();
+      }}
+    >
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Modifier — {fonction.libelle}</CardTitle>
+          <CardTitle id={titreId}>Modifier — {fonction.libelle}</CardTitle>
         </CardHeader>
         {/* Pas de noValidate : validation cote client portee par les
             attributs `required` natifs (audit Sprint 6F.9). */}
@@ -60,7 +73,9 @@ export function ModifierFonctionModal({ fonction, onFerme, onSucces }) {
             )}
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="modifier-code">Code</Label>
+              <Label htmlFor="modifier-code" obligatoire>
+                Code
+              </Label>
               <Input
                 id="modifier-code"
                 value={nouveauCode}
@@ -76,7 +91,9 @@ export function ModifierFonctionModal({ fonction, onFerme, onSucces }) {
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="modifier-libelle">Libellé</Label>
+              <Label htmlFor="modifier-libelle" obligatoire>
+                Libellé
+              </Label>
               <Input
                 id="modifier-libelle"
                 value={libelle}
@@ -90,7 +107,7 @@ export function ModifierFonctionModal({ fonction, onFerme, onSucces }) {
             <Button type="button" variant="outline" onClick={onFerme} disabled={enCours}>
               Annuler
             </Button>
-            <Button type="submit" disabled={enCours}>
+            <Button type="submit" isLoading={enCours}>
               {enCours ? 'Enregistrement…' : 'Enregistrer'}
             </Button>
           </CardFooter>

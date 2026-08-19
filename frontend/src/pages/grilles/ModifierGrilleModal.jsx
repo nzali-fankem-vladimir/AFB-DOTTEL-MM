@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import apiClient from '../../api/apiClient';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../../components/ui/Card';
@@ -6,6 +6,7 @@ import { Label } from '../../components/ui/Label';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Alert, AlertDescription } from '../../components/ui/Alert';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 
 // PATCH /grilles-tarifaires/{id} n'accepte que le montant, et seulement
 // tant que la grille est EN_ATTENTE_CRH (RG-10 ; Sprint MM.12 : le montant est
@@ -14,6 +15,11 @@ export function ModifierGrilleModal({ grille, onFerme, onSucces }) {
   const [montantFcfa, setMontantFcfa] = useState(String(grille.montantFcfa));
   const [erreur, setErreur] = useState(null);
   const [enCours, setEnCours] = useState(false);
+  // Sprint D.3 : les corrections d'accessibilite de D.2 (Echap, piege de focus)
+  // n'avaient ete appliquees qu'aux modales generiques de components/ui. Les
+  // modales ecrites a la main dans pages/ etaient restees en dehors.
+  const titreId = useId();
+  const containerRef = useFocusTrap(enCours ? undefined : onFerme);
 
   const modifier = async (event) => {
     event.preventDefault();
@@ -36,10 +42,20 @@ export function ModifierGrilleModal({ grille, onFerme, onSucces }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div
+      ref={containerRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titreId}
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={(event) => {
+        if (event.target === event.currentTarget && !enCours) onFerme?.();
+      }}
+    >
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle>Modifier le montant — {grille.libelleFonction}</CardTitle>
+          <CardTitle id={titreId}>Modifier le montant — {grille.libelleFonction}</CardTitle>
         </CardHeader>
         {/* Pas de noValidate : validation cote client portee par les
             attributs `required` natifs (audit Sprint 6F.9). */}
@@ -53,7 +69,9 @@ export function ModifierGrilleModal({ grille, onFerme, onSucces }) {
             )}
 
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="modifier-montant">Montant (FCFA)</Label>
+              <Label htmlFor="modifier-montant" obligatoire>
+                Montant (FCFA)
+              </Label>
               <Input
                 id="modifier-montant"
                 type="number"
@@ -69,7 +87,7 @@ export function ModifierGrilleModal({ grille, onFerme, onSucces }) {
             <Button type="button" variant="outline" onClick={onFerme} disabled={enCours}>
               Annuler
             </Button>
-            <Button type="submit" disabled={enCours}>
+            <Button type="submit" isLoading={enCours}>
               {enCours ? 'Enregistrement…' : 'Enregistrer'}
             </Button>
           </CardFooter>

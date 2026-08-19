@@ -8,11 +8,18 @@ import { useFocusTrap } from '../../hooks/useFocusTrap';
 // recapitulatif de resynchronisation, qui doit presenter deux blocs distincts.
 // `message` reste rendu dans un <p>, ou aucun bloc ne peut etre imbrique sans
 // produire du HTML invalide. Tous les appelants existants sont inchanges.
+// `variantConfirmer` (Sprint D.3) : le bouton de confirmation etait toujours
+// rendu en `destructive`, y compris pour une validation qui fait AVANCER le
+// workflow. "Valider" apparaissait donc dans le meme rouge fonce que
+// "Retourner", deux intentions opposees. Le defaut reste `destructive` : tous
+// les appelants existants sont inchanges, seuls les dialogues de validation
+// passent explicitement `default`.
 export function ConfirmDialog({
   titre,
   message,
   contenu,
   libelleConfirmer = 'Confirmer',
+  variantConfirmer = 'destructive',
   largeur = 'max-w-sm',
   onConfirmer,
   onAnnuler,
@@ -58,7 +65,7 @@ export function ConfirmDialog({
             {onConfirmer ? 'Annuler' : 'Fermer'}
           </Button>
           {onConfirmer && (
-            <Button variant="destructive" onClick={confirmer} disabled={enCours}>
+            <Button variant={variantConfirmer} onClick={confirmer} disabled={enCours}>
               {enCours ? 'Veuillez patienter…' : libelleConfirmer}
             </Button>
           )}

@@ -77,30 +77,51 @@ const colonnesLignes = [
   },
 ];
 
+// Sprint D.3 : c'est l'element le plus informatif de l'ecran -- il dit ou en
+// est un paiement. Les quatre etats devaient donc se distinguer SANS la
+// couleur seule (un daltonien lit cet ecran comme les autres) :
+//   franchie      -> coche
+//   en cours      -> chiffre + anneau
+//   retournee     -> triangle d'alerte + anneau
+//   a venir       -> chiffre seul, contour clair
+// La couleur reste, mais elle ne porte plus l'information a elle seule : la
+// FORME suffit. Le libelle d'etat double l'information pour les lecteurs
+// d'ecran, qui ne percoivent ni l'une ni l'autre.
 function TimelineWorkflow({ statut }) {
   const { etapeCourante } = getStatutProcessusInfo(statut);
   const retourne = statut === 'RETOURNE';
 
   return (
-    <div className="flex items-center">
+    <ol className="flex items-center">
       {ETAPES_WORKFLOW.map((etape, index) => {
         const franchie = index < etapeCourante;
         const courante = index === etapeCourante;
         const enAlerte = courante && retourne;
 
+        let etatLisible = 'étape à venir';
+        if (franchie) etatLisible = 'étape franchie';
+        else if (enAlerte) etatLisible = 'étape retournée, à corriger';
+        else if (courante) etatLisible = 'étape en cours';
+
         return (
-          <div key={etape.cle} className="flex flex-1 items-center last:flex-none">
+          <li key={etape.cle} className="flex flex-1 items-center last:flex-none">
             <div className="flex flex-col items-center gap-1.5">
               <div
+                aria-current={courante ? 'step' : undefined}
                 className={cn(
                   'flex h-9 w-9 items-center justify-center rounded-full border-2 text-sm font-semibold',
                   franchie && 'border-emerald-500 bg-emerald-500 text-white',
-                  courante && !enAlerte && 'border-primary-500 bg-primary-500 text-white',
-                  enAlerte && 'border-primary-700 bg-primary-50 text-primary-700',
+                  courante &&
+                    !enAlerte &&
+                    'border-primary-500 bg-primary-500 text-white ring-2 ring-primary-200 ring-offset-2',
+                  enAlerte &&
+                    'border-primary-700 bg-primary-50 text-primary-700 ring-2 ring-primary-200 ring-offset-2',
                   !franchie && !courante && 'border-neutral-300 bg-white text-neutral-400'
                 )}
               >
-                {franchie ? <Check className="h-4 w-4" /> : index + 1}
+                {franchie && <Check className="h-4 w-4" aria-hidden="true" />}
+                {!franchie && enAlerte && <AlertTriangle className="h-4 w-4" aria-hidden="true" />}
+                {!franchie && !enAlerte && index + 1}
               </div>
               <span
                 className={cn(
@@ -110,14 +131,15 @@ function TimelineWorkflow({ statut }) {
               >
                 {etape.libelle}
               </span>
+              <span className="sr-only">{etatLisible}</span>
             </div>
             {index < ETAPES_WORKFLOW.length - 1 && (
               <div className={cn('mx-2 h-0.5 flex-1', franchie ? 'bg-emerald-500' : 'bg-neutral-200')} />
             )}
-          </div>
+          </li>
         );
       })}
-    </div>
+    </ol>
   );
 }
 
@@ -146,6 +168,9 @@ export default function ProcessusDetailPage() {
   const { user } = useAuth();
   const [processus, setProcessus] = useState(null);
   const [chargement, setChargement] = useState(true);
+  // Sprint D.3 : sans cet etat, un echec du chargement initial laissait
+  // `processus` a null puis le rendu lisait processus.statut -> ecran blanc.
+  const [erreurChargement, setErreurChargement] = useState(false);
   const [pieceJointe, setPieceJointe] = useState(null);
   const [ajustementOuvert, setAjustementOuvert] = useState(false);
   const [retourOuvert, setRetourOuvert] = useState(false);
@@ -164,11 +189,15 @@ export default function ProcessusDetailPage() {
   useEffect(() => {
     let annule = false;
     setChargement(true);
+    setErreurChargement(false);
     Promise.all([apiClient.get(`/processus/${id}`), chargerPieceJointe(id)])
       .then(([reponseProcessus, metadonneesPieceJointe]) => {
         if (annule) return;
         setProcessus(reponseProcessus.data);
         setPieceJointe(metadonneesPieceJointe);
+      })
+      .catch(() => {
+        if (!annule) setErreurChargement(true);
       })
       .finally(() => {
         if (!annule) setChargement(false);
@@ -299,6 +328,26 @@ export default function ProcessusDetailPage() {
         <PageHeader surTitre="Workflow" titre="Processus mensuel" />
         <div className="flex flex-col gap-6 p-8">
           <EnTeteSquelette />
+          {/* Le tableau des lignes attendait sans rien afficher : la page
+              semblait s'arreter apres l'en-tete. Meme squelette que partout. */}
+          <DataTable colonnes={colonnesLignes} donnees={[]} cleLigne={() => ''} chargement />
+        </div>
+      </>
+    );
+  }
+
+  if (erreurChargement || !processus) {
+    return (
+      <>
+        <LienRetour to={retour} label="Retour aux processus" />
+        <PageHeader surTitre="Workflow" titre="Processus mensuel" />
+        <div className="flex flex-col gap-6 p-8">
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Impossible de charger ce processus mensuel. Vérifiez votre connexion, puis réessayez.
+            </AlertDescription>
+          </Alert>
         </div>
       </>
     );
@@ -315,6 +364,11 @@ export default function ProcessusDetailPage() {
   // Sprint MM.12 (P-2) : au moins une fonction attend une signature de grille.
   // La validation est refusee par le backend tant que ce n'est pas tranche.
   const comporteUnBlocage = (ecartsAConfirmer?.lignesExclues ?? []).some(estBloquante);
+  // Deux registres d'action distincts : consulter le dossier / engager une
+  // decision dessus. Le separateur visuel ci-dessous n'a de sens que si les
+  // deux registres sont presents a l'ecran.
+  const actionsConsultation = peutTelecharger || peutAjuster || (estRetourne && Boolean(processus.motifRetour));
+  const actionsDecision = peutRetourner || peutValider;
 
   return (
     <>
@@ -365,11 +419,11 @@ export default function ProcessusDetailPage() {
               </Alert>
             )}
 
-            {(peutAjuster || peutValider || peutRetourner || peutTelecharger) && (
-              <div className="flex flex-wrap justify-end gap-3">
+            {(actionsConsultation || actionsDecision) && (
+              <div className="flex flex-wrap items-center justify-end gap-3">
                 {peutTelecharger && (
-                  <Button variant="outline" onClick={telechargerPdf} disabled={telechargementEnCours}>
-                    <Download className="h-4 w-4" />
+                  <Button variant="outline" onClick={telechargerPdf} isLoading={telechargementEnCours}>
+                    {!telechargementEnCours && <Download className="h-4 w-4" />}
                     {telechargementEnCours ? 'Téléchargement…' : "Télécharger l'état (PDF)"}
                   </Button>
                 )}
@@ -385,15 +439,26 @@ export default function ProcessusDetailPage() {
                     Voir le motif de retour
                   </Button>
                 )}
+
+                {/* Sprint D.3 -- les actions qui ENGAGENT sont detachees de
+                    celles qui consultent. "Retourner" et "Valider" etaient
+                    deux boutons rouges pleins, adjacents, de meme taille, pour
+                    des intentions opposees : l'un renvoie le dossier, l'autre
+                    engage un paiement. "Valider" reste donc le SEUL bouton
+                    plein de l'ecran (charte : primaire = rouge de marque) et
+                    "Retourner" redevient une action secondaire en contour. */}
+                {actionsConsultation && actionsDecision && (
+                  <div className="mx-1 hidden h-8 w-px bg-neutral-200 sm:block" aria-hidden="true" />
+                )}
                 {peutRetourner && (
-                  <Button variant="destructive" onClick={() => setRetourOuvert(true)}>
+                  <Button variant="outline" onClick={() => setRetourOuvert(true)}>
                     <Undo2 className="h-4 w-4" />
                     Retourner
                   </Button>
                 )}
                 {peutValider && (
-                  <Button onClick={demanderValidation} disabled={validationEnCours}>
-                    <Check className="h-4 w-4" />
+                  <Button onClick={demanderValidation} isLoading={validationEnCours}>
+                    {!validationEnCours && <Check className="h-4 w-4" />}
                     {validationEnCours ? 'Validation en cours…' : 'Valider'}
                   </Button>
                 )}
@@ -451,6 +516,9 @@ export default function ProcessusDetailPage() {
             processus.anneePaiement
           )}. Cette action fait avancer le workflow et ne peut être défaite que par un retour. Confirmer ?`}
           libelleConfirmer="Valider"
+          /* Une validation fait AVANCER le workflow : bouton primaire, pas le
+             rouge fonce "destructive" reserve aux actions qui defont. */
+          variantConfirmer="default"
           onAnnuler={() => setConfirmationSimpleOuverte(false)}
           onConfirmer={() => validerEffectivement(false)}
         />
@@ -467,6 +535,7 @@ export default function ProcessusDetailPage() {
           }
           largeur="max-w-lg"
           libelleConfirmer="Appliquer et valider"
+          variantConfirmer="default"
           contenu={<RecapitulatifResynchronisation ecarts={ecartsAConfirmer} />}
           onAnnuler={() => setEcartsAConfirmer(null)}
           /* Une grille en cours de signature n'est pas confirmable : le backend

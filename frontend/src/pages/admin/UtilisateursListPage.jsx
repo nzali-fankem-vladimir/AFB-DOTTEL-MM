@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Plus } from 'lucide-react';
+import { AlertTriangle, Plus } from 'lucide-react';
 import apiClient from '../../api/apiClient';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { DataTable } from '../../components/ui/DataTable';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Label } from '../../components/ui/Label';
+import { MessageListeVide } from '../../components/ui/MessageListeVide';
 import { Select } from '../../components/ui/Select';
 import { Alert, AlertDescription } from '../../components/ui/Alert';
 import { useAuth } from '../../contexts/AuthContext';
 import { getRoleInfo } from '../../utils/statutUtilisateur';
-import { definirParametre, construireRetour } from '../../utils/searchParams';
+import { definirParametre, construireRetour, effacerParametres } from '../../utils/searchParams';
 
 const ROLES = ['EMPLOYE', 'ARH', 'CRH', 'DRH', 'ADMIN'];
 
@@ -73,6 +74,7 @@ export default function UtilisateursListPage() {
   const actif = searchParams.get('actif') ?? '';
   const [donnees, setDonnees] = useState([]);
   const [chargement, setChargement] = useState(true);
+  const [erreurChargement, setErreurChargement] = useState(false);
   const [rafraichissement, setRafraichissement] = useState(0);
   const [nombreAdminsActifs, setNombreAdminsActifs] = useState(null);
   const [enCoursId, setEnCoursId] = useState(null);
@@ -81,6 +83,7 @@ export default function UtilisateursListPage() {
   useEffect(() => {
     let annule = false;
     setChargement(true);
+    setErreurChargement(false);
     apiClient
       .get('/admin/utilisateurs', {
         params: {
@@ -90,6 +93,11 @@ export default function UtilisateursListPage() {
       })
       .then(({ data }) => {
         if (!annule) setDonnees(data.contenu);
+      })
+      .catch(() => {
+        if (annule) return;
+        setDonnees([]);
+        setErreurChargement(true);
       })
       .finally(() => {
         if (!annule) setChargement(false);
@@ -149,6 +157,10 @@ export default function UtilisateursListPage() {
 
   const colonnesMemo = useMemo(() => colonnes(), []);
 
+  const filtresActifs = Boolean(role || actif);
+  const effacerFiltres = () =>
+    setSearchParams((precedent) => effacerParametres(precedent, 'role', 'actif'));
+
   return (
     <>
       <PageHeader surTitre="Système" titre="Administration des utilisateurs" />
@@ -201,8 +213,18 @@ export default function UtilisateursListPage() {
           </Button>
         </div>
 
+        {erreurChargement && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Impossible de charger les utilisateurs. Vérifiez votre connexion, puis réessayez.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {erreur && (
           <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
             <AlertDescription>{erreur}</AlertDescription>
           </Alert>
         )}
@@ -212,6 +234,18 @@ export default function UtilisateursListPage() {
           donnees={donnees}
           cleLigne={(utilisateur) => utilisateur.id}
           chargement={chargement}
+          messageVide={
+            erreurChargement ? (
+              'Les utilisateurs n’ont pas pu être chargés.'
+            ) : filtresActifs ? (
+              <MessageListeVide
+                message="Aucun utilisateur ne correspond à ces filtres."
+                onEffacerFiltres={effacerFiltres}
+              />
+            ) : (
+              'Aucun utilisateur enregistré pour le moment.'
+            )
+          }
           actions={(utilisateur) => {
             const motifStatutDesactive = raisonStatutDesactive(utilisateur, user, nombreAdminsActifs);
             const motifRoleDesactive = raisonRoleDesactive(utilisateur, user, nombreAdminsActifs);

@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { AlertTriangle, CheckCircle2, RotateCcw } from 'lucide-react';
 import apiClient from '../../api/apiClient';
 import { PageHeader } from '../../components/layout/PageHeader';
+import { Badge } from '../../components/ui/Badge';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../../components/ui/Card';
 import { Label } from '../../components/ui/Label';
 import { Select } from '../../components/ui/Select';
@@ -132,7 +133,18 @@ export default function DeclencherProcessusPage() {
       <div className="flex flex-col gap-6 p-8">
         <Card className="max-w-lg">
           <CardHeader>
-            <CardTitle>Période à traiter</CardTitle>
+            {/* Sprint D.3 -- le rattrapage porte sur un mois DEJA paye : ce
+                n'est pas le meme geste qu'un declenchement normal. Le titre le
+                dit desormais, en plus de l'alerte et du libelle du bouton. */}
+            <CardTitle className="flex flex-wrap items-center gap-2">
+              Période à traiter
+              {modeRattrapage && (
+                <Badge variant="warning">
+                  <RotateCcw className="mr-1 h-3 w-3" />
+                  Mode rattrapage
+                </Badge>
+              )}
+            </CardTitle>
           </CardHeader>
           <form onSubmit={declencher} noValidate>
             <CardContent className="flex flex-col gap-4">
@@ -188,14 +200,23 @@ export default function DeclencherProcessusPage() {
                 </div>
               </div>
             </CardContent>
-            <CardFooter>
-              <Button type="submit" disabled={enCours || verificationRattrapageEnCours}>
+            <CardFooter className="flex-wrap items-center gap-3">
+              <Button
+                type="submit"
+                disabled={verificationRattrapageEnCours}
+                isLoading={enCours}
+              >
                 {enCours
                   ? 'Déclenchement en cours…'
                   : modeRattrapage
                     ? 'Déclencher le rattrapage'
                     : 'Déclencher'}
               </Button>
+              {/* Le bouton etait grise pendant la verification sans que rien
+                  n'explique pourquoi. */}
+              {verificationRattrapageEnCours && !enCours && (
+                <span className="text-xs text-neutral-500">Vérification de la période…</span>
+              )}
             </CardFooter>
           </form>
         </Card>
@@ -255,6 +276,10 @@ export default function DeclencherProcessusPage() {
           titre="Période antérieure au mois actuel"
           message={`La période sélectionnée (${getPeriodeLabel(Number(moisPaiement), Number(anneePaiement))}) est antérieure au mois actuel. Voulez-vous continuer ?`}
           libelleConfirmer="Déclencher"
+          /* Declencher cree un processus, ca ne defait rien : bouton primaire.
+             Le rouge fonce "destructive" reste reserve aux actions qui font
+             reculer le dossier (retour CRH/DRH). */
+          variantConfirmer="default"
           onAnnuler={() => setDemandeConfirmation(false)}
           onConfirmer={async () => {
             await executerDeclenchement();
