@@ -170,15 +170,85 @@ Reporter n'est pas ignorer : chaque point ci-dessous a été analysé, et le rep
 | # | Écart | Sévérité | Justification du report |
 | --- | --- | --- | --- |
 | **V2/V3** | `react-router` 7.18.1 — contournement CSRF en mode RSC | Haute (déclarée) / **nulle** (réelle) | Chemin de code non atteignable dans une SPA cliente. Le seul correctif est une rétrogradation cassante en 7.11.0. À réévaluer à la sortie d'un correctif 7.19+. **Sprint 7.** |
-| **E2** | La DRH n'a aucun accès à l'écran Bénéficiaires ni à son export, pourtant autorisés par `CLAUDE.md` section 8 | Mineure | Restriction, pas élévation de privilège. La page porte des actions réservées à l'ARH ; l'ouvrir à la DRH exposerait des boutons inutilisables. **Décision fonctionnelle, à trancher avec le métier.** |
-| **E3** | L'ADMIN est exclu de l'écran de création de grille, pourtant autorisé par la section 8 | Mineure | Même raisonnement. **Décision fonctionnelle.** |
-| **E4** | La route de repli `*` renvoie vers `/login` même pour un utilisateur authentifié | Mineure | Aucune conséquence de sécurité : le token reste en mémoire et les routes protégées restent protégées. Gêne d'ergonomie sur une URL inconnue. |
-| **E5** | `AccesInterdit` est un `<div>` nu, hors charte visuelle de la section 15, sans lien de retour | Cosmétique | Aucune conséquence de sécurité. |
+| **E2** | La DRH n'a aucun accès à l'écran Bénéficiaires ni à son export, pourtant autorisés par `CLAUDE.md` section 8 | Mineure | Restriction, pas élévation de privilège. La page porte des actions réservées à l'ARH ; l'ouvrir à la DRH exposerait des boutons inutilisables. **Décision fonctionnelle, à trancher avec le métier.** — **TRANCHÉ ET CORRIGÉ au Sprint MM.14 (2026-08-19)**, voir 4.1 ci-dessous. |
+| **E3** | L'ADMIN est exclu de l'écran de création de grille, pourtant autorisé par la section 8 | Mineure | Même raisonnement. **Décision fonctionnelle.** — **TRANCHÉ ET CORRIGÉ au Sprint MM.14 (2026-08-19)**, voir 4.1 ci-dessous. |
+| **E4** | La route de repli `*` renvoie vers `/login` même pour un utilisateur authentifié | Mineure | Aucune conséquence de sécurité : le token reste en mémoire et les routes protégées restent protégées. Gêne d'ergonomie sur une URL inconnue. — **CORRIGÉ au Sprint MM.14.** |
+| **E5** | `AccesInterdit` est un `<div>` nu, hors charte visuelle de la section 15, sans lien de retour | Cosmétique | Aucune conséquence de sécurité. — **CORRIGÉ au Sprint MM.14.** |
 | **E7a** | `/actuator/health` expose son détail sans authentification | Mineure | **Exigé** par `CLAUDE.md` section 14 pour les sondes de vivacité et de disponibilité Kubernetes. Le restreindre casserait les probes. À arbitrer avec la DSI si l'exposition doit être limitée au réseau du cluster. |
 
-**Observation résiduelle, hors périmètre du sprint.** `application-dev.yml` conserve `password: ${DB_PASSWORD:postgres}`, soit un mot de passe de repli en clair. Il s'agit du défaut notoire de PostgreSQL, en développement uniquement, et le sujet n'était pas dans le périmètre arbitré — signalé ici pour mémoire.
+**Observation résiduelle, hors périmètre du sprint.** `application-dev.yml` conserve `password: ${DB_PASSWORD:postgres}`, soit un mot de passe de repli en clair. Il s'agit du défaut notoire de PostgreSQL, en développement uniquement, et le sujet n'était pas dans le périmètre arbitré — signalé ici pour mémoire. — **CORRIGÉ au Sprint MM.14** : le repli est supprimé, le profil `dev` porte désormais la même écriture que `prod` (`${DB_PASSWORD}` sans valeur par défaut). `DB_USER` garde le sien : `postgres` est le nom de compte par défaut de PostgreSQL, pas un secret. **Comportement vérifié empiriquement sans `DB_PASSWORD`** : le démarrage échoue franchement (Flyway ne peut pas ouvrir la connexion), mais sur une erreur d'authentification PostgreSQL et **non** sur un `Could not resolve placeholder`. Ce n'est pas un défaut du correctif, c'est une propriété de Spring : `spring.datasource.password` est liée par `@ConfigurationProperties`, dont le résolveur de placeholders est tolérant (`ignoreUnresolvablePlaceholders`), là où `@Value` lève une erreur nommant la variable — d'où le message explicite obtenu jadis sur `DOTTEL_JWT_SECRET`, lu par `@Value` dans `JwtUtil`. L'objectif de l'observation est atteint : plus aucun secret en clair, et aucun démarrage silencieux sur une valeur committée.
 
-**Dépendances déclarées mais inutilisées.** `jwt-decode` et `react-hot-toast` figurent dans `package.json` sans aucun usage dans `src`. Sans effet sur le bundle livré (élimination du code mort), mais surface de dépendance inutile : à retirer au Sprint 7 si l'usage ne se concrétise pas.
+**Dépendances déclarées mais inutilisées.** `jwt-decode` et `react-hot-toast` figurent dans `package.json` sans aucun usage dans `src`. Sans effet sur le bundle livré (élimination du code mort), mais surface de dépendance inutile : à retirer au Sprint 7 si l'usage ne se concrétise pas. — **RÉÉVALUÉ au Sprint MM.14** : `jwt-decode` **est désormais utilisé** (`AuthProviderKeycloak.js`, décodage des claims du jeton Keycloak depuis MM.7) — cette moitié de l'observation est périmée. Seul `react-hot-toast` reste orphelin ; **décision du 2026-08-19 : le conserver sans l'intégrer**, `CLAUDE.md` section 2 l'ayant explicitement validé pour un usage futur, et son intégration relevant du chantier design frontend (D.2/D.3), pas d'un sprint de dette technique.
+
+---
+
+### 4.1 Résolution des écarts E2 à E5 — Sprint MM.14, 2026-08-19
+
+**E2 — la DRH et l'écran Bénéficiaires. Décision : ouvrir en lecture seule.**
+La DRH valide en dernier l'état mensuel ; il est légitime qu'elle puisse
+vérifier la fiche de référence d'un bénéficiaire sans passer par l'ARH.
+`CLAUDE.md` section 8 le prévoyait déjà et le backend l'implémentait
+(`GET /beneficiaires` et `/export` en `hasAnyRole('ARH','DRH')`) — seul l'écran
+l'en excluait : la DRH détenait un droit qu'elle ne pouvait pas exercer.
+Corrections : rôle `DRH` ajouté au `ProtectedRoute` de `/beneficiaires` et à
+l'entrée de menu correspondante ; les quatre actions d'écriture (modifier,
+désactiver, réactiver, importer) restent conditionnées au rôle `ARH`, la colonne
+« Actions » disparaissant entièrement pour la DRH plutôt que d'afficher des
+boutons qui échoueraient en 403 ; `GET /beneficiaires/unites-rattachement`
+ouvert à la DRH, faute de quoi le filtre « Unité de rattachement » de son écran
+resterait en 403. `/beneficiaires/import` demeure ARH seul.
+
+**E3 — l'ADMIN et la création de grille. Décision : garder l'ARH seul, et
+aligner la documentation et le backend sur ce comportement.**
+Dans ce module, l'ADMIN gère les comptes et le référentiel des fonctions, pas
+les montants. Créer une grille, c'est fixer un montant de dotation qui part
+aussitôt dans le circuit ARH → CRH → DRH (RG-10, workflow à trois acteurs du
+Sprint MM.12) — circuit dont l'ADMIN n'est acteur d'aucune étape ; l'y laisser
+injecter un montant contredirait l'esprit de RG-08. Le frontend appliquait déjà
+cette restriction proprement (bouton « Créer une grille » conditionné à l'ARH,
+donc aucun bouton mort) : c'étaient le `@PreAuthorize` et la documentation qui
+étaient en retard. Corrections : `ADMIN` retiré de `POST /grilles-tarifaires` et
+`PATCH /grilles-tarifaires/{id}` dans le contrôleur, dans `CLAUDE.md` section 8
+et dans `contrats_api_dotations_v3.md` (V3.7).
+
+> **Point vérifié à la demande de l'utilisateur, et qui aurait pu tout
+> invalider.** L'écran ADMIN de création d'une fonction éligible porte un champ
+> « Montant de la dotation » : ce montant crée-t-il une grille via l'endpoint
+> qu'on vient de fermer ? **Non.** `POST /fonctions-eligibles` est servi par
+> `FonctionEligibleService.creer()`, qui écrit la fonction **et** sa grille
+> initiale directement dans `grilleTarifaireRepository`, à l'intérieur du module
+> `referentiel` — sans jamais passer par `GrilleTarifaireController`. Les deux
+> chemins sont indépendants : **l'ADMIN conserve la création complète d'une
+> fonction éligible avec son montant.** Ce qu'il perd, c'est uniquement le droit
+> de *remplacer* le montant d'une fonction existante en injectant une grille
+> dans le circuit de validation — ce que l'interface ne lui permettait déjà pas.
+> À noter, sans y toucher (hors périmètre MM.14) : cette grille initiale naît en
+> `ACTIVE` sans validation DRH, exception à RG-10 assumée et décidée avec le
+> métier au Sprint 6F.7bis.
+
+**E4 — route de repli.** Le `*` renvoyait tout le monde vers `/login`, si bien
+qu'une faute de frappe dans l'URL donnait à un agent connecté l'impression
+d'avoir été déconnecté. Remplacé par `RepliRoute`, qui arbitre explicitement :
+`/login` si non authentifié, `/introuvable` sinon. Un unique `*` décide, plutôt
+que deux branches `*` concurrentes (racine et imbriquée sous `AppLayout`) qui
+obtiendraient le même score de spécificité dans React Router et s'arbitreraient
+sur l'ordre de déclaration — fragile à la première réorganisation du routeur.
+Nouvelle page `PageIntrouvable`, rendue dans `AppLayout` : barre latérale
+conservée, donc la navigation reste possible.
+
+**E5 — `AccesInterdit`.** Réécrite dans la charte (`PageHeader`, `Card`, icône
+`ShieldAlert` sur les tokens `primary-*` du chantier D.1), avec un message qui
+nomme le rôle de l'utilisateur et un bouton « Retour à l'accueil ». La table
+`ROUTE_PAR_ROLE`, jusque-là privée dans `CallbackKeycloak.jsx`, est extraite
+dans `src/router/routeParRole.js` : trois écrans en ont désormais besoin, une
+seule source évite qu'un rôle soit corrigé à un endroit et pas aux autres.
+
+**E7a — non modifié, comme exigé.** `/actuator/health` conserve
+`show-details: always` et son `permitAll` : les sondes de vivacité et de
+disponibilité Kubernetes en dépendent (`CLAUDE.md` section 14). Le restreindre
+demande un arbitrage DSI (isolation réseau du endpoint au cluster), pas une
+décision de sprint. `SecurityConfig.java` n'a reçu aucune modification au
+Sprint MM.14.
 
 ---
 

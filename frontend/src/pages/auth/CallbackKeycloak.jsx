@@ -5,21 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Ca
 import { Alert, AlertDescription } from '../../components/ui/Alert';
 import { Button } from '../../components/ui/Button';
 import { Logo } from '../../components/ui/Logo';
-
-// Route de destination apres connexion selon le role de l'utilisateur.
-// Deplacee ici depuis Login.jsx (Sprint MM.7) : c'est desormais le retour de
-// Keycloak, pas la soumission d'un formulaire, qui declenche la redirection.
-// Chaque valeur doit rester accessible au role concerne dans AppRouter,
-// sinon la connexion aboutit sur /acces-interdit (constat de l'audit
-// Sprint 6F.9 : le CRH pointait encore vers /dashboard, devenu ARH/DRH
-// seulement le 2026-07-30).
-const ROUTE_PAR_ROLE = {
-  EMPLOYE: '/enrolement',
-  ARH: '/dashboard',
-  CRH: '/processus',
-  DRH: '/dashboard',
-  ADMIN: '/grilles-tarifaires',
-};
+// Sprint MM.14 : ROUTE_PAR_ROLE extraite ici-meme vers un module partage,
+// desormais lu aussi par AccesInterdit et PageIntrouvable.
+import { ROUTE_PAR_ROLE } from '../../router/routeParRole';
 
 // Page de retour du flux Authorization Code + PKCE (decision F-2, Sprint
 // MM.7). Keycloak redirige ici avec ?code=...&state=... (ou ?error=... si

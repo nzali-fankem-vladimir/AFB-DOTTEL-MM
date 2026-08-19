@@ -1,9 +1,11 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute';
 import { AppLayout } from '../components/layout/AppLayout';
 import Login from '../pages/auth/Login';
 import CallbackKeycloak from '../pages/auth/CallbackKeycloak';
 import AccesInterdit from '../pages/auth/AccesInterdit';
+import PageIntrouvable from '../pages/auth/PageIntrouvable';
+import RepliRoute from './RepliRoute';
 import VerifierMatriculePage from '../pages/enrolement/VerifierMatriculePage';
 import ConfirmerEnrolementPage from '../pages/enrolement/ConfirmerEnrolementPage';
 import ImporterBeneficiairesPage from '../pages/enrolement/ImporterBeneficiairesPage';
@@ -38,6 +40,10 @@ export default function AppRouter() {
         <Route element={<ProtectedRoute roles={TOUS_ROLES} />}>
           <Route element={<AppLayout />}>
             <Route path="/acces-interdit" element={<AccesInterdit />} />
+            {/* Sprint MM.14 (ecart E4) : cible de RepliRoute pour un
+                utilisateur authentifie arrive sur une URL inconnue. Sous
+                AppLayout, donc la barre laterale reste disponible. */}
+            <Route path="/introuvable" element={<PageIntrouvable />} />
 
             {/* EMPLOYE */}
             <Route element={<ProtectedRoute roles={['EMPLOYE']} />}>
@@ -58,9 +64,21 @@ export default function AppRouter() {
               <Route path="/dashboard" element={<DashboardPage />} />
             </Route>
 
+            {/* Consultation des beneficiaires : ARH et DRH (Sprint MM.14,
+                ecart E2 de l'audit tranche avec le metier). La DRH valide
+                l'etat mensuel en dernier ; elle doit pouvoir verifier la
+                fiche de reference d'un beneficiaire sans passer par l'ARH.
+                CLAUDE.md section 8 l'autorisait deja cote API
+                (GET /beneficiaires et /beneficiaires/export en ARH+DRH) --
+                seul l'ecran l'en excluait. LECTURE SEULE : Beneficiaires.jsx
+                conditionne modifier/desactiver/reactiver au role ARH. */}
+            <Route element={<ProtectedRoute roles={['ARH', 'DRH']} />}>
+              <Route path="/beneficiaires" element={<Beneficiaires />} />
+            </Route>
+
             {/* ARH (grilles tarifaires aussi consultables par ADMIN) */}
             <Route element={<ProtectedRoute roles={['ARH']} />}>
-              <Route path="/beneficiaires" element={<Beneficiaires />} />
+              {/* L'import reste ARH seul (POST /beneficiaires/import). */}
               <Route path="/beneficiaires/import" element={<ImporterBeneficiairesPage />} />
               {/* Declenchement reserve a l'ARH (POST /processus/declencher).
                   Route statique declaree avant /processus/:id -- React Router
@@ -103,8 +121,9 @@ export default function AppRouter() {
           </Route>
         </Route>
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        {/* Repli (Sprint MM.14, ecart E4) : /login si non authentifie,
+            /introuvable si authentifie. Voir RepliRoute. */}
+        <Route path="*" element={<RepliRoute />} />
       </Routes>
     </BrowserRouter>
   );

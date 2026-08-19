@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Download } from 'lucide-react';
 import apiClient from '../../api/apiClient';
+import { useAuth } from '../../contexts/AuthContext';
 import { PageHeader } from '../../components/layout/PageHeader';
 import { DataTable } from '../../components/ui/DataTable';
 import { Badge } from '../../components/ui/Badge';
@@ -46,6 +47,13 @@ function colonnes(libellesFonctions) {
 }
 
 export default function Beneficiaires() {
+  // Sprint MM.14 (ecart E2) : l'ecran est ouvert a la DRH en LECTURE SEULE.
+  // Toutes les actions d'ecriture restent ARH -- cote backend, modifier,
+  // desactiver et reactiver sont en hasRole('ARH') : les afficher pour la DRH
+  // produirait des boutons qui echouent en 403.
+  const { user } = useAuth();
+  const peutModifier = user?.role === 'ARH';
+
   const [searchParams, setSearchParams] = useSearchParams();
   const fonction = searchParams.get('fonction') ?? '';
   const unite = searchParams.get('unite') ?? '';
@@ -273,7 +281,7 @@ export default function Beneficiaires() {
           cleLigne={(beneficiaire) => beneficiaire.id}
           chargement={chargement}
           pagination={pagination}
-          actions={(beneficiaire) => (
+          actions={!peutModifier ? undefined : (beneficiaire) => (
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => setBeneficiaireAModifier(beneficiaire)}>
                 Modifier

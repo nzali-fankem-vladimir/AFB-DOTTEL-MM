@@ -42,8 +42,22 @@ public class GrilleTarifaireController {
         return ResponseEntity.ok(reponse);
     }
 
+    // Sprint MM.14 (ecart E3 de l'audit, tranche avec le metier) : ADMIN
+    // RETIRE de la creation et de la modification. Fixer un montant de
+    // dotation n'est pas un acte d'administration technique -- c'est une
+    // decision metier qui part aussitot dans le circuit ARH -> CRH -> DRH
+    // (RG-10, workflow a trois acteurs du Sprint MM.12), circuit dont
+    // l'ADMIN n'est acteur d'aucune etape. Le laisser y injecter un montant
+    // contredirait l'esprit de RG-08 (separation des taches).
+    //
+    // L'ADMIN CONSERVE : GET /grilles-tarifaires (lecture de la liste,
+    // ci-dessus) et GET /grilles-tarifaires/fonction/{code} (historique).
+    // Il conserve aussi POST /fonctions-eligibles, qui cree une fonction
+    // NEUVE avec sa grille initiale directement ACTIVE -- chemin distinct,
+    // interne au module referentiel, qui ne passe pas par ici (voir
+    // FonctionEligibleService.creer(), decision metier du Sprint 6F.7bis).
     @PostMapping
-    @PreAuthorize("hasAnyRole('ARH', 'ADMIN')")
+    @PreAuthorize("hasRole('ARH')")
     public ResponseEntity<GrilleTarifaireResponseDto> creer(@Valid @RequestBody CreerGrilleTarifaireRequestDto requete) {
         Long idCreateur = authenticatedUserService.utilisateurCourant().getId();
         GrilleTarifaireResponseDto reponse = grilleTarifaireService.creer(requete, idCreateur);
@@ -51,7 +65,7 @@ public class GrilleTarifaireController {
     }
 
     @PatchMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ARH', 'ADMIN')")
+    @PreAuthorize("hasRole('ARH')")
     public ResponseEntity<GrilleTarifaireResponseDto> modifier(@PathVariable Long id,
                                                                  @Valid @RequestBody ModifierGrilleTarifaireRequestDto requete) {
         Long idModificateur = authenticatedUserService.utilisateurCourant().getId();

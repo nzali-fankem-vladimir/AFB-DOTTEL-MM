@@ -4,16 +4,19 @@ Module : Digitalisation des Dotations Téléphoniques Mensuelles
 
 *Projet AFRILAND HORIZON 2030*
 
-| **Référence** | **AFB_API_DOTTEL_V3.5_2026** |
+| **Référence** | **AFB_API_DOTTEL_V3.7_2026** |
 | --- | --- |
-| Version | 3.5 |
+| Version | 3.7 |
 | Date | Août 2026 |
-| Nombre d'endpoints documentés | 41 endpoints répartis en 8 groupes (+ 1 sous-groupe) |
+| Nombre d'endpoints documentés | 42 endpoints réellement exposés, répartis en 8 groupes (+ 1 sous-groupe) — recompté sur le code, `POST /auth/login` supprimé par MM.7 n'est plus compté |
 | Version 3.1 | Alignement complet sur l'implémentation réelle : correction des réponses login/PATCH bénéficiaire, ajout de PATCH /processus/{id} (absent de la V3.0), correction de l'erreur RG-04 (400, pas 500), ajout d'un statut d'implémentation par endpoint. |
 | Version 3.2 | Ajout de GET /fonctions-eligibles et de PATCH /beneficiaires/{id}/reactiver (Sprint 6F.5), absents de la V3.1 — le premier alimente en frontend les filtres et formulaires liés à la fonction sans liste en dur, le second comble une lacune : aucun endpoint ne permettait de revenir sur une désactivation. |
 | Version 3.3 | Sprint 6F.7bis : comble deux écarts face au cahier des charges (section II.1.7). Ajout de POST /grilles-tarifaires/{id}/desactiver (retrait volontaire d'une grille ACTIVE sans remplacement, absent du cycle de vie initial qui ne couvrait que le remplacement automatique). `fonction_eligible` passe d'un référentiel figé par migration Flyway à un référentiel géré par l'application : ajout de GET /fonctions-eligibles/toutes, POST /fonctions-eligibles, PATCH /fonctions-eligibles/{code}, PATCH /fonctions-eligibles/{code}/desactiver et PATCH /fonctions-eligibles/{code}/reactiver. Rôle ADMIN ajouté à GET /fonctions-eligibles (nécessaire au filtre de `GrillesListPage` côté ADMIN, oublié à la V3.2). |
 | Version 3.4 | Sprint MM.10 (référentiel unité/agence). Ajout de GET /beneficiaires/unites-rattachement : liste unité↔code_unite exposée par le stub EHR, alimente le select du modal de modification bénéficiaire (l'ARH ne saisit plus le code unité à la main, résolu côté backend à la validation du PATCH). Introduction de la colonne `code_agence` (5 chiffres, agence de domiciliation du compte courant — distincte de `code_unite`, 4 chiffres, unité d'affectation professionnelle), non exposée en lecture dans les DTO bénéficiaire mais portée par le flux d'enrôlement EHR et l'import Excel (8ᵉ colonne CODE_AGENCE). |
 | Version 3.5 | Sprint MM.11 (période de déclenchement et rattrapage). POST /processus/declencher refuse désormais toute période postérieure au mois courant (400) et accepte un champ `rattrapage` pour redéclencher un mois déjà clos, réservé aux bénéficiaires non payés (RG-12 évoluée — voir CLAUDE.md section 7 : l'unicité mois/année ne s'applique plus qu'aux processus normaux). `rattrapage` et `idProcessusOriginal` ajoutés aux réponses de GET /processus, GET /processus/{id} et POST /processus/declencher. Ajout de GET /reporting/audit/actions (liste dynamique, dérivée des valeurs réellement présentes en base, pour le filtre "Action" du journal d'audit — évite qu'une liste figée côté frontend se désynchronise à chaque nouvelle action). **Correction de statut au passage** : le Groupe 6 Reporting, marqué "non implémenté" depuis la V3.0, est en réalité construit et consommé par le frontend depuis le Sprint 6F — corrigé ici car GET /reporting/audit/actions vient s'y ajouter. |
+| Version 3.6 | Revue de cohérence contre le code réel (Sprint MM.13+). **Corrections majeures de statut**, plusieurs endpoints étaient documentés "Planifié" alors qu'ils sont implémentés et testés depuis plusieurs sprints : `POST /processus/{id}/retourner`, `GET /processus/{id}/piece-jointe`, `GET /pieces-jointes/{id}/download`, et les 4 endpoints du Groupe 8 Administration (`GET`/`POST /admin/utilisateurs`, `PATCH /admin/utilisateurs/{id}/statut`, `PATCH /admin/utilisateurs/{id}/role`). **`POST /auth/login` supprimé** (Sprint MM.7, décision de portée P-2) : Keycloak est désormais l'unique émetteur de jetons, la connexion passe par une redirection frontend directe (Authorization Code + PKCE), ce contrôleur n'émet plus rien. `POST /auth/logout` corrigé (ne retourne plus de corps JSON). Section 0 corrigée : l'authentification n'est plus un HS384 local mais un jeton Keycloak vérifié par JWKS. |
+
+| Version 3.7 | Sprint MM.14 (nettoyage de dette technique). **Aucun endpoint ajouté ni supprimé — 42 endpoints inchangés.** Trois corrections de rôles, issues des écarts E2 et E3 de `docs/audit_securite_owasp_v1.md` section 4, tranchés avec le métier le 2026-08-19 : **ADMIN retiré** de `POST /grilles-tarifaires` et `PATCH /grilles-tarifaires/{id}` (fixer un montant est un acte métier engageant le circuit ARH → CRH → DRH, pas une opération d'administration ; l'ADMIN garde la lecture et `POST /fonctions-eligibles`) ; **DRH ajoutée** à `GET /beneficiaires/unites-rattachement` (l'écran Bénéficiaires est ouvert à la DRH en lecture seule, ce filtre doit suivre). Dans les trois cas, le `@PreAuthorize` du backend a été aligné sur ce contrat dans le même commit. |
 
 Chaque endpoint porte désormais une étiquette de statut :
 - **Implémenté** : construit, testé, commité.
@@ -28,46 +31,22 @@ Ce document définit l'ensemble des contrats API REST entre le frontend React et
 | --- | --- |
 | URL de base (dev) | http://localhost:8080/api |
 | Format | JSON (Content-Type: application/json) |
-| Authentification | JWT — Header Authorization: Bearer {token} — signature HS384 |
+| Authentification | JWT — Header Authorization: Bearer {token}. **Depuis le Sprint MM.7**, le jeton est émis exclusivement par Keycloak (Authorization Code + PKCE côté frontend) et validé par le backend via JWKS/issuer-uri — plus de signature HS384 locale ni d'émission par ce module (voir `docs/monolithe-modulaire/MM.7_keycloak_provisoire.md`). |
 | Encodage | UTF-8 |
 | Dates | Format ISO 8601 : YYYY-MM-DD |
 | Montants | Entiers en FCFA (jamais de décimales, jamais stockés directement sur un bénéficiaire) |
 
 # 1. Groupe Auth — /auth
 
-### POST /auth/login — Implémenté
+### POST /auth/login — **SUPPRIMÉ (Sprint MM.7)**
 
-Connexion avec matricule et mot de passe. Retourne un token JWT valide 8 heures (signature HS384 explicite).
-
-**Rôles autorisés : Public**
-
-Corps de la requête :
-
-```json
-{
-  "matricule": "1847",
-  "motDePasse": "Test1234"
-}
-```
-
-Réponse succès (structure réelle — corrigée par rapport à la V3.0, qui listait à tort `nomUtilisateur` et `expireAt`, deux champs qui n'existent pas dans `LoginResponseDto`) :
-
-```json
-{
-  "token": "eyJhbGciOiJIUzM4NCJ9...",
-  "matricule": "1847",
-  "role": "ARH",
-  "nom": "MBARGA",
-  "prenom": "Jean Paul"
-}
-```
-
-| **Code HTTP** | **Description** |
-| --- | --- |
-| 200 | Connexion réussie. |
-| 400 | Corps invalide ou champ manquant. |
-| 401 | Identifiants incorrects (`IdentifiantsInvalidesException`). |
-| 403 | Compte désactivé (`UtilisateurInactifException` — identité prouvée, statut bloque). |
+**N'existe plus.** Documenté par erreur comme "Implémenté" jusqu'à la V3.5.
+Keycloak est devenu l'unique émetteur de jetons (décision de portée P-2,
+Sprint MM.7) : le frontend redirige directement vers Keycloak
+(Authorization Code + PKCE), ce backend n'émet plus aucun jeton et
+n'expose donc plus cet endpoint. `AuthController` ne porte désormais que
+`logout`. Voir `docs/monolithe-modulaire/MM.7_keycloak_provisoire.md` et
+`MM.7_bascule_realm_dsi.md`.
 
 ### POST /auth/logout — Implémenté
 
@@ -75,15 +54,15 @@ Terminaison stateless : aucune liste noire de jetons, le token expire naturellem
 
 **Rôles autorisés : Authentifié**
 
-Réponse succès :
-
-```json
-{ "message": "Déconnexion réussie." }
-```
+Réponse succès : **200, corps vide** (corrigé — la V3.5 documentait à tort
+un corps JSON `{ "message": "Déconnexion réussie." }`, qui n'existe pas
+dans `AuthController.logout()`). Le token est simplement supprimé côté
+client ; cet endpoint n'a plus qu'une valeur symbolique depuis MM.7
+(aucune liste noire, aucun état serveur à purger).
 
 | **Code HTTP** | **Description** |
 | --- | --- |
-| 200 | Déconnexion réussie. |
+| 200 | Déconnexion réussie (corps vide). |
 | 401 | Token absent ou invalide. |
 
 # 2. Groupe Enrôlement — /enrolement
@@ -219,7 +198,15 @@ Réponse succès :
 
 Liste les unités de rattachement connues du stub EHR, avec leur `code_unite` (4 chiffres) associé. Alimente le select du modal de modification bénéficiaire côté frontend : l'ARH choisit un libellé d'unité, jamais le code — le `code_unite` est résolu côté backend à la validation du `PATCH /beneficiaires/{id}` (source unique de vérité, décision actée avec l'utilisateur au Sprint MM.10).
 
-**Rôles autorisés : ARH** (aligné sur le rôle déjà requis par `PATCH /beneficiaires/{id}`)
+**Sprint MM.14, écart E2 de l'audit tranché avec le métier** : rôle **DRH
+ajouté**. L'écran Bénéficiaires est désormais ouvert à la DRH en lecture seule
+(`GET /beneficiaires` et `GET /beneficiaires/export` l'autorisaient déjà, seul
+le frontend l'en excluait), et cette liste alimente son filtre « Unité de
+rattachement ». Elle n'expose aucune donnée que `GET /beneficiaires` ne montre
+déjà à ce rôle ; la laisser en 403 rendrait l'écran boiteux pour la DRH.
+
+**Rôles autorisés : ARH, DRH** (l'ARH par le rôle déjà requis par
+`PATCH /beneficiaires/{id}` ; la DRH pour le filtre de son écran en lecture seule)
 
 Réponse succès :
 
@@ -865,23 +852,72 @@ CREDIT : codeAgence - numCompteCourant - montantAttribue - DOT TEL MM/AAAA
 | 409 | **Sprint MM.12** — des montants sont obsolètes et `confirmerResynchronisation` n'a pas été fourni. Appeler `GET /processus/{id}/ecarts-montants`, présenter le récapitulatif, puis rappeler avec `confirmerResynchronisation=true`. |
 | 409 | **Sprint MM.12 (P-2)** — une fonction de l'état mensuel n'a plus de grille en vigueur alors qu'une grille attend une signature CRH ou DRH. **Non contournable par `confirmerResynchronisation`** : le contrôle s'effectue avant. Le message nomme la fonction, le bénéficiaire, l'étage bloquant et la date de soumission, et rappelle les deux sorties (attendre la signature, ou exclure la ligne via `PATCH /processus/{id}`). |
 
-### POST /processus/{id}/retourner — Planifié (non implémenté)
+### POST /processus/{id}/retourner — Implémenté (corrigé V3.6, documenté à tort "Planifié" depuis la V3.0)
 
-Retourne le processus à l'ARH pour correction, motif obligatoire (RG-07). Prévu Sprint 5, avec le reste du workflow CRH/DRH.
+Retourne le processus à l'ARH pour correction depuis `EN_ATTENTE_CRH` ou
+`EN_ATTENTE_DRH`, motif obligatoire (RG-07). Un retour n'est pas terminal :
+l'ARH reprend la main via `PATCH /processus/{id}` puis revalide via
+`POST /processus/{id}/valider` (branche ARH). Voir aussi `motifRetour` /
+`origineRetour` documentés dans `GET /processus/{id}` ci-dessus, qui
+reflètent toujours le dernier retour en date.
 
-**Rôles autorisés prévus : CRH, DRH**
+**Rôles autorisés : CRH, DRH**
 
-### GET /processus/{id}/piece-jointe — Planifié (non implémenté)
+Corps de la requête :
 
-Métadonnées de la pièce jointe unique du processus. L'entité `PieceJointe` et son repository existent depuis le Sprint 3.4, mais aucun endpoint de consultation n'a encore été construit.
+```json
+{ "motif": "Écart mensuel injustifié sur un bénéficiaire" }
+```
 
-**Rôles autorisés prévus : ARH, CRH, DRH**
+Réponse succès :
 
-### GET /pieces-jointes/{id}/download — Planifié (non implémenté)
+```json
+{ "id": 1, "statut": "RETOURNE", "motif": "Écart mensuel injustifié sur un bénéficiaire" }
+```
 
-Téléchargement du PDF de l'état mensuel. Prévu avec le reste du groupe Workflow, Sprint 5 ou 6.
+| **Code HTTP** | **Description** |
+| --- | --- |
+| 200 | Retour enregistré. |
+| 400 | Motif absent ou vide (RG-07). |
+| 404 | Processus introuvable. |
+| 409 | Statut du processus différent de `EN_ATTENTE_CRH`/`EN_ATTENTE_DRH`. |
 
-**Rôles autorisés prévus : ARH, CRH, DRH**
+### GET /processus/{id}/piece-jointe — Implémenté (corrigé V3.6, documenté à tort "Planifié" depuis la V3.0)
+
+Métadonnées de la pièce jointe unique du processus (pas le fichier lui-même — voir `GET /pieces-jointes/{id}/download` pour le binaire).
+
+**Rôles autorisés : ARH, CRH, DRH**
+
+Réponse succès :
+
+```json
+{
+  "id": 1,
+  "nomFichier": "dotations-telephoniques-7-2026.pdf",
+  "dateGenerationInitiale": "2026-07-09T08:00:00",
+  "dateDerniereMiseAJour": "2026-07-10T14:30:00",
+  "nombreSignatures": 2
+}
+```
+
+| **Code HTTP** | **Description** |
+| --- | --- |
+| 200 | Métadonnées retournées. |
+| 404 | Processus ou pièce jointe introuvable. |
+
+### GET /pieces-jointes/{id}/download — Implémenté (corrigé V3.6, documenté à tort "Planifié" depuis la V3.0)
+
+Télécharge le PDF de l'état mensuel (`id` = id de la `piece_jointe`, pas du processus).
+
+**Rôles autorisés : ARH, CRH, DRH**
+
+Réponse succès : fichier binaire — `Content-Type: application/pdf`,
+`Content-Disposition: attachment; filename="dotations-telephoniques-<mois>-<annee>.pdf"`.
+
+| **Code HTTP** | **Description** |
+| --- | --- |
+| 200 | Fichier PDF retourné. |
+| 404 | Pièce jointe introuvable. |
 
 # 6. Groupe Reporting — /reporting
 
@@ -1076,7 +1112,20 @@ contradiction repérée dans une version antérieure de ce contrat).
 **Sprint MM.12** : ce premier statut est désormais `EN_ATTENTE_CRH`, plus
 `EN_ATTENTE_DRH`.
 
-**Rôles autorisés : ARH, ADMIN**
+**Sprint MM.14, écart E2/E3 de l'audit tranché avec le métier** : le rôle
+**ADMIN est retiré**. Fixer un montant de dotation n'est pas un acte
+d'administration technique — c'est une décision métier qui part aussitôt dans
+le circuit ARH → CRH → DRH (RG-10), circuit dont l'ADMIN n'est acteur d'aucune
+étape ; l'y laisser injecter un montant contredirait l'esprit de RG-08. Le
+frontend appliquait déjà cette restriction (bouton « Créer une grille »
+conditionné au rôle ARH) : c'est le `@PreAuthorize` et ce contrat qui étaient
+en retard. **L'ADMIN conserve** `GET /grilles-tarifaires`,
+`GET /grilles-tarifaires/fonction/{code}` et surtout `POST /fonctions-eligibles`,
+qui crée une fonction **neuve** avec sa grille initiale directement ACTIVE —
+chemin distinct, interne au module `referentiel`, qui ne passe pas par cet
+endpoint.
+
+**Rôles autorisés : ARH**
 
 Corps de la requête :
 
@@ -1116,7 +1165,10 @@ a statué**. Autoriser `EN_ATTENTE_DRH` permettrait à l'ARH de changer le monta
 après la validation CRH — la DRH validerait alors un chiffre que le CRH n'a
 jamais vu, ce qui viderait l'étape CRH de son sens.
 
-**Rôles autorisés : ARH, ADMIN**
+**Sprint MM.14** : rôle **ADMIN retiré**, même raisonnement que pour
+`POST /grilles-tarifaires` ci-dessus.
+
+**Rôles autorisés : ARH**
 
 | **Code HTTP** | **Description** |
 | --- | --- |
@@ -1263,23 +1315,114 @@ Réponse succès : même forme que `POST /grilles-tarifaires`, avec `statutValid
 
 # 8. Groupe Administration — /admin
 
-**Groupe entièrement non implémenté à ce jour.** Prévu Sprint 4bis.3 et 4bis.4.
+**Corrigé V3.6 : groupe entièrement implémenté**, documenté à tort "non
+implémenté à ce jour" depuis la V3.0. Pas de pagination sur la liste :
+volume interne limité à quelques dizaines d'utilisateurs (même décision
+que `GET /grilles-tarifaires`).
 
-### GET /admin/utilisateurs — Planifié (Sprint 4bis.3)
+### GET /admin/utilisateurs — Implémenté (corrigé V3.6)
 
-**Rôles autorisés prévus : ADMIN**
+Liste les utilisateurs, avec filtres optionnels `role` et `actif`.
 
-### POST /admin/utilisateurs — Planifié (Sprint 4bis.3)
+**Rôles autorisés : ADMIN, DRH** (DRH ajouté par rapport à la version
+précédente de ce contrat, qui ne prévoyait qu'ADMIN — la DRH a un accès
+lecture seule, il alimente le filtre utilisateur du journal d'audit,
+`CLAUDE.md` section 8)
 
-**Rôles autorisés prévus : ADMIN**
+Paramètres de requête (facultatifs) : `role` (`EMPLOYE`|`ARH`|`CRH`|`DRH`|`ADMIN`), `actif` (booléen).
 
-### PATCH /admin/utilisateurs/{id}/statut — Planifié (Sprint 4bis.4)
+Réponse succès :
 
-**Rôles autorisés prévus : ADMIN**
+```json
+{
+  "contenu": [
+    { "id": 1, "matricule": "1847", "nomPrenoms": "MBARGA Jean Paul", "role": "ARH", "actif": true }
+  ]
+}
+```
 
-### PATCH /admin/utilisateurs/{id}/role — Planifié (Sprint 4bis.4)
+| **Code HTTP** | **Description** |
+| --- | --- |
+| 200 | Liste retournée. |
+| 403 | Rôle non autorisé. |
 
-**Rôles autorisés prévus : ADMIN**
+### POST /admin/utilisateurs — Implémenté (corrigé V3.6)
+
+Crée un utilisateur.
+
+**Rôles autorisés : ADMIN**
+
+Corps de la requête :
+
+```json
+{
+  "matricule": "5521",
+  "nom": "ONANA",
+  "prenom": "Patrice",
+  "email": "patrice_onana@afrilandfirstbank.com",
+  "role": "CRH",
+  "motDePasse": "Test1234"
+}
+```
+
+Note : `motDePasse` reste requis dans le contrat mais **sans usage réel**
+depuis MM.7 — l'authentification est portée par Keycloak, pas par ce
+mot de passe local. Champ conservé le temps qu'une décision explicite
+tranche son devenir (voir `docs/monolithe-modulaire/MM.7_keycloak_provisoire.md`
+section 3.3, point non clos).
+
+Réponse succès :
+
+```json
+{ "id": 15, "matricule": "5521", "nomPrenoms": "ONANA Patrice", "role": "CRH", "actif": true }
+```
+
+| **Code HTTP** | **Description** |
+| --- | --- |
+| 201 | Utilisateur créé. |
+| 400 | Corps invalide (Bean Validation). |
+| 409 | Matricule déjà utilisé, ou email déjà utilisé. |
+
+### PATCH /admin/utilisateurs/{id}/statut — Implémenté (corrigé V3.6)
+
+Active/désactive un utilisateur.
+
+**Rôles autorisés : ADMIN**
+
+Corps de la requête :
+
+```json
+{ "actif": false }
+```
+
+Réponse succès : même forme que `POST /admin/utilisateurs`.
+
+| **Code HTTP** | **Description** |
+| --- | --- |
+| 200 | Statut modifié. |
+| 404 | Utilisateur introuvable. |
+| 409 | Un administrateur ne peut pas se désactiver lui-même, ni désactiver le dernier compte ADMIN actif restant (garde-fous actés le 23/07/2026). |
+
+### PATCH /admin/utilisateurs/{id}/role — Implémenté (corrigé V3.6)
+
+Change le rôle d'un utilisateur.
+
+**Rôles autorisés : ADMIN**
+
+Corps de la requête :
+
+```json
+{ "role": "DRH" }
+```
+
+Réponse succès : même forme que `POST /admin/utilisateurs`.
+
+| **Code HTTP** | **Description** |
+| --- | --- |
+| 200 | Rôle modifié. |
+| 400 | Rôle invalide (ne correspond à aucune valeur de `RoleEnum`). |
+| 404 | Utilisateur introuvable. |
+| 409 | Un administrateur ne peut pas s'auto-rétrograder vers un rôle différent d'ADMIN, ni rétrograder le dernier compte ADMIN actif restant. |
 
 # 9. Codes HTTP globaux
 
@@ -1289,7 +1432,7 @@ Réponse succès : même forme que `POST /grilles-tarifaires`, avec `statutValid
 | 201 | Création réussie |
 | 400 | Requête invalide — Bean Validation, ou règle métier de type RG-07/RG-11, ou absence de grille ACTIVE pour RG-04 |
 | 401 | Non authentifié — token absent, invalide ou expiré |
-| 403 | Non autorisé — rôle insuffisant, ou violation RG-01/RG-02 (éligibilité), ou violation RG-08 (séparation des tâches, Sprint 5 uniquement) |
+| 403 | Non autorisé — rôle insuffisant, ou violation RG-01/RG-02 (éligibilité), ou violation RG-08 (séparation des tâches — processus mensuel depuis le Sprint 5, **et grilles tarifaires depuis le Sprint MM.12**, corrigé V3.6) |
 | 404 | Ressource introuvable |
 | 409 | Conflit — doublon matricule (RG-03), doublon processus mensuel (RG-12, distincte de RG-03), ou état incompatible avec l'action demandée |
 

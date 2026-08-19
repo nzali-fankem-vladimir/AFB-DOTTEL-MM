@@ -33,15 +33,34 @@ EXPOSE 8080
 
 # Variables d'environnement attendues au runtime, injectees par le
 # ConfigMap et le Secret Kubernetes (voir k8s/). Volontairement NON
-# declarees via ENV : une valeur vide resoudrait le placeholder Spring au
-# lieu de le laisser echouer, et DOTTEL_JWT_SECRET vide produirait une
-# WeakKeyException opaque plutot qu'une erreur de configuration explicite.
+# declarees via ENV : une valeur vide RESOUDRAIT le placeholder Spring au
+# lieu de le laisser echouer, transformant une erreur de configuration
+# explicite en panne opaque au premier appel.
 #
-#   SPRING_PROFILES_ACTIVE      prod
-#   DB_URL, DB_USER, DB_PASSWORD
-#   DOTTEL_JWT_SECRET           >= 32 caracteres (HS384)
-#   APP_CORS_ALLOWED_ORIGINS    origine exacte du frontend
-#   KAFKA_BOOTSTRAP_SERVERS
+# Liste alignee sur les variables reellement lues par
+# backend/src/main/resources/application*.yml (verifiee au Sprint MM.14).
+#
+#   -- ConfigMap (k8s/configmap.yaml) --
+#   SPRING_PROFILES_ACTIVE              prod
+#   DB_URL                              jdbc:postgresql://<service>:5432/<base>
+#   APP_CORS_ALLOWED_ORIGINS            origine exacte du frontend, jamais *
+#   DOTTEL_KEYCLOAK_ISSUER_URI          URL du realm -- A CONFIRMER DSI (MM.15).
+#                                       Sans repli : le demarrage echoue si absente.
+#   KAFKA_BOOTSTRAP_SERVERS             <service-kafka>:9092
+#   DOTTEL_DOCUMENTS_CHEMIN_STOCKAGE    repertoire du PDF de l'etat mensuel
+#   DOTTEL_DOCUMENTS_CHAPITRE_DEFAUT    repli chapitre comptable (defaut 37210100)
+#   DOTTEL_NOTIFICATIONS_ENABLED        true|false (false = stub journalisant)
+#   DOTTEL_NOTIFICATIONS_EXPEDITEUR     adresse d'envoi -- A CONFIRMER DSI (MM.17)
+#   DOTTEL_MAIL_HOST                    serveur SMTP -- A CONFIRMER DSI (MM.17)
+#   DOTTEL_MAIL_PORT                    587 par defaut
+#
+#   -- Secret (k8s/secret.yaml) --
+#   DB_USER, DB_PASSWORD
+#   DOTTEL_MAIL_USERNAME, DOTTEL_MAIL_PASSWORD
+#
+# DOTTEL_JWT_SECRET a ete retiree au Sprint MM.14 : Keycloak est l'unique
+# emetteur de jetons depuis MM.7, le backend valide via JWKS et ne lit plus
+# aucun secret partage (JwtUtil.java n'existe plus).
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8080/api/actuator/health || exit 1

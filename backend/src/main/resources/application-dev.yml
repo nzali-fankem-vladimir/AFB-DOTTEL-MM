@@ -2,7 +2,26 @@ spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/afb_dotations_telephoniques}
     username: ${DB_USER:postgres}
-    password: ${DB_PASSWORD:postgres}
+    # Sprint MM.14 : le repli en clair ${DB_PASSWORD:postgres} est SUPPRIME
+    # (observation residuelle de docs/audit_securite_owasp_v1.md section 4).
+    # Un mot de passe committe reste un mot de passe committe, meme en
+    # developpement. Ecriture desormais IDENTIQUE au profil prod.
+    #
+    # Comportement verifie sans DB_PASSWORD : le demarrage echoue, mais sur
+    # une erreur d'authentification PostgreSQL, PAS sur un "Could not resolve
+    # placeholder". C'est normal et il ne faut pas s'attendre a l'inverse :
+    # spring.datasource.password est liee par @ConfigurationProperties, dont
+    # le resolveur de placeholders est tolerant (ignoreUnresolvablePlaceholders)
+    # et laisse passer le texte non resolu -- contrairement a @Value, qui leve
+    # une erreur nommant la variable. C'est cette difference qui expliquait le
+    # message explicite obtenu jadis sur DOTTEL_JWT_SECRET, lu par @Value.
+    # L'echec reste franc et immediat (Flyway ne peut pas ouvrir la connexion),
+    # ce qui est l'essentiel : plus aucun secret en clair, et aucun demarrage
+    # silencieux sur une valeur committee.
+    #
+    # L'utilisateur (DB_USER) garde son repli "postgres" : c'est le nom de
+    # compte par defaut de PostgreSQL, pas un secret.
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     show-sql: true

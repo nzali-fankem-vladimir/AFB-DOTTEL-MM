@@ -38,8 +38,12 @@ public class SecurityConfig {
                 .cors(cors -> {})
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> {
+                    // Sprint MM.14 : le matcher "/auth/login" est retire -- cet
+                    // endpoint n'existe plus depuis MM.7 (AuthController ne
+                    // declare plus que /auth/logout, protege comme le reste).
+                    // Le matcher etait inerte (aucune route ne le matchait
+                    // plus) mais faisait croire a une route publique morte.
                     auth
-                            .requestMatchers("/auth/login").permitAll()
                             .requestMatchers("/actuator/health").permitAll();
                     if (devProfile) {
                         auth.requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll();

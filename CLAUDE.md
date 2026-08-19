@@ -78,8 +78,10 @@ com.afriland.dottel/
 │                    agrégée seule (aucune entité/repository en propre)
 ├── audit/           Journalisation événementielle (RG-09), écouteur de
 │                    EvenementAudit — aucun controller (pas d'endpoint)
-├── security/        SecurityConfig, JwtUtil, GlobalExceptionHandler,
+├── security/        SecurityConfig, GlobalExceptionHandler,
 │                    RoleJwtAuthenticationConverter — transverse, type OPEN
+│                    (JwtUtil supprimé au Sprint MM.7 : plus d'émission
+│                    de jetons côté module, Keycloak s'en charge)
 └── config/          CorsConfig, KafkaConfig, EvenementClotureSerializer
                      — transverse, type OPEN
 
@@ -366,12 +368,22 @@ GET    /reporting/audit                      DRH
 
 Groupe 8 : Grilles tarifaires
 GET    /grilles-tarifaires                        ARH, ADMIN
-POST   /grilles-tarifaires                        ARH, ADMIN
-PATCH  /grilles-tarifaires/{id}                   ARH, ADMIN
+POST   /grilles-tarifaires                        ARH
+PATCH  /grilles-tarifaires/{id}                   ARH
 GET    /grilles-tarifaires/en-attente-drh         DRH
 POST   /grilles-tarifaires/{id}/valider           DRH
 GET    /grilles-tarifaires/fonction/{code}        ARH, DRH, ADMIN (historique par fonction)
 POST   /grilles-tarifaires/{id}/desactiver        ARH
+
+Sprint MM.14 (écart E3 de l'audit, tranché avec le métier le 2026-08-19) :
+l'ADMIN est retiré de POST et PATCH /grilles-tarifaires. Fixer un montant
+de dotation n'est pas un acte d'administration technique — c'est une
+décision métier qui part aussitôt dans le circuit ARH → CRH → DRH
+(RG-10), circuit dont l'ADMIN n'est acteur d'aucune étape. L'ADMIN
+conserve la lecture (GET /grilles-tarifaires et l'historique par
+fonction) et POST /fonctions-eligibles, qui crée une fonction neuve avec
+sa grille initiale directement ACTIVE — chemin distinct, interne au
+module referentiel.
 
 Groupe 9 : Administration
 GET    /admin/utilisateurs                   ADMIN, DRH (DRH : lecture seule, alimente le
@@ -525,9 +537,16 @@ Conséquences concrètes pour le code :
   utilisé par Kubernetes pour les liveness et readiness probes.
 - Un Dockerfile est requis à la racine de backend/.
 - Aucun secret ne doit être codé en dur ; toutes les valeurs sensibles
-  (DB_PASSWORD, DOTTEL_JWT_SECRET, DB_URL, DB_USER) sont lues depuis
+  (DB_PASSWORD, DB_USER, identifiants du canal mail) sont lues depuis
   des variables d'environnement, destinées à être injectées via des
-  Secrets Kubernetes en production.
+  Secrets Kubernetes en production. Les valeurs non sensibles (DB_URL,
+  DOTTEL_KEYCLOAK_ISSUER_URI, KAFKA_BOOTSTRAP_SERVERS, etc.) passent
+  par le ConfigMap. La liste complète et à jour des variables
+  réellement lues est tenue dans k8s/configmap.yaml, k8s/secret.yaml
+  et le bloc de commentaire ENV de backend/Dockerfile.
+  DOTTEL_JWT_SECRET n'existe plus depuis le Sprint MM.7 : Keycloak est
+  l'unique émetteur de jetons, le backend valide par JWKS et ne lit
+  aucun secret partagé (retirée des manifests au Sprint MM.14).
 - Les manifests Kubernetes (Deployment, Service, ConfigMap, Secret)
   sont introduits progressivement à partir du Sprint 0.5.
 - Namespace, conventions de nommage des Deployments/Services et

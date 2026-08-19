@@ -1,17 +1,57 @@
 # NOTE : namespace et conventions de nommage definitives a confirmer
 # avec la DSI (voir CLAUDE.md section 14). Aucun namespace n'est fixe
 # ici volontairement.
+#
+# Ce ConfigMap porte la totalite des variables NON SENSIBLES lues par le
+# backend (grep '\${[A-Z_]*}' sur backend/src/main/resources/*.yml).
+# Les credentials sont dans k8s/secret.yaml. Toute valeur ci-dessous est
+# un PLACEHOLDER : rien de reel n'est committe dans ce depot.
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: dottel-config
 data:
   SPRING_PROFILES_ACTIVE: "prod"
+
+  # --- Base de donnees (le mot de passe et l'utilisateur sont dans le Secret) ---
   # A adapter selon l'environnement/cluster cible (nom du Service
   # Postgres, namespace, etc.). Placeholder en attendant confirmation DSI.
   DB_URL: "jdbc:postgresql://postgres-service.dottel.svc.cluster.local:5432/afb_dotations_telephoniques"
+
+  # --- Frontend ---
   # Origine exacte du frontend DOTTEL en production, consommee par
   # app.cors.allowed-origins (CorsConfig). Jamais de wildcard *.
   # URL definitive a confirmer avec la DSI (CLAUDE.md section 14) --
   # sans cette cle, le backend retomberait sur http://localhost:3000.
   APP_CORS_ALLOWED_ORIGINS: "https://dottel.afrilandfirstbank.cm"
+
+  # --- Keycloak ---
+  # A CONFIRMER DSI (point bloquant de MM.15) : URL du realm reel. La
+  # propriete spring.security.oauth2.resourceserver.jwt.issuer-uri n'a
+  # AUCUNE valeur de repli -- sans cette cle, le pod refuse de demarrer.
+  # C'est volontaire (CLAUDE.md section 18 point 10).
+  DOTTEL_KEYCLOAK_ISSUER_URI: "https://CHANGEME-keycloak.afrilandfirstbank.cm/realms/CHANGEME"
+
+  # --- Kafka (evenement de cloture consomme par le module comptable) ---
+  # Nom du Service Kafka dans le cluster, a confirmer avec la DSI.
+  KAFKA_BOOTSTRAP_SERVERS: "kafka-service.dottel.svc.cluster.local:9092"
+
+  # --- Documents (PDF de l'etat mensuel) ---
+  # Limitation connue : un stockage local au pod ne survit pas a un
+  # redemarrage. Volume persistant ou object storage a arbitrer avec la
+  # DSI (MM.18) -- ce chemin devra pointer vers le point de montage retenu.
+  DOTTEL_DOCUMENTS_CHEMIN_STOCKAGE: "/app/documents/"
+  # Valeur de repli pour beneficiaires.chapitre quand la donnee EHR est
+  # absente (beneficiaires enroles avant le Sprint 3.4).
+  DOTTEL_DOCUMENTS_CHAPITRE_DEFAUT: "37210100"
+
+  # --- Notifications Outlook (Sprint MM.13, provisoire) ---
+  # Laisse a "false" tant que le canal reel n'est pas valide par la DSI
+  # (MM.17). A false, c'est NotificationServiceStub qui journalise
+  # simplement, et DOTTEL_MAIL_* / les identifiants du Secret ne sont pas lus.
+  DOTTEL_NOTIFICATIONS_ENABLED: "false"
+  # A CONFIRMER DSI (point bloquant de MM.17) : adresse d'expedition reelle.
+  DOTTEL_NOTIFICATIONS_EXPEDITEUR: "dottel-noreply@CHANGEME.cm"
+  # A CONFIRMER DSI (point bloquant de MM.17) : serveur SMTP/relais Outlook.
+  DOTTEL_MAIL_HOST: "CHANGEME-smtp.afrilandfirstbank.cm"
+  DOTTEL_MAIL_PORT: "587"

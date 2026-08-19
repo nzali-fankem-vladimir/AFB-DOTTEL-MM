@@ -36,7 +36,11 @@ const NAV_LINKS = [
   // pas acces au CRH (decision actee le 2026-07-30).
   { href: '/dashboard', label: 'Tableau de bord', icon: LayoutDashboard, roles: ['ARH', 'DRH'] },
   { href: '/enrolement', label: 'Enrôlement', icon: UserPlus, roles: ['EMPLOYE'] },
-  { href: '/beneficiaires', label: 'Bénéficiaires', icon: Users, roles: ['ARH'] },
+  // Sprint MM.14 (ecart E2) : la DRH consulte les beneficiaires en lecture
+  // seule. Roles STRICTEMENT identiques au ProtectedRoute de /beneficiaires
+  // dans AppRouter.jsx (rappel de l'audit 6F.9). L'entree d'import juste en
+  // dessous reste ARH seul : elle ecrit.
+  { href: '/beneficiaires', label: 'Bénéficiaires', icon: Users, roles: ['ARH', 'DRH'] },
   { href: '/beneficiaires/import', label: 'Importer bénéficiaires', icon: Upload, roles: ['ARH'] },
   { href: '/processus', label: 'Processus mensuel', icon: FileCheck, roles: ['ARH', 'CRH', 'DRH'] },
   { href: '/grilles-tarifaires', label: 'Grilles tarifaires', icon: Wallet, roles: ['ARH', 'ADMIN'] },

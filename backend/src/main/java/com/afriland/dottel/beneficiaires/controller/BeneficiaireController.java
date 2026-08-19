@@ -46,8 +46,13 @@ public class BeneficiaireController {
     private final BeneficiaireExportService beneficiaireExportService;
     private final EhrIntegrationService ehrIntegrationService;
 
+    // Sprint MM.14 (ecart E2 de l'audit, tranche avec le metier) : DRH ajoutee.
+    // Cette liste n'alimente que le filtre "Unite de rattachement" de l'ecran
+    // Beneficiaires, desormais ouvert a la DRH en lecture seule. Elle
+    // n'expose aucune donnee que GET /beneficiaires ne montre deja a ce role
+    // -- laisser le filtre en 403 rendrait l'ecran boiteux pour la DRH.
     @GetMapping("/unites-rattachement")
-    @PreAuthorize("hasRole('ARH')")
+    @PreAuthorize("hasAnyRole('ARH', 'DRH')")
     public ResponseEntity<List<UniteRattachementDto>> listerUnitesRattachement() {
         return ResponseEntity.ok(ehrIntegrationService.listerUnitesRattachement());
     }
