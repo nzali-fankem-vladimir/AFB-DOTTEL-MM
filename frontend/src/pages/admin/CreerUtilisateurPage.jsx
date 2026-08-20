@@ -68,7 +68,7 @@ export default function CreerUtilisateurPage() {
             <CardContent className="flex flex-col gap-6">
               {erreur && (
                 <Alert variant="destructive">
-                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                   <AlertDescription>{erreur}</AlertDescription>
                 </Alert>
               )}

@@ -84,7 +84,7 @@ export default function DashboardPage() {
       {erreurChargement && (
         <div className="px-8 pt-8">
           <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
             <AlertDescription>
               Impossible de charger le tableau de bord. Vérifiez votre connexion, puis réessayez.
             </AlertDescription>
@@ -115,7 +115,7 @@ export default function DashboardPage() {
                   </Badge>
                 </div>
               ) : (
-                <p className="text-2xl font-bold text-neutral-400">Aucun</p>
+                <p className="text-2xl font-bold text-neutral-600">Aucun</p>
               )}
             </CarteSynthese>
             <CarteSynthese

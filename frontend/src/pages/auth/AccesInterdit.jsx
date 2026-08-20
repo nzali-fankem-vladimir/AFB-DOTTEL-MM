@@ -27,7 +27,7 @@ export default function AccesInterdit() {
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-50"
               aria-hidden="true"
             >
-              <ShieldAlert className="h-5 w-5 text-primary-500" />
+              <ShieldAlert className="h-5 w-5 text-primary-500" aria-hidden="true" />
             </div>
 
             <div className="flex flex-col items-start gap-4">

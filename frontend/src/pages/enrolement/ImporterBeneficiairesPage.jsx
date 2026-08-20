@@ -81,27 +81,27 @@ export default function ImporterBeneficiairesPage() {
           <CardContent className="flex flex-col gap-4">
             {erreur && (
               <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
+                <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                 <AlertDescription>{erreur}</AlertDescription>
               </Alert>
             )}
 
             {fichier ? (
               <div className="flex items-center gap-3 rounded border border-neutral-200 bg-neutral-50 px-4 py-3">
-                <FileSpreadsheet className="h-8 w-8 shrink-0 text-primary-500" />
+                <FileSpreadsheet className="h-8 w-8 shrink-0 text-primary-500" aria-hidden="true" />
                 <div className="flex min-w-0 flex-1 flex-col">
                   <span className="truncate text-sm font-medium text-neutral-900">
                     {fichier.name}
                   </span>
-                  <span className="text-xs text-neutral-500">{formaterTaille(fichier.size)}</span>
+                  <span className="text-xs text-neutral-600">{formaterTaille(fichier.size)}</span>
                 </div>
                 <button
                   type="button"
                   onClick={annulerSelection}
                   aria-label="Annuler la sélection"
-                  className="rounded p-1.5 text-neutral-400 hover:bg-neutral-200 hover:text-neutral-700"
+                  className="rounded p-1.5 text-neutral-600 hover:bg-neutral-200 hover:text-neutral-700"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-4 w-4" aria-hidden="true" />
                 </button>
               </div>
             ) : (
@@ -114,15 +114,15 @@ export default function ImporterBeneficiairesPage() {
                 onDragLeave={() => setSurvole(false)}
                 onDrop={surDepot}
                 className={cn(
-                  'flex cursor-pointer flex-col items-center justify-center gap-2 rounded border-2 border-dashed border-neutral-300 bg-neutral-50 px-6 py-10 text-center hover:border-primary-500',
+                  'flex cursor-pointer flex-col items-center justify-center gap-2 rounded border-2 border-dashed border-neutral-500 bg-neutral-50 px-6 py-10 text-center hover:border-primary-500',
                   survole && 'border-primary-500 bg-primary-50'
                 )}
               >
-                <Upload className="h-6 w-6 text-neutral-400" />
+                <Upload className="h-6 w-6 text-neutral-600" aria-hidden="true" />
                 <span className="text-sm font-medium text-neutral-700">
                   Cliquez pour choisir un fichier ou glissez-déposez-le ici
                 </span>
-                <span className="text-xs text-neutral-500">Format .xlsx, un seul fichier à la fois</span>
+                <span className="text-xs text-neutral-600">Format .xlsx, un seul fichier à la fois</span>
                 <input
                   id="fichier-import"
                   ref={inputRef}
@@ -168,7 +168,7 @@ export default function ImporterBeneficiairesPage() {
 
                 {rapport.inseres > 0 && rapport.rejetes > 0 && (
                   <Alert>
-                    <Check className="h-4 w-4 text-emerald-600" />
+                    <Check className="h-4 w-4 text-emerald-600" aria-hidden="true" />
                     <AlertDescription>
                       Import <strong>partiellement</strong> effectué : les {rapport.inseres}{' '}
                       lignes valides ont bien été enregistrées. Seules les lignes listées ci-dessous
@@ -179,7 +179,7 @@ export default function ImporterBeneficiairesPage() {
 
                 {rapport.inseres === 0 && rapport.rejetes > 0 && (
                   <Alert variant="warning">
-                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                     <AlertDescription>
                       Aucune ligne n'a pu être enregistrée. Corrigez les motifs ci-dessous puis
                       relancez l'import.

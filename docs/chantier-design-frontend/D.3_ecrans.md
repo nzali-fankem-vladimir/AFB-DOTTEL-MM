@@ -27,7 +27,7 @@ Les écrans de workflow méritent High : ce sont ceux où un ARH, un CRH ou une 
 ## 0. Nouvelle session : rappel Graphify
 
 ```
-/graphify . --update
+py -3.14 -m graphify update .
 ```
 
 ---

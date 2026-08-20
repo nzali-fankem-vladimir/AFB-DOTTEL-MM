@@ -83,19 +83,19 @@ export function ValiderGrilleModal({ grille, onFerme, onSucces }) {
         aria-modal="true"
         aria-labelledby={titreId}
         tabIndex={-1}
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+        className="fixed inset-0 z-50 flex items-center justify-center overscroll-contain bg-black/40 p-4"
         onClick={(event) => {
           if (event.target === event.currentTarget && decisionEnCours === null) onFerme?.();
         }}
       >
-        <Card className="w-full max-w-md">
+        <Card className="max-h-[calc(100vh-2rem)] w-full max-w-md overflow-y-auto">
           <CardHeader>
             <CardTitle id={titreId}>Décision — {grille.libelleFonction}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
             {erreur && (
               <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
+                <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                 <AlertDescription>{erreur}</AlertDescription>
               </Alert>
             )}
@@ -118,14 +118,21 @@ export function ValiderGrilleModal({ grille, onFerme, onSucces }) {
                 onChange={(e) => setMotifRejet(e.target.value)}
                 placeholder="Ex. Montant supérieur au plafond prévu pour cette fonction."
                 disabled={decisionEnCours !== null}
+                aria-invalid={erreurMotif ? true : undefined}
+                aria-describedby={erreurMotif ? 'valider-motif-rejet-erreur' : undefined}
                 className={erreurMotif ? 'border-primary-500 focus:ring-primary-500' : undefined}
               />
               {/* Meme traitement que FormField : le texte reste lisible en
                   neutre, seule l'icone porte le rouge. Un message d'erreur
                   ecrit dans le rouge de marque se confond avec les boutons
-                  primaires (point souleve en D.2). */}
+                  primaires (point souleve en D.2). Sprint D.4 : rattachement
+                  aria-describedby / aria-invalid, comme les deux autres. */}
               {erreurMotif && (
-                <p className="flex items-center gap-1 text-xs text-neutral-800">
+                <p
+                  id="valider-motif-rejet-erreur"
+                  role="alert"
+                  className="flex items-center gap-1 text-xs text-neutral-800"
+                >
                   <AlertCircle className="h-3.5 w-3.5 shrink-0 text-primary-500" aria-hidden="true" />
                   {erreurMotif}
                 </p>

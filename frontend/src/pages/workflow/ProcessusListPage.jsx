@@ -102,7 +102,7 @@ export default function ProcessusListPage() {
       <div className="flex flex-col gap-6 p-8">
         {erreurChargement && (
           <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
             <AlertDescription>
               Impossible de charger les processus mensuels. Vérifiez votre connexion, puis réessayez.
             </AlertDescription>
@@ -155,7 +155,7 @@ export default function ProcessusListPage() {
                 })
               }
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4" aria-hidden="true" />
               Déclencher un processus
             </Button>
           )}

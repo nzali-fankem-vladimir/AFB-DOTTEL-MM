@@ -24,7 +24,7 @@
 ## 0. Nouvelle session : rappel Graphify
 
 ```
-/graphify .
+py -3.14 -m graphify update .
 ```
 
 Cartographie **complète** : c'est la photo finale du frontend après quatre sprints de retouches.

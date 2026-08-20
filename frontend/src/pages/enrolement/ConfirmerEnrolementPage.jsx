@@ -60,7 +60,7 @@ export default function ConfirmerEnrolementPage() {
           <CardContent className="flex flex-col gap-4">
             {erreur && (
               <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
+                <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                 <AlertDescription>{erreur}</AlertDescription>
               </Alert>
             )}
@@ -73,7 +73,7 @@ export default function ConfirmerEnrolementPage() {
                     procedure de token : la distinction passe donc par l'icone,
                     pas par une couleur nouvelle. */}
                 <Alert>
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" aria-hidden="true" />
                   <AlertDescription>
                     <strong>Enrôlement confirmé</strong> pour {confirmation.nomPrenoms} (matricule{' '}
                     {confirmation.matricule}). Votre dotation sera prise en compte au prochain

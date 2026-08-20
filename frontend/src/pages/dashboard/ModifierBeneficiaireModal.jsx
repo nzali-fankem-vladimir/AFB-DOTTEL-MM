@@ -76,12 +76,12 @@ export function ModifierBeneficiaireModal({
       aria-modal="true"
       aria-labelledby={titreId}
       tabIndex={-1}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center overscroll-contain bg-black/40 p-4"
       onClick={(event) => {
         if (event.target === event.currentTarget && !isSubmitting) onFerme?.();
       }}
     >
-      <Card className="w-full max-w-md">
+      <Card className="max-h-[calc(100vh-2rem)] w-full max-w-md overflow-y-auto">
         <CardHeader>
           <CardTitle id={titreId}>Modifier {beneficiaire.nomPrenoms}</CardTitle>
         </CardHeader>
@@ -90,7 +90,7 @@ export function ModifierBeneficiaireModal({
             {erreur && (
               <Alert variant="destructive">
                 {/* Seule alerte du groupe a ne pas porter son icone. */}
-                <AlertTriangle className="h-4 w-4" />
+                <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                 <AlertDescription>{erreur}</AlertDescription>
               </Alert>
             )}

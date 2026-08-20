@@ -78,7 +78,7 @@ export default function HistoriqueGrillePage() {
       <div className="flex flex-col gap-6 p-8">
         {erreurChargement && (
           <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
             <AlertDescription>
               Impossible de charger l'historique de cette grille. Vérifiez votre connexion, puis réessayez.
             </AlertDescription>
@@ -99,7 +99,7 @@ export default function HistoriqueGrillePage() {
           actions={(grille) =>
             grille.statutValidation === 'REJETEE' ? (
               <Button variant="outline" size="sm" onClick={() => setGrilleMotifAVoir(grille)}>
-                <MessageSquareWarning className="h-4 w-4" />
+                <MessageSquareWarning className="h-4 w-4" aria-hidden="true" />
                 Voir le motif
               </Button>
             ) : null

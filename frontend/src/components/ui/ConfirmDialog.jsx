@@ -44,12 +44,12 @@ export function ConfirmDialog({
       aria-modal="true"
       aria-labelledby={titreId}
       tabIndex={-1}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center overscroll-contain bg-black/40 p-4"
       onClick={(event) => {
         if (event.target === event.currentTarget && !enCours) onAnnuler?.();
       }}
     >
-      <Card className={`w-full ${largeur}`}>
+      <Card className={`max-h-[calc(100vh-2rem)] w-full overflow-y-auto ${largeur}`}>
         <CardHeader>
           <CardTitle id={titreId}>{titre}</CardTitle>
         </CardHeader>

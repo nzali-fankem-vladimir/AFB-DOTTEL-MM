@@ -40,12 +40,12 @@ function DetailAuditModal({ action, detailJson, onFermer }) {
       aria-modal="true"
       aria-labelledby={titreId}
       tabIndex={-1}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center overscroll-contain bg-black/40 p-4"
       onClick={(event) => {
         if (event.target === event.currentTarget) onFermer?.();
       }}
     >
-      <Card className="w-full max-w-lg">
+      <Card className="max-h-[calc(100vh-2rem)] w-full max-w-lg overflow-y-auto">
         <CardHeader>
           <CardTitle id={titreId}>Détail de l'action</CardTitle>
         </CardHeader>
@@ -182,7 +182,7 @@ export default function AuditPage() {
       entete: 'Détail',
       rendu: (ligne) => (
         <Button variant="ghost" size="sm" onClick={() => setLigneDetail(ligne)}>
-          <Eye className="h-4 w-4" />
+          <Eye className="h-4 w-4" aria-hidden="true" />
           Voir
         </Button>
       ),
@@ -211,7 +211,7 @@ export default function AuditPage() {
       <div className="flex flex-col gap-6 p-8">
         {erreurChargement && (
           <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
             <AlertDescription>
               Impossible de charger le journal d'audit. Vérifiez votre connexion, puis réessayez.
             </AlertDescription>

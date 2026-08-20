@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "layout-transition",
+        "value": "transition: width",
+        "createdAt": "2026-08-20T07:18:30.061Z",
+        "reason": "Sidebar : la barre POUSSE le contenu (flex), un transform la ferait glisser par-dessus en laissant un vide. Cout borne : 200 ms, au clic sur Reduire uniquement. Arbitre avec le metier au Sprint D.4 ; motion-reduce:transition-none couvre les personnes sensibles au mouvement."
+      }
+    ]
+  }
+}

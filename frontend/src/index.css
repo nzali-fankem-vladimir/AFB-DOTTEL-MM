@@ -91,3 +91,39 @@
   background-repeat: repeat;
   background-size: 160px 160px;
 }
+
+/* ---------------------------------------------------------------------------
+   MOUVEMENT REDUIT (Sprint D.4)
+
+   Windows ("Afficher les animations dans Windows" / Options d'ergonomie) et
+   macOS ("Reduire les animations") exposent un reglage systeme pour les
+   personnes que le mouvement a l'ecran gene reellement : troubles
+   vestibulaires, migraine, sensibilite photique. DOTTEL l'ignorait
+   entierement -- ni les huit squelettes qui pulsent pendant un chargement, ni
+   le bouton qui tourne pendant une validation, ni le repli de la barre
+   laterale ne le consultaient.
+
+   Ce bloc ne SUPPRIME pas le retour visuel, il l'immobilise :
+     - les squelettes gardent leur fond gris, ils cessent de battre ;
+     - le chargeur du bouton garde sa forme, il cesse de tourner -- l'etat
+       "en cours" reste porte par le libelle ("Validation en cours…") et par
+       `aria-busy`, jamais par la seule rotation ;
+     - les transitions de couleur et de largeur deviennent instantanees.
+   Aucune information n'est portee par le mouvement seul : rien ne se perd.
+
+   Volontairement PAS un `all: 0.01ms !important` global, qui casserait aussi
+   les changements d'etat utiles.
+   --------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse,
+  .animate-spin {
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms;
+    scroll-behavior: auto;
+  }
+}

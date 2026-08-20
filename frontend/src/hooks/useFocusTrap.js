@@ -10,6 +10,16 @@ const SELECTEUR_FOCUSABLE =
 // clavier (ex. soumission en cours) sans desactiver le piege de focus.
 export function useFocusTrap(onClose) {
   const containerRef = useRef(null);
+  // Sprint D.4 -- `onClose` est recalcule a chaque rendu par tous les
+  // appelants (`enCours ? undefined : onAnnuler`). En dependance directe de
+  // l'effet, il le faisait donc se demonter puis se remonter a chaque
+  // basculement d'etat : le focus retombait sur le PREMIER element de la
+  // modale au moment ou l'utilisateur soumettait, et le declencheur d'origine
+  // recevait un focus parasite en cours de route. La reference garde la
+  // derniere fonction sans reveiller l'effet, qui ne depend plus que du
+  // montage -- le seul moment ou un piege de focus doit s'installer.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     const declencheur = document.activeElement;
@@ -19,7 +29,7 @@ export function useFocusTrap(onClose) {
 
     const gererClavier = (event) => {
       if (event.key === 'Escape') {
-        onClose?.();
+        onCloseRef.current?.();
         return;
       }
       if (event.key !== 'Tab' || !container) return;
@@ -41,7 +51,10 @@ export function useFocusTrap(onClose) {
       document.removeEventListener('keydown', gererClavier);
       declencheur?.focus?.();
     };
-  }, [onClose]);
+    // Volontairement vide : le piege s'installe au montage de la modale et se
+    // defait a sa fermeture, jamais entre les deux. Voir onCloseRef ci-dessus.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return containerRef;
 }

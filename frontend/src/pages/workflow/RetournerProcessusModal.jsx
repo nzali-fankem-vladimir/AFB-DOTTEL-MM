@@ -50,7 +50,7 @@ export function RetournerProcessusModal({ idProcessus, onFerme, onSucces }) {
       aria-modal="true"
       aria-labelledby={titreId}
       tabIndex={-1}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center overscroll-contain bg-black/40 p-4"
       onClick={(event) => {
         if (event.target === event.currentTarget && !enCours) onFerme?.();
       }}
@@ -63,7 +63,7 @@ export function RetournerProcessusModal({ idProcessus, onFerme, onSucces }) {
           <CardContent className="flex flex-col gap-4">
             {erreur && (
               <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
+                <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                 <AlertDescription>{erreur}</AlertDescription>
               </Alert>
             )}
@@ -74,16 +74,25 @@ export function RetournerProcessusModal({ idProcessus, onFerme, onSucces }) {
               <Label htmlFor="retour-motif" obligatoire>
                 Motif du retour
               </Label>
+              {/* Sprint D.4 -- meme rattachement que FormField : sans
+                  aria-describedby, le refus RG-07 restait purement visuel. */}
               <Textarea
                 id="retour-motif"
                 value={motif}
                 onChange={(e) => setMotif(e.target.value)}
                 placeholder="Ex. Le montant appliqué à MBARGA Jeanne ne correspond pas à sa fonction."
                 disabled={enCours}
+                required
+                aria-invalid={erreurMotif ? true : undefined}
+                aria-describedby={erreurMotif ? 'retour-motif-erreur' : undefined}
                 className={erreurMotif ? 'border-primary-500 focus:ring-primary-500' : undefined}
               />
               {erreurMotif && (
-                <p className="flex items-center gap-1 text-xs text-neutral-800">
+                <p
+                  id="retour-motif-erreur"
+                  role="alert"
+                  className="flex items-center gap-1 text-xs text-neutral-800"
+                >
                   <AlertCircle className="h-3.5 w-3.5 shrink-0 text-primary-500" aria-hidden="true" />
                   {erreurMotif}
                 </p>

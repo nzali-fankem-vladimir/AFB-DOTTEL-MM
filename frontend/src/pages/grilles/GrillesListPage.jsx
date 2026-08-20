@@ -168,7 +168,7 @@ export default function GrillesListPage() {
                 })
               }
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4" aria-hidden="true" />
               Créer une grille
             </Button>
           )}
@@ -176,7 +176,7 @@ export default function GrillesListPage() {
 
         {erreurChargement && (
           <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
             <AlertDescription>
               Impossible de charger les grilles tarifaires. Vérifiez votre connexion, puis réessayez.
             </AlertDescription>
@@ -185,7 +185,7 @@ export default function GrillesListPage() {
 
         {erreurDesactivation && (
           <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
             <AlertDescription>{erreurDesactivation}</AlertDescription>
           </Alert>
         )}
@@ -225,12 +225,12 @@ export default function GrillesListPage() {
                   })
                 }
               >
-                <History className="h-4 w-4" />
+                <History className="h-4 w-4" aria-hidden="true" />
                 Historique
               </Button>
               {grille.statutValidation === 'REJETEE' && (
                 <Button variant="outline" size="sm" onClick={() => setGrilleMotifAVoir(grille)}>
-                  <MessageSquareWarning className="h-4 w-4" />
+                  <MessageSquareWarning className="h-4 w-4" aria-hidden="true" />
                   Voir le motif
                 </Button>
               )}
@@ -243,7 +243,7 @@ export default function GrillesListPage() {
                     setGrilleADesactiver(grille);
                   }}
                 >
-                  <PowerOff className="h-4 w-4" />
+                  <PowerOff className="h-4 w-4" aria-hidden="true" />
                   Désactiver
                 </Button>
               )}

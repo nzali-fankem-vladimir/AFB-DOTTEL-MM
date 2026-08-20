@@ -123,7 +123,7 @@ export function AjusterLignesModal({ idProcessus, lignes, onFerme, onSucces }) {
       aria-modal="true"
       aria-labelledby={titreId}
       tabIndex={-1}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center overscroll-contain bg-black/40 p-4"
       onClick={(event) => {
         if (event.target !== event.currentTarget || enCours) return;
         if (resultats) onSucces();
@@ -158,21 +158,26 @@ export function AjusterLignesModal({ idProcessus, lignes, onFerme, onSucces }) {
         <CardContent className="flex min-h-0 flex-1 flex-col gap-4">
           {erreur && (
             <Alert variant="destructive" className="shrink-0">
-              <AlertTriangle className="h-4 w-4" />
+              <AlertTriangle className="h-4 w-4" aria-hidden="true" />
               <AlertDescription>{erreur}</AlertDescription>
             </Alert>
           )}
 
           {!resultats && (
             <div className="flex shrink-0 flex-col gap-1.5">
+              {/* Sprint D.4 -- ce champ n'avait aucun nom accessible : le
+                  placeholder disparait des la premiere frappe et n'est pas un
+                  libelle. Pas de <Label> visible ici, la barre de recherche
+                  s'expliquant d'elle-meme dans ce contexte, d'ou aria-label. */}
               <Input
-                type="text"
+                type="search"
+                aria-label="Rechercher un bénéficiaire par matricule ou nom"
                 placeholder="Rechercher par matricule ou nom…"
                 value={recherche}
                 onChange={(e) => setRecherche(e.target.value)}
                 disabled={enCours}
               />
-              <p className="text-xs text-neutral-500">
+              <p className="text-xs text-neutral-600">
                 <span className="font-medium tabular-nums text-neutral-700">{nombreInclus}</span> ligne
                 {nombreInclus > 1 ? 's' : ''} incluse{nombreInclus > 1 ? 's' : ''} sur{' '}
                 <span className="tabular-nums">{lignes.length}</span>.
@@ -185,18 +190,21 @@ export function AjusterLignesModal({ idProcessus, lignes, onFerme, onSucces }) {
           {!resultats && (
             <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-neutral-200">
               <table className="w-full text-left text-sm">
-                <thead className="bg-neutral-100 text-xs uppercase text-neutral-500">
+                {/* Sprint D.4 -- neutral-700 comme les trois autres en-tetes de
+                    tableau du projet (DataTable, AuditPage, rapport d'import) :
+                    c'etait le dernier a diverger. */}
+                <thead className="bg-neutral-100 text-xs uppercase text-neutral-700">
                   <tr>
-                    <th className="px-4 py-3 font-medium">Inclus</th>
-                    <th className="px-4 py-3 font-medium">Matricule</th>
-                    <th className="px-4 py-3 font-medium">Nom</th>
-                    <th className="px-4 py-3 font-medium">Fonction retenue</th>
+                    <th scope="col" className="px-4 py-3 font-medium">Inclus</th>
+                    <th scope="col" className="px-4 py-3 font-medium">Matricule</th>
+                    <th scope="col" className="px-4 py-3 font-medium">Nom</th>
+                    <th scope="col" className="px-4 py-3 font-medium">Fonction retenue</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-200">
                   {lignesFiltrees.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="px-4 py-6 text-center text-neutral-500">
+                      <td colSpan={4} className="px-4 py-6 text-center text-neutral-600">
                         {filtreActif
                           ? 'Aucun bénéficiaire ne correspond à la recherche.'
                           : "Aucun bénéficiaire dans l'état mensuel."}
@@ -207,8 +215,17 @@ export function AjusterLignesModal({ idProcessus, lignes, onFerme, onSucces }) {
                     const valeur = valeurs[ligne.idBeneficiaire];
                     return (
                       <tr key={ligne.idBeneficiaire}>
+                        {/* Sprint D.4 -- les deux controles de ligne n'avaient
+                            aucun nom accessible. Sur un etat de cent lignes, un
+                            lecteur d'ecran annoncait cent fois "case a cocher"
+                            et "liste deroulante" sans jamais dire de QUI il
+                            s'agit : impossible de savoir quel paiement on
+                            inclut ou quelle fonction on change. Le nom du
+                            beneficiaire est donc porte par chaque controle,
+                            comme UtilisateursListPage le fait deja. */}
                         <td className="px-4 py-3">
                           <Checkbox
+                            aria-label={`Inclure ${ligne.nomPrenoms} (${ligne.matricule}) dans l'état mensuel`}
                             checked={valeur.inclusDansEtat}
                             onCheckedChange={(coche) => modifierInclusion(ligne.idBeneficiaire, coche === true)}
                             disabled={enCours}
@@ -218,6 +235,7 @@ export function AjusterLignesModal({ idProcessus, lignes, onFerme, onSucces }) {
                         <td className="px-4 py-3 text-neutral-700">{ligne.nomPrenoms}</td>
                         <td className="px-4 py-3">
                           <Select
+                            aria-label={`Fonction retenue pour ${ligne.nomPrenoms} (${ligne.matricule})`}
                             value={valeur.fonctionRetenue}
                             onChange={(e) => modifierFonction(ligne.idBeneficiaire, e.target.value)}
                             disabled={enCours}
@@ -252,15 +270,15 @@ export function AjusterLignesModal({ idProcessus, lignes, onFerme, onSucces }) {
                     )}
                   >
                     {resultat.applique ? (
-                      <Check className="h-4 w-4 shrink-0 text-emerald-600" />
+                      <Check className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden="true" />
                     ) : (
-                      <X className="h-4 w-4 shrink-0 text-primary-500" />
+                      <X className="h-4 w-4 shrink-0 text-primary-500" aria-hidden="true" />
                     )}
                     <span className="font-medium">
                       {ligne?.matricule} — {ligne?.nomPrenoms}
                     </span>
                     {!resultat.applique && resultat.motifRejet && (
-                      <span className="text-neutral-500">({resultat.motifRejet})</span>
+                      <span className="text-neutral-600">({resultat.motifRejet})</span>
                     )}
                   </div>
                 );

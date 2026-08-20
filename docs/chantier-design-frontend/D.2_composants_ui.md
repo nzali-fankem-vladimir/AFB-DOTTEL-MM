@@ -26,7 +26,7 @@
 ## 0. Nouvelle session : rappel Graphify
 
 ```
-/graphify . --update
+py -3.14 -m graphify update .
 ```
 
 ---

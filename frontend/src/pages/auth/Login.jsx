@@ -30,7 +30,11 @@ export default function Login() {
       <Card className="w-full max-w-sm">
         <CardHeader className="items-center text-center">
           <Logo size="lg" className="mb-2" />
-          <CardTitle>Dotations Téléphoniques Mensuelles</CardTitle>
+          {/* Sprint D.4 -- le detecteur signale une hierarchie typographique
+              plate sur cette page (14/16/18 px, ratio 1,3). C'est la porte
+              d'entree du module et son seul titre : text-xl le detache du
+              libelle de bouton, sans sortir de l'echelle. */}
+          <CardTitle className="text-xl text-balance">Dotations Téléphoniques Mensuelles</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4">
@@ -38,7 +42,7 @@ export default function Login() {
                 le seul message d'erreur que l'utilisateur peut y rencontrer. */}
             {erreur && (
               <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
+                <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                 <AlertDescription>{erreur}</AlertDescription>
               </Alert>
             )}

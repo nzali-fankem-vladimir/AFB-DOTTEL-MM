@@ -79,6 +79,7 @@ export function Sidebar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [reduite, setReduite] = useState(() => localStorage.getItem(CLE_SIDEBAR_REDUITE) === 'true');
   const menuRef = useRef(null);
+  const boutonCompteRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -93,7 +94,12 @@ export function Sidebar() {
   useEffect(() => {
     if (!isMenuOpen) return undefined;
     const handleEchap = (event) => {
-      if (event.key === 'Escape') setIsMenuOpen(false);
+      if (event.key !== 'Escape') return;
+      setIsMenuOpen(false);
+      // Sprint D.4 -- sans ce rappel, fermer le menu par Echap detruisait
+      // l'element focalise (le bouton "Deconnexion") et le focus retombait sur
+      // <body> : la tabulation repartait du tout debut de la page.
+      boutonCompteRef.current?.focus();
     };
     document.addEventListener('keydown', handleEchap);
     return () => document.removeEventListener('keydown', handleEchap);
@@ -113,7 +119,17 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        'flex h-screen shrink-0 flex-col bg-neutral-950 text-white transition-[width] duration-200 ease-in-out',
+        // Sprint D.4 -- `transition-[width]` est signale par le detecteur
+        // (regle layout-transition) et par les Web Interface Guidelines :
+        // animer une propriete de mise en page force le navigateur a
+        // recalculer la position de tout le contenu a droite, une fois par
+        // image. CONSERVE deliberement : la barre POUSSE le contenu, un
+        // `transform` la ferait glisser par-dessus en laissant un vide. Le
+        // cout reel est borne -- 200 ms, au clic sur "Reduire" seulement,
+        // jamais au defilement ni a la frappe. `motion-reduce` traite le vrai
+        // risque, celui des personnes sensibles au mouvement.
+        'flex h-screen shrink-0 flex-col bg-neutral-950 text-white',
+        'transition-[width] duration-200 ease-in-out motion-reduce:transition-none',
         reduite ? 'w-20' : 'w-64'
       )}
     >
@@ -125,7 +141,7 @@ export function Sidebar() {
         )}
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3">
+      <nav aria-label="Navigation principale" className="flex-1 space-y-1 overflow-y-auto px-3">
         {visibleLinks.map((link) => (
           <NavLink
             key={link.href}
@@ -139,8 +155,13 @@ export function Sidebar() {
                 : 'text-neutral-300 hover:bg-neutral-900 hover:text-white'
             )}
           >
-            <link.icon className="h-4 w-4 shrink-0" />
-            {!reduite && link.label}
+            <link.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+            {/* Sprint D.4 -- en mode replie, le libelle n'etait porte que par
+                `title`. Un lecteur d'ecran annoncait donc au mieux une
+                infobulle, au pire rien du tout : la navigation devenait onze
+                liens sans nom. `sr-only` porte le vrai nom accessible ;
+                `title` reste pour l'infobulle a la souris. */}
+            <span className={cn(reduite && 'sr-only')}>{link.label}</span>
           </NavLink>
         ))}
       </nav>
@@ -155,22 +176,44 @@ export function Sidebar() {
             reduite && 'justify-center'
           )}
         >
-          {reduite ? <ChevronRight className="h-4 w-4 shrink-0" /> : <ChevronLeft className="h-4 w-4 shrink-0" />}
-          {!reduite && 'Réduire'}
+          {reduite ? (
+            <ChevronRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+          ) : (
+            <ChevronLeft className="h-4 w-4 shrink-0" aria-hidden="true" />
+          )}
+          {/* Meme raison que les liens ci-dessus : replie, ce bouton n'etait
+              qu'un chevron sans nom. Le libelle dit aussi ce qu'il FAIT une
+              fois replie -- "Reduire" serait faux dans cet etat. */}
+          <span className={cn(reduite && 'sr-only')}>
+            {reduite ? 'Agrandir la barre latérale' : 'Réduire'}
+          </span>
         </button>
 
         <div className="relative">
           <button
             type="button"
+            ref={boutonCompteRef}
             onClick={() => setIsMenuOpen((open) => !open)}
             title={reduite ? (user?.nom ?? 'Utilisateur') : undefined}
+            aria-expanded={isMenuOpen}
+            aria-haspopup="menu"
+            // Sprint D.4 -- verifie au clavier : deplie, ce bouton etait annonce
+            // "MBARGAARH", le nom et le role etant deux <span> adjacents sans
+            // separation lisible. Un nom accessible explicite remplace la
+            // concatenation, dans les deux etats.
+            aria-label={`Compte de ${user?.nom ?? user?.email ?? 'utilisateur'}${user?.role ? `, rôle ${user.role}` : ''} — ouvrir le menu`}
             className={cn(
               'flex w-full items-center gap-3 rounded px-2 py-2 text-left hover:bg-neutral-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-950',
               reduite && 'justify-center'
             )}
           >
+            {/* Tout le contenu est decoratif : le nom accessible est porte par
+                l'aria-label ci-dessus, dans les deux etats. */}
             {reduite ? (
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-xs font-semibold text-white">
+              <span
+                aria-hidden="true"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-xs font-semibold text-white"
+              >
                 {initiales(user)}
               </span>
             ) : (
@@ -184,8 +227,9 @@ export function Sidebar() {
                   </span>
                 </div>
                 <ChevronUp
+                  aria-hidden="true"
                   className={cn(
-                    'h-4 w-4 shrink-0 text-neutral-400 transition-transform',
+                    'h-4 w-4 shrink-0 text-neutral-400 transition-transform motion-reduce:transition-none',
                     !isMenuOpen && 'rotate-180'
                   )}
                 />
@@ -195,6 +239,7 @@ export function Sidebar() {
 
           {isMenuOpen && (
             <div
+              role="menu"
               className={cn(
                 'absolute bottom-full left-0 mb-2 overflow-hidden rounded-md border border-neutral-800 bg-neutral-900 py-1 shadow-xl',
                 reduite ? 'w-40' : 'w-full'
@@ -202,10 +247,11 @@ export function Sidebar() {
             >
               <button
                 type="button"
+                role="menuitem"
                 onClick={logout}
                 className="flex w-full items-center gap-3 px-3 py-2.5 text-sm font-medium text-primary-300 hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white"
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-4 w-4" aria-hidden="true" />
                 Déconnexion
               </button>
             </div>

@@ -89,14 +89,14 @@ export default function FonctionsEligiblesListPage() {
       <div className="flex flex-col gap-6 p-8">
         <div className="flex justify-end">
           <Button onClick={() => navigate('/admin/fonctions-eligibles/creer')}>
-            <Plus className="h-4 w-4" />
+            <Plus className="h-4 w-4" aria-hidden="true" />
             Créer une fonction
           </Button>
         </div>
 
         {erreurChargement && (
           <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
             <AlertDescription>
               Impossible de charger les fonctions éligibles. Vérifiez votre connexion, puis réessayez.
             </AlertDescription>
@@ -105,7 +105,7 @@ export default function FonctionsEligiblesListPage() {
 
         {erreur && (
           <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
             <AlertDescription>{erreur}</AlertDescription>
           </Alert>
         )}

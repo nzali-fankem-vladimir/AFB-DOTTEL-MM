@@ -31,7 +31,7 @@ export default function PageIntrouvable() {
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-neutral-100"
               aria-hidden="true"
             >
-              <Compass className="h-5 w-5 text-neutral-500" />
+              <Compass className="h-5 w-5 text-neutral-600" aria-hidden="true" />
             </div>
 
             <div className="flex flex-col items-start gap-4">

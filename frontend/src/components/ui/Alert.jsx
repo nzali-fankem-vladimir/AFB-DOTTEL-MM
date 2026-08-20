@@ -16,8 +16,26 @@ const alertVariants = cva(
   }
 );
 
-const Alert = forwardRef(({ className, variant, ...props }, ref) => (
-  <div ref={ref} role="alert" className={cn(alertVariants({ variant }), className)} {...props} />
+// Sprint D.4 -- le role etait "alert" quelle que soit la variante. "alert" est
+// ASSERTIF : il coupe la parole au lecteur d'ecran pour lire son contenu d'un
+// bloc. C'est juste pour un echec (variante destructive), qui doit interrompre.
+// Ca ne l'est pas pour un avertissement structure -- le recapitulatif de
+// resynchronisation (ProcessusDetailPage) contient trois sous-titres et deux
+// listes, lus d'une traite et hors structure. "status" annonce la meme chose,
+// poliment, sans casser la navigation en cours. Surchargeable par `role`.
+const ROLE_PAR_VARIANTE = {
+  default: 'status',
+  destructive: 'alert',
+  warning: 'status',
+};
+
+const Alert = forwardRef(({ className, variant, role, ...props }, ref) => (
+  <div
+    ref={ref}
+    role={role ?? ROLE_PAR_VARIANTE[variant ?? 'default']}
+    className={cn(alertVariants({ variant }), className)}
+    {...props}
+  />
 ));
 Alert.displayName = 'Alert';
 

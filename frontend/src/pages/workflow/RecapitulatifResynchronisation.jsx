@@ -28,7 +28,7 @@ export function RecapitulatifResynchronisation({ ecarts }) {
       {bloquantes.length > 0 && (
         <section className="rounded border border-amber-500 bg-amber-50 p-3">
           <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold text-amber-800">
-            <Clock className="h-4 w-4 shrink-0" />
+            <Clock className="h-4 w-4 shrink-0" aria-hidden="true" />
             {bloquantes.length} grille{bloquantes.length > 1 ? 's' : ''} en cours de validation
           </h3>
           <p className="mb-2 text-xs text-amber-800">
@@ -40,8 +40,8 @@ export function RecapitulatifResynchronisation({ ecarts }) {
             {bloquantes.map((ligne) => (
               <li key={ligne.idBeneficiaire} className="text-sm text-neutral-800">
                 <span className="font-medium">{ligne.nomPrenoms ?? '—'}</span>
-                <span className="text-neutral-500"> ({ligne.matricule ?? '—'})</span>
-                <span className="text-neutral-500"> — {ligne.fonctionRetenue}</span>
+                <span className="text-neutral-600"> ({ligne.matricule ?? '—'})</span>
+                <span className="text-neutral-600"> — {ligne.fonctionRetenue}</span>
                 <br />
                 <span className="text-xs text-amber-800">
                   Grille de {formatMontantFCFA(ligne.montantGrilleEnAttente)} en attente de validation{' '}
@@ -66,7 +66,7 @@ export function RecapitulatifResynchronisation({ ecarts }) {
       {exclusionsDurables.length > 0 && (
         <section className="rounded border border-primary-500 bg-primary-50 p-3">
           <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold text-primary-700">
-            <UserMinus className="h-4 w-4 shrink-0" />
+            <UserMinus className="h-4 w-4 shrink-0" aria-hidden="true" />
             {exclusionsDurables.length} bénéficiaire{exclusionsDurables.length > 1 ? 's' : ''} ne sera
             {exclusionsDurables.length > 1 ? 'ont' : ''} PAS payé{exclusionsDurables.length > 1 ? 's' : ''} ce mois-ci
           </h3>
@@ -78,8 +78,8 @@ export function RecapitulatifResynchronisation({ ecarts }) {
             {exclusionsDurables.map((ligne) => (
               <li key={ligne.idBeneficiaire} className="text-sm text-neutral-800">
                 <span className="font-medium">{ligne.nomPrenoms ?? '—'}</span>
-                <span className="text-neutral-500"> ({ligne.matricule ?? '—'})</span>
-                <span className="text-neutral-500"> — {ligne.fonctionRetenue}</span>
+                <span className="text-neutral-600"> ({ligne.matricule ?? '—'})</span>
+                <span className="text-neutral-600"> — {ligne.fonctionRetenue}</span>
                 <br />
                 <span className="text-xs text-primary-700">{ligne.motifExclusion}</span>
               </li>
@@ -89,9 +89,9 @@ export function RecapitulatifResynchronisation({ ecarts }) {
       )}
 
       {resynchronisees.length > 0 && (
-        <section className="rounded border border-neutral-300 bg-neutral-50 p-3">
+        <section className="rounded border border-neutral-500 bg-neutral-50 p-3">
           <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold text-neutral-800">
-            <RefreshCw className="h-4 w-4 shrink-0" />
+            <RefreshCw className="h-4 w-4 shrink-0" aria-hidden="true" />
             {resynchronisees.length} montant{resynchronisees.length > 1 ? 's' : ''} mis à jour sur la grille en vigueur
           </h3>
           <p className="mb-2 text-xs text-neutral-600">
@@ -101,14 +101,14 @@ export function RecapitulatifResynchronisation({ ecarts }) {
             {resynchronisees.map((ligne) => (
               <li key={ligne.idBeneficiaire} className="text-sm text-neutral-800">
                 <span className="font-medium">{ligne.nomPrenoms ?? '—'}</span>
-                <span className="text-neutral-500"> ({ligne.matricule ?? '—'})</span>
-                <span className="text-neutral-500"> — {ligne.fonctionRetenue}</span>
+                <span className="text-neutral-600"> ({ligne.matricule ?? '—'})</span>
+                <span className="text-neutral-600"> — {ligne.fonctionRetenue}</span>
                 <br />
                 <span className="inline-flex items-center gap-1.5 text-xs">
-                  <span className="text-neutral-500 line-through">
+                  <span className="text-neutral-600 line-through">
                     {formatMontantFCFA(ligne.ancienMontant)}
                   </span>
-                  <ArrowRight className="h-3 w-3 shrink-0 text-neutral-400" />
+                  <ArrowRight className="h-3 w-3 shrink-0 text-neutral-600" aria-hidden="true" />
                   <span className="font-semibold text-neutral-900">
                     {formatMontantFCFA(ligne.nouveauMontant)}
                   </span>

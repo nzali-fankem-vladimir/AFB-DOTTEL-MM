@@ -208,14 +208,14 @@ export default function UtilisateursListPage() {
               })
             }
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-4 w-4" aria-hidden="true" />
             Créer un utilisateur
           </Button>
         </div>
 
         {erreurChargement && (
           <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
             <AlertDescription>
               Impossible de charger les utilisateurs. Vérifiez votre connexion, puis réessayez.
             </AlertDescription>
@@ -224,7 +224,7 @@ export default function UtilisateursListPage() {
 
         {erreur && (
           <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
             <AlertDescription>{erreur}</AlertDescription>
           </Alert>
         )}
@@ -251,11 +251,27 @@ export default function UtilisateursListPage() {
             const motifRoleDesactive = raisonRoleDesactive(utilisateur, user, nombreAdminsActifs);
             const enCours = enCoursId === utilisateur.id;
 
+            // Sprint D.4 -- les trois garde-fous ADMIN etaient expliques par un
+            // `title` pose sur le <span> entourant le controle desactive. Un
+            // controle desactive n'est pas focalisable : le motif etait donc
+            // inatteignable au clavier, et le <span> ne fait pas partie du nom
+            // accessible du controle qu'il entoure. Resultat, l'ADMIN voyait un
+            // bouton grise sans jamais savoir pourquoi. Le motif est desormais
+            // dans le nom accessible du controle lui-meme ; le `title` reste
+            // pour l'infobulle a la souris.
+            const idMotifRole = `motif-role-${utilisateur.id}`;
+            const idMotifStatut = `motif-statut-${utilisateur.id}`;
+
             return (
               <div className="flex items-center gap-2">
                 <span title={motifRoleDesactive ?? undefined}>
                   <Select
-                    aria-label={`Changer le rôle de ${utilisateur.nomPrenoms}`}
+                    aria-label={
+                      motifRoleDesactive
+                        ? `Changer le rôle de ${utilisateur.nomPrenoms} — indisponible : ${motifRoleDesactive}`
+                        : `Changer le rôle de ${utilisateur.nomPrenoms}`
+                    }
+                    aria-describedby={motifRoleDesactive ? idMotifRole : undefined}
                     className="h-8 w-32 py-1 text-xs"
                     value={utilisateur.role}
                     disabled={Boolean(motifRoleDesactive) || enCours}
@@ -267,6 +283,11 @@ export default function UtilisateursListPage() {
                       </option>
                     ))}
                   </Select>
+                  {motifRoleDesactive && (
+                    <span id={idMotifRole} className="sr-only">
+                      {motifRoleDesactive}
+                    </span>
+                  )}
                 </span>
 
                 <span title={motifStatutDesactive ?? undefined}>
@@ -274,10 +295,21 @@ export default function UtilisateursListPage() {
                     variant={utilisateur.actif ? 'destructive' : 'outline'}
                     size="sm"
                     disabled={Boolean(motifStatutDesactive) || enCours}
+                    aria-label={
+                      motifStatutDesactive
+                        ? `${utilisateur.actif ? 'Désactiver' : 'Activer'} ${utilisateur.nomPrenoms} — indisponible : ${motifStatutDesactive}`
+                        : `${utilisateur.actif ? 'Désactiver' : 'Activer'} ${utilisateur.nomPrenoms}`
+                    }
+                    aria-describedby={motifStatutDesactive ? idMotifStatut : undefined}
                     onClick={() => changerStatut(utilisateur)}
                   >
                     {enCours ? '…' : utilisateur.actif ? 'Désactiver' : 'Activer'}
                   </Button>
+                  {motifStatutDesactive && (
+                    <span id={idMotifStatut} className="sr-only">
+                      {motifStatutDesactive}
+                    </span>
+                  )}
                 </span>
               </div>
             );

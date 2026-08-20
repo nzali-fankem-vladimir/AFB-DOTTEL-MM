@@ -24,7 +24,7 @@ L'effort High sur l'étape 3 se justifie : **la police est le choix le plus visi
 ## 0. Nouvelle session : rappel Graphify
 
 ```
-/graphify . --update
+py -3.14 -m graphify update .
 ```
 
 ---

@@ -18,7 +18,12 @@ export function DataTable({
 
   return (
     <div className="overflow-hidden rounded-lg border border-neutral-200 bg-white">
-      <div className="overflow-x-auto">
+      {/* Sprint D.4 -- aria-busy pendant le chargement : les cinq lignes de
+          squelette sont un signal purement visuel. Sans lui, un lecteur
+          d'ecran annoncait un tableau de cinq lignes vides comme s'il etait
+          charge. La zone est polie (pas d'interruption) et annonce le
+          resultat une fois les donnees arrivees. */}
+      <div className="overflow-x-auto" aria-busy={chargement} aria-live="polite">
         <table className="w-full text-left text-sm">
           <thead className="bg-neutral-100 text-xs uppercase text-neutral-700">
             <tr>
@@ -55,7 +60,7 @@ export function DataTable({
               <tr>
                 <td
                   colSpan={colonnes.length + (actions ? 1 : 0)}
-                  className="px-4 py-8 text-center text-neutral-500"
+                  className="px-4 py-8 text-center text-neutral-600"
                 >
                   {messageVide}
                 </td>
@@ -78,8 +83,15 @@ export function DataTable({
                       : undefined
                   }
                   tabIndex={onLigneClick ? 0 : undefined}
+                  // Sprint D.4 -- une <tr> focalisable qui reagit a Entree est
+                  // un bouton pour l'utilisateur au clavier, mais reste une
+                  // simple ligne pour le lecteur d'ecran, qui n'annonce donc
+                  // aucune action possible. `role="button"` le dit. La ligne
+                  // conserve sa semantique de rangee : le tableau reste lisible
+                  // en mode navigation par tableau.
+                  role={onLigneClick ? 'button' : undefined}
                   className={cn(
-                    'transition-colors hover:bg-neutral-100',
+                    'transition-colors motion-reduce:transition-none hover:bg-neutral-100',
                     onLigneClick &&
                       'cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500'
                   )}
@@ -101,7 +113,7 @@ export function DataTable({
       </div>
 
       {pagination && (
-        <div className="flex items-center justify-between border-t border-neutral-200 px-4 py-3 text-sm text-neutral-500">
+        <div className="flex items-center justify-between border-t border-neutral-200 px-4 py-3 text-sm text-neutral-600">
           <span>{pagination.total} résultat{pagination.total > 1 ? 's' : ''}</span>
           <div className="flex items-center gap-3">
             <button
@@ -109,9 +121,9 @@ export function DataTable({
               onClick={() => pagination.onChangerPage(pageActuelle - 1)}
               disabled={pageActuelle <= 0}
               aria-label="Page précédente"
-              className="rounded p-1.5 text-neutral-500 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:pointer-events-none disabled:opacity-40"
+              className="rounded p-1.5 text-neutral-600 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:pointer-events-none disabled:opacity-40"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             </button>
             <span>
               Page {pageActuelle + 1} sur {totalPages}
@@ -121,9 +133,9 @@ export function DataTable({
               onClick={() => pagination.onChangerPage(pageActuelle + 1)}
               disabled={pageActuelle + 1 >= totalPages}
               aria-label="Page suivante"
-              className="rounded p-1.5 text-neutral-500 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:pointer-events-none disabled:opacity-40"
+              className="rounded p-1.5 text-neutral-600 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 disabled:pointer-events-none disabled:opacity-40"
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
         </div>

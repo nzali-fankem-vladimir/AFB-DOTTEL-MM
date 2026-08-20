@@ -65,12 +65,12 @@ const colonnesLignes = [
     rendu: (ligne) =>
       ligne.inclusDansEtat ? (
         <Badge variant="success">
-          <Check className="mr-1 h-3 w-3" />
+          <Check className="mr-1 h-3 w-3" aria-hidden="true" />
           Inclus
         </Badge>
       ) : (
         <Badge variant="neutral">
-          <X className="mr-1 h-3 w-3" />
+          <X className="mr-1 h-3 w-3" aria-hidden="true" />
           Exclu
         </Badge>
       ),
@@ -116,7 +116,7 @@ function TimelineWorkflow({ statut }) {
                     'border-primary-500 bg-primary-500 text-white ring-2 ring-primary-200 ring-offset-2',
                   enAlerte &&
                     'border-primary-700 bg-primary-50 text-primary-700 ring-2 ring-primary-200 ring-offset-2',
-                  !franchie && !courante && 'border-neutral-300 bg-white text-neutral-400'
+                  !franchie && !courante && 'border-neutral-500 bg-white text-neutral-600'
                 )}
               >
                 {franchie && <Check className="h-4 w-4" aria-hidden="true" />}
@@ -126,7 +126,7 @@ function TimelineWorkflow({ statut }) {
               <span
                 className={cn(
                   'text-xs font-medium',
-                  (franchie || courante) ? 'text-neutral-900' : 'text-neutral-400'
+                  (franchie || courante) ? 'text-neutral-900' : 'text-neutral-600'
                 )}
               >
                 {etape.libelle}
@@ -343,7 +343,7 @@ export default function ProcessusDetailPage() {
         <PageHeader surTitre="Workflow" titre="Processus mensuel" />
         <div className="flex flex-col gap-6 p-8">
           <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
             <AlertDescription>
               Impossible de charger ce processus mensuel. Vérifiez votre connexion, puis réessayez.
             </AlertDescription>
@@ -388,7 +388,7 @@ export default function ProcessusDetailPage() {
 
             {erreurValidation && (
               <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
+                <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                 <AlertDescription>{erreurValidation}</AlertDescription>
               </Alert>
             )}
@@ -399,7 +399,7 @@ export default function ProcessusDetailPage() {
                 a confirme. */}
             {recapitulatifApplique && (
               <Alert variant="warning">
-                <AlertTriangle className="h-4 w-4" />
+                <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                 <AlertDescription>
                   <p className="mb-3 font-medium">
                     Les montants ont été mis à jour sur la grille tarifaire en vigueur avant validation.
@@ -411,7 +411,7 @@ export default function ProcessusDetailPage() {
 
             {estRetourne && peutValider && (
               <Alert variant="warning">
-                <AlertTriangle className="h-4 w-4" />
+                <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                 <AlertDescription>
                   Ce processus a été retourné (étape {processus.origineRetour ?? 'CRH/DRH'}). Consultez le motif
                   avant de corriger et revalider.
@@ -423,19 +423,19 @@ export default function ProcessusDetailPage() {
               <div className="flex flex-wrap items-center justify-end gap-3">
                 {peutTelecharger && (
                   <Button variant="outline" onClick={telechargerPdf} isLoading={telechargementEnCours}>
-                    {!telechargementEnCours && <Download className="h-4 w-4" />}
+                    {!telechargementEnCours && <Download className="h-4 w-4" aria-hidden="true" />}
                     {telechargementEnCours ? 'Téléchargement…' : "Télécharger l'état (PDF)"}
                   </Button>
                 )}
                 {peutAjuster && (
                   <Button variant="outline" onClick={() => setAjustementOuvert(true)}>
-                    <SlidersHorizontal className="h-4 w-4" />
+                    <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
                     Ajuster les lignes
                   </Button>
                 )}
                 {estRetourne && processus.motifRetour && (
                   <Button variant="outline" onClick={() => setMotifRetourOuvert(true)}>
-                    <MessageSquareWarning className="h-4 w-4" />
+                    <MessageSquareWarning className="h-4 w-4" aria-hidden="true" />
                     Voir le motif de retour
                   </Button>
                 )}
@@ -452,13 +452,13 @@ export default function ProcessusDetailPage() {
                 )}
                 {peutRetourner && (
                   <Button variant="outline" onClick={() => setRetourOuvert(true)}>
-                    <Undo2 className="h-4 w-4" />
+                    <Undo2 className="h-4 w-4" aria-hidden="true" />
                     Retourner
                   </Button>
                 )}
                 {peutValider && (
                   <Button onClick={demanderValidation} isLoading={validationEnCours}>
-                    {!validationEnCours && <Check className="h-4 w-4" />}
+                    {!validationEnCours && <Check className="h-4 w-4" aria-hidden="true" />}
                     {validationEnCours ? 'Validation en cours…' : 'Valider'}
                   </Button>
                 )}
@@ -467,10 +467,16 @@ export default function ProcessusDetailPage() {
           </CardContent>
         </Card>
 
+        {/* Sprint D.4 -- dernier tableau du projet a retomber sur le message
+            generique "Aucun resultat.". Un etat mensuel sans ligne est un cas
+            metier reel (aucun beneficiaire actif au declenchement), pas un
+            filtre trop restrictif : le message le dit et oriente vers la
+            cause, comme les huit autres listes depuis D.3. */}
         <DataTable
           colonnes={colonnesLignes}
           donnees={processus.lignesEtatMensuel ?? []}
           cleLigne={(ligne) => ligne.idBeneficiaire}
+          messageVide="Aucune ligne dans cet état mensuel : aucun bénéficiaire actif n’était éligible au moment du déclenchement."
         />
       </div>
 

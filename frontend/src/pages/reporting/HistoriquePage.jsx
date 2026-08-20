@@ -112,7 +112,7 @@ export default function HistoriquePage() {
       <div className="flex flex-col gap-6 p-8">
         {erreurChargement && (
           <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
             <AlertDescription>
               Impossible de charger l'historique. Vérifiez votre connexion, puis réessayez.
             </AlertDescription>
@@ -133,7 +133,7 @@ export default function HistoriquePage() {
           </div>
 
           <Button variant="outline" onClick={exporter} isLoading={exportEnCours}>
-            {!exportEnCours && <Download className="h-4 w-4" />}
+            {!exportEnCours && <Download className="h-4 w-4" aria-hidden="true" />}
             {exportEnCours ? 'Export en cours…' : 'Exporter (Excel)'}
           </Button>
         </div>

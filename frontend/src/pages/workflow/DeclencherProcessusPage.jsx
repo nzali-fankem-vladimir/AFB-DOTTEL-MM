@@ -140,7 +140,7 @@ export default function DeclencherProcessusPage() {
               Période à traiter
               {modeRattrapage && (
                 <Badge variant="warning">
-                  <RotateCcw className="mr-1 h-3 w-3" />
+                  <RotateCcw className="mr-1 h-3 w-3" aria-hidden="true" />
                   Mode rattrapage
                 </Badge>
               )}
@@ -150,14 +150,14 @@ export default function DeclencherProcessusPage() {
             <CardContent className="flex flex-col gap-4">
               {erreur && (
                 <Alert variant="destructive">
-                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                   <AlertDescription>{erreur}</AlertDescription>
                 </Alert>
               )}
 
               {modeRattrapage && (
                 <Alert variant="warning">
-                  <RotateCcw className="h-4 w-4" />
+                  <RotateCcw className="h-4 w-4" aria-hidden="true" />
                   <AlertDescription>
                     Cette période a déjà été traitée. Le déclenchement se fera en{' '}
                     <strong>mode rattrapage</strong> : seuls les bénéficiaires non payés seront
@@ -215,7 +215,7 @@ export default function DeclencherProcessusPage() {
               {/* Le bouton etait grise pendant la verification sans que rien
                   n'explique pourquoi. */}
               {verificationRattrapageEnCours && !enCours && (
-                <span className="text-xs text-neutral-500">Vérification de la période…</span>
+                <span className="text-xs text-neutral-600">Vérification de la période…</span>
               )}
             </CardFooter>
           </form>
@@ -225,7 +225,7 @@ export default function DeclencherProcessusPage() {
           <Card className="max-w-lg">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-emerald-700">
-                <CheckCircle2 className="h-5 w-5" />
+                <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
                 {resultat.rattrapage ? 'Rattrapage déclenché' : 'Processus déclenché'}
               </CardTitle>
             </CardHeader>
@@ -239,7 +239,7 @@ export default function DeclencherProcessusPage() {
 
               {resultat.beneficiairesExclus?.length > 0 && (
                 <Alert variant="warning">
-                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                   <AlertDescription>
                     <p className="mb-2 font-medium">
                       {resultat.beneficiairesExclus.length} bénéficiaire

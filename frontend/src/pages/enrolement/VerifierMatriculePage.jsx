@@ -66,7 +66,7 @@ export default function VerifierMatriculePage() {
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4" noValidate>
               {erreur && (
                 <Alert variant="destructive">
-                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                   <AlertDescription>{erreur}</AlertDescription>
                 </Alert>
               )}
@@ -105,7 +105,7 @@ export default function VerifierMatriculePage() {
                      un employe non eligible n'a rien fait de mal, il a besoin
                      de comprendre, pas d'un constat. */
                   <Alert variant="warning">
-                    <Info className="h-4 w-4" />
+                    <Info className="h-4 w-4" aria-hidden="true" />
                     <AlertDescription>
                       <p className="font-medium">
                         Vous n'êtes pas éligible à la dotation téléphonique mensuelle.

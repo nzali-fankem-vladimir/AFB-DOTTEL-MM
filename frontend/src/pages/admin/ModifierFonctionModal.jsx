@@ -52,12 +52,12 @@ export function ModifierFonctionModal({ fonction, onFerme, onSucces }) {
       aria-modal="true"
       aria-labelledby={titreId}
       tabIndex={-1}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center overscroll-contain bg-black/40 p-4"
       onClick={(event) => {
         if (event.target === event.currentTarget && !enCours) onFerme?.();
       }}
     >
-      <Card className="w-full max-w-md">
+      <Card className="max-h-[calc(100vh-2rem)] w-full max-w-md overflow-y-auto">
         <CardHeader>
           <CardTitle id={titreId}>Modifier — {fonction.libelle}</CardTitle>
         </CardHeader>
@@ -67,7 +67,7 @@ export function ModifierFonctionModal({ fonction, onFerme, onSucces }) {
           <CardContent className="flex flex-col gap-4">
             {erreur && (
               <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
+                <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                 <AlertDescription>{erreur}</AlertDescription>
               </Alert>
             )}
@@ -84,7 +84,7 @@ export function ModifierFonctionModal({ fonction, onFerme, onSucces }) {
                 required
               />
               {!codeModifiable && (
-                <p className="text-xs text-neutral-500">
+                <p className="text-xs text-neutral-600">
                   Code verrouillé : {fonction.nombreBeneficiairesActifs} bénéficiaire(s) actif(s) rattaché(s).
                 </p>
               )}

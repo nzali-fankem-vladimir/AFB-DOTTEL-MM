@@ -24,7 +24,7 @@ L'effort High sur les étapes 5-6 se justifie : **c'est le seul moment du chanti
 ## 0. Nouvelle session : rappel Graphify
 
 ```
-/graphify . --update
+py -3.14 -m graphify update .
 ```
 
 ---

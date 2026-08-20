@@ -286,14 +286,14 @@ export default function Beneficiaires() {
           </div>
 
           <Button variant="outline" onClick={exporter} isLoading={exportEnCours}>
-            {!exportEnCours && <Download className="h-4 w-4" />}
+            {!exportEnCours && <Download className="h-4 w-4" aria-hidden="true" />}
             {exportEnCours ? 'Export en cours…' : 'Exporter (Excel)'}
           </Button>
         </div>
 
         {erreurChargement && (
           <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
             <AlertDescription>
               Impossible de charger les bénéficiaires. Vérifiez votre connexion, puis réessayez.
             </AlertDescription>
@@ -302,7 +302,7 @@ export default function Beneficiaires() {
 
         {erreurReactivation && (
           <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
             <AlertDescription>{erreurReactivation}</AlertDescription>
           </Alert>
         )}
