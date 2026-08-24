@@ -55,7 +55,8 @@ Déploiement : microservice conteneurisé sur Kubernetes (voir section 14).
 ## 3. STRUCTURE DES PACKAGES JAVA
 
 Depuis le chantier monolithe modulaire (MM.0 à MM.6), le backend n'est plus
-organisé en couches techniques mais en **6 modules métier**, chacun garant
+organisé en couches techniques mais en **7 modules métier** (le module
+notifications a été extrait du reste au Sprint MM.13), chacun garant
 de son propre découpage interne, plus 2 packages transverses. Un module ne
 doit jamais accéder au repository ou à l'entité d'un autre module — voir la
 règle correspondante en section 18.
@@ -78,6 +79,11 @@ com.afriland.dottel/
 │                    agrégée seule (aucune entité/repository en propre)
 ├── audit/           Journalisation événementielle (RG-09), écouteur de
 │                    EvenementAudit — aucun controller (pas d'endpoint)
+├── notifications/   Notification des acteurs à chaque transition de
+│                    workflow (NotificationService, écouteur AFTER_COMMIT
+│                    de EvenementNotification) — extrait au Sprint MM.13
+│                    pour découpler l'envoi de la transaction métier ;
+│                    aucun controller (pas d'endpoint)
 ├── security/        SecurityConfig, GlobalExceptionHandler,
 │                    RoleJwtAuthenticationConverter — transverse, type OPEN
 │                    (JwtUtil supprimé au Sprint MM.7 : plus d'émission
@@ -315,14 +321,19 @@ RG-12 : UNICITÉ DU PROCESSUS MENSUEL NORMAL. Un seul processus mensuel
 
 ---
 
-## 8. CONTRATS API : 34 ENDPOINTS
+## 8. CONTRATS API : 42 ENDPOINTS
+
+Décompte vérifié par grep des annotations @GetMapping/@PostMapping/
+@PatchMapping/@DeleteMapping sur tous les contrôleurs (Sprint 7.3 adapté
+MM) — pas recopié d'une version antérieure de ce document.
 
 Base URL : /api
-Auth : header Authorization Bearer token sur tous les endpoints
-sauf /auth/login qui est public.
+Auth : header Authorization Bearer token (jeton Keycloak) sur tous les
+endpoints, sans exception. POST /auth/login n'existe plus depuis le
+Sprint MM.7 (Keycloak est l'unique émetteur, voir section 13) — il n'y a
+donc plus d'endpoint public.
 
 Groupe 1 : Auth
-POST   /auth/login                           public
 POST   /auth/logout                          authentifié
 
 Groupe 2 : Enrôlement
@@ -331,6 +342,9 @@ POST   /enrolement/confirmer                 EMPLOYE
 
 Groupe 3 : Bénéficiaires
 GET    /beneficiaires                        ARH, DRH
+GET    /beneficiaires/unites-rattachement    ARH, DRH (Sprint MM.14, écart E2 : alimente
+                                             le filtre "Unité de rattachement" de l'écran
+                                             Bénéficiaires ouvert à la DRH en lecture seule)
 PATCH  /beneficiaires/{id}                   ARH
 DELETE /beneficiaires/{id}                   ARH
 PATCH  /beneficiaires/{id}/reactiver         ARH
@@ -358,6 +372,9 @@ POST   /processus/{id}/valider               ARH si EN_COURS_ARH
                                              DRH si EN_ATTENTE_DRH
 POST   /processus/{id}/retourner             CRH, DRH
 GET    /processus/{id}/piece-jointe          ARH, CRH, DRH (singulier)
+GET    /processus/{id}/ecarts-montants       ARH (Sprint MM.12 : récapitulatif des écarts
+                                             de montant avant confirmation d'une
+                                             validation qui resynchronise, lecture pure)
 GET    /pieces-jointes/{id}/download         ARH, CRH, DRH
 
 Groupe 7 : Reporting
@@ -365,13 +382,21 @@ GET    /reporting/dashboard                  ARH, DRH
 GET    /reporting/historique                 DRH
 GET    /reporting/historique/export          DRH
 GET    /reporting/audit                      DRH
+GET    /reporting/audit/actions              DRH (Sprint MM.11 : alimente le filtre
+                                             "Action" du journal d'audit)
 
 Groupe 8 : Grilles tarifaires
 GET    /grilles-tarifaires                        ARH, ADMIN
 POST   /grilles-tarifaires                        ARH
 PATCH  /grilles-tarifaires/{id}                   ARH
+GET    /grilles-tarifaires/en-attente-crh         CRH (Sprint MM.12 : pendant strict de
+                                                   /en-attente-drh pour la première étape
+                                                   du workflow à trois acteurs)
 GET    /grilles-tarifaires/en-attente-drh         DRH
-POST   /grilles-tarifaires/{id}/valider           DRH
+POST   /grilles-tarifaires/{id}/valider           CRH si EN_ATTENTE_CRH
+                                                   DRH si EN_ATTENTE_DRH
+                                                   (endpoint unique partagé depuis MM.12,
+                                                   même modèle que POST /processus/{id}/valider)
 GET    /grilles-tarifaires/fonction/{code}        ARH, DRH, ADMIN (historique par fonction)
 POST   /grilles-tarifaires/{id}/desactiver        ARH
 
@@ -503,16 +528,40 @@ fonction_eligible pour gérer les écarts de nomenclature.
 
 ---
 
-## 13. AUTHENTIFICATION KEYCLOAK (simulation en développement)
+## 13. AUTHENTIFICATION KEYCLOAK
 
 Mode retenu : application liée autonome partageant le realm Keycloak.
 Pas de Client Extension Liferay.
 
-En développement : simuler Keycloak avec une instance locale ou avec
-l'authentification locale BCrypt. Respecter OWASP.
+Depuis le Sprint MM.7, Keycloak est l'unique émetteur de jetons pour les
+5 rôles (EMPLOYE compris) : `JwtUtil` et `AuthService` ont été supprimés,
+il n'existe plus de login local ni de simulation JWT. Le flux est une
+redirection Authorization Code + PKCE — l'application ne voit jamais de
+mot de passe, elle reçoit un code qu'elle échange contre un jeton.
+`spring-boot-starter-oauth2-resource-server` valide chaque jeton par
+`issuer-uri`/JWKS, sans clé partagée.
 
-En production : spring-boot-starter-oauth2-resource-server pointant
-vers le realm Keycloak de la banque.
+L'identité applicative (`AuthenticatedUserService`) résout l'utilisateur
+par l'adresse **email** portée par le jeton, pas par le matricule : le
+`sub` Keycloak est un UUID technique sans rapport avec les identifiants
+métier DOTTEL. Le rôle effectif est lu depuis `realm_access.roles`
+(`RoleJwtAuthenticationConverter`) — c'est Keycloak, et lui seul, qui
+détermine ce qu'un utilisateur peut faire ; une modification du champ
+`role` en base via `PATCH /admin/utilisateurs/{id}/role` n'a aucun effet
+tant que le rôle réalm Keycloak de la personne n'est pas changé en
+parallèle (voir `docs/chantier-livraison-mm/7.2_rapport_recette.md`).
+
+En développement : Keycloak **local**, déclaré dans `docker-compose.yml`,
+realm `dottel-dev` importé depuis `keycloak/realm-dottel-dev.json`, 5
+comptes de test (un par rôle). Provisoire par nature — pas une simulation
+qui contourne Keycloak, un vrai serveur Keycloak à portée réduite.
+
+En production : le même mécanisme pointe vers le realm réel de la banque,
+fédéré à l'Active Directory (confirmé au Sprint MM.7 à partir du
+fonctionnement observé sur BAOBAB). Seule la variable
+`DOTTEL_KEYCLOAK_ISSUER_URI` change — aucune valeur de repli codée en dur,
+volontairement, pour qu'un oubli de configuration bloque le démarrage
+plutôt que de retomber silencieusement sur le realm local.
 
 ---
 
@@ -585,6 +634,24 @@ Sprint 5    : Workflow UC05, UC06, UC07, DocumentService.ajouterSignature,
 Sprint 6    : Reporting, tableau de bord, journal d'audit.
 Sprint 6F   : Frontend complet (une série de sessions dédiées).
 Sprint 7    : Tests d'intégration, recette, corrections, README.
+
+Trois chantiers sont venus après ce Sprint 7 initial, sur cette copie
+monolithe modulaire :
+
+- **Chantier monolithe modulaire (MM.0 à MM.14, 2026-07-31 au 2026-08-19)** :
+  fait passer le backend d'une organisation en couches techniques à une
+  organisation en 7 modules métier + 2 transverses (Spring Modulith),
+  remplace la simulation JWT par un Keycloak local réel (MM.7), et solde
+  plusieurs écarts d'audit techniques (MM.14).
+- **Chantier design frontend (D.0 à D.4, 2026-08-18 au 2026-08-20)** :
+  fondations visuelles (langue, police, tokens), composants partagés
+  accessibles, cohérence des écrans par groupe de rôle, audit croisé
+  accessibilité/responsive final.
+- **Sprint 7 adapté (7.1 à 7.3-mm, à partir du 2026-08-24)** : reprend le
+  Sprint 7 initial sur la copie modulaire — tests d'intégration bout en
+  bout avec authentification Keycloak réelle (7.1), recette fonctionnelle
+  des 5 rôles et correctif du backlog technique résiduel (7.2), puis
+  documentation et livraison finale (7.3, ce document).
 
 ---
 
