@@ -10,6 +10,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
 @EnableMethodSecurity
@@ -17,10 +18,13 @@ public class SecurityConfig {
 
     private final RoleJwtAuthenticationConverter roleJwtAuthenticationConverter;
     private final Environment environment;
+    private final CorsConfigurationSource corsConfigurationSource;
 
-    public SecurityConfig(RoleJwtAuthenticationConverter roleJwtAuthenticationConverter, Environment environment) {
+    public SecurityConfig(RoleJwtAuthenticationConverter roleJwtAuthenticationConverter, Environment environment,
+            CorsConfigurationSource corsConfigurationSource) {
         this.roleJwtAuthenticationConverter = roleJwtAuthenticationConverter;
         this.environment = environment;
+        this.corsConfigurationSource = corsConfigurationSource;
     }
 
     @Bean
@@ -32,10 +36,12 @@ public class SecurityConfig {
 
         http
                 .csrf(csrf -> csrf.disable())
-                // Sans cet appel, Spring Security n'a pas connaissance du CorsConfigurationSource
-                // (CorsConfig) et bloque le preflight OPTIONS des endpoints authentifies avant
-                // qu'il n'atteigne le traitement CORS de Spring MVC.
-                .cors(cors -> {})
+                // Bean CorsConfigurationSource explicite (CorsConfig) : sans lui, Spring
+                // Security ne connait aucune configuration CORS (il n'exploite pas le
+                // registre WebMvcConfigurer, qui s'execute plus bas dans la pile) et bloque
+                // le preflight OPTIONS des endpoints authentifies avant meme d'atteindre
+                // Spring MVC.
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> {
                     // Sprint MM.14 : le matcher "/auth/login" est retire -- cet
